@@ -20,7 +20,7 @@ impl Tool for SetDependencies {
         ToolSpec {
             name: "set_dependencies",
             family: Family::Project,
-            description: "Replace this unit's dependencies. Dream owns the manifest and chooses versions. Each entry is a package name plus optional features.",
+            description: "Replace this unit's dependencies in the selected toolchain's manifest. Dream owns the manifest and chooses versions. Each entry is a package name plus optional features.",
             parameters: object_params(
                 &[
                     ("unit", string_arg("Project-relative .foo these packages belong to")),
@@ -60,6 +60,9 @@ impl Tool for SetDependencies {
             ));
         }
         let unit = claim_unit(ctx, arg_str(args, "unit"))?;
+        if ctx.store.is_some_and(|store| store.is_locked(&unit)) {
+            return Err(DreamError::runtime(format!("`{unit}` is locked")));
+        }
         let parsed = project::dependencies(args)?;
         if ctx
             .toolchain
@@ -123,6 +126,37 @@ mod tests {
         let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
         assert!(out.contains("serde") || out.contains("\"count\":1"));
         assert_eq!(dependencies[&unit.rel][0].name, "serde");
+    }
+
+    #[test]
+    fn locked_unit_is_rejected() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let dest = tempfile::tempdir().unwrap();
+        let mut store = Store::new("rust");
+        store.set_artifacts(
+            &unit.rel,
+            std::collections::HashSet::from(["src/main.rs".into()]),
+        );
+        store.set_lock(&unit.rel, "abc".into());
+        let mut artifacts = HashMap::new();
+        let mut dependencies = HashMap::new();
+        let mut ctx = compose_ctx(
+            &project,
+            &mut deps,
+            dest.path(),
+            &store,
+            &mut artifacts,
+            &mut dependencies,
+            false,
+        );
+        ctx.toolchain = Some(Builder::parse("cargo").unwrap());
+        let err = SetDependencies
+            .call(&mut ctx, &args(&unit.rel))
+            .unwrap_err();
+        assert!(err.to_string().contains("locked"));
     }
 
     #[test]

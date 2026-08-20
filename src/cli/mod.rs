@@ -23,6 +23,16 @@ pub enum Command {
         no_warn: bool,
         fresh: bool,
     },
+    Lock {
+        file: PathBuf,
+        target: String,
+        output: PathBuf,
+    },
+    Unlock {
+        file: PathBuf,
+        target: String,
+        output: PathBuf,
+    },
 }
 
 pub fn parse() -> Result<Command, DreamError> {

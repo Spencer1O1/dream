@@ -54,5 +54,15 @@ async fn run() -> Result<(), DreamError> {
             )
             .await
         }
+        Command::Lock {
+            file,
+            target,
+            output,
+        } => composer::lock(&file, &target, &output),
+        Command::Unlock {
+            file,
+            target,
+            output,
+        } => composer::unlock(&file, &target, &output),
     }
 }

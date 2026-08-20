@@ -23,15 +23,15 @@ impl Tool for ReadSourceFile {
         let unit = ctx.project.read_source_file(arg_str(args, "path"))?;
         ctx.deps.record_read(&unit.rel)?;
         if let (Some(dest), Some(store)) = (ctx.dest, ctx.store) {
-            let artifacts = store
+            let (artifacts, locked) = store
                 .units
                 .get(&unit.rel)
-                .map(|state| state.artifacts.clone())
-                .unwrap_or_default();
+                .map(|state| (state.artifacts.clone(), state.locked))
+                .unwrap_or((Vec::new(), false));
             return Ok(json!({
                 "path": unit.rel,
                 "source": unit.source,
-                "locked": false,
+                "locked": locked,
                 "artifacts": crate::composer::provenance::read_artifacts(dest, &artifacts),
             })
             .to_string());
@@ -97,5 +97,34 @@ mod tests {
         assert!(out.contains("print hi"));
         assert!(out.contains("src/main.rs"));
         assert!(out.contains("fn main()"));
+        assert!(out.contains("\"locked\":false"));
+    }
+
+    #[test]
+    fn compose_read_reports_a_lock() {
+        let project_dir = tempfile::tempdir().unwrap();
+        fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let dest = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dest.path().join("src")).unwrap();
+        fs::write(dest.path().join("src/main.rs"), "fn main() {}").unwrap();
+        let mut store = Store::new("rust");
+        store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
+        store.set_lock("main.foo", "abc".into());
+        let mut ctx = ToolCtx {
+            project: &project,
+            deps: &mut deps,
+            dest: Some(dest.path()),
+            store: Some(&store),
+            write: None,
+            builder: None,
+            toolchain: None,
+        };
+        let out = ReadSourceFile
+            .call(&mut ctx, &json!({ "path": "main.foo" }))
+            .unwrap();
+        assert!(out.contains("\"locked\":true"));
+        assert!(out.contains("src/main.rs"));
     }
 }

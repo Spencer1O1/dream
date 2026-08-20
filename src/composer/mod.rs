@@ -41,6 +41,10 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
 
     let (project, unit) = Project::from_entry(opts.entry)?;
     let output = output::resolve_output_dir(project.root(), opts.output)?;
+    let mut state = ComposeState::open(&output, opts.target, opts.fresh)?;
+    if !state.fresh {
+        provenance::check(&state.store, &state.dest, &project)?;
+    }
     let mut deps = DepGraph::new(&unit.rel);
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
     let flags = ActiveFlags::new(opts.strict, opts.no_warn);
@@ -84,7 +88,6 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         no_warn: opts.no_warn,
     };
 
-    let mut state = ComposeState::open(&output, opts.target, opts.fresh)?;
     if let Some(spec) = builder.and_then(crate::builder::Builder::spec) {
         crate::project::init(
             &state.dest,
@@ -103,4 +106,22 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
             .await?;
     }
     Ok(())
+}
+
+pub fn lock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
+    if target.trim().is_empty() {
+        return Err(DreamError::usage("lock requires -t <target>"));
+    }
+    let (project, unit) = Project::from_entry(entry)?;
+    let output = output::resolve_output_dir(project.root(), output)?;
+    provenance::lock(&output, target, &project, &unit.rel)
+}
+
+pub fn unlock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
+    if target.trim().is_empty() {
+        return Err(DreamError::usage("unlock requires -t <target>"));
+    }
+    let (project, unit) = Project::from_entry(entry)?;
+    let output = output::resolve_output_dir(project.root(), output)?;
+    provenance::unlock(&output, target, &unit.rel)
 }

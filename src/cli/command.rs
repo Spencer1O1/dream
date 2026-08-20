@@ -25,6 +25,37 @@ pub(super) fn from_raw(
     }
     match rest.as_slice() {
         [] => Err(DreamError::usage("expected a .foo file")),
+        [verb, tail @ ..] if verb == "lock" || verb == "unlock" => match tail {
+            [] => Err(DreamError::usage("expected a .foo file")),
+            [_] if lucid || strict || build || run || no_warn || fresh => Err(DreamError::usage(
+                "lock and unlock take only -t and -o; do not pass --lucid, --strict, --build, --run, --no-warn, or --fresh",
+            )),
+            [file] => {
+                let Some(target) = target else {
+                    return Err(DreamError::usage(format!("{verb} requires -t <target>")));
+                };
+                let Some(output) = output else {
+                    return Err(DreamError::usage(format!("{verb} requires -o <dir>")));
+                };
+                let file = PathBuf::from(file);
+                if verb == "lock" {
+                    Ok(Command::Lock {
+                        file,
+                        target,
+                        output,
+                    })
+                } else {
+                    Ok(Command::Unlock {
+                        file,
+                        target,
+                        output,
+                    })
+                }
+            }
+            _ => Err(DreamError::usage(
+                "unexpected arguments after the entry file",
+            )),
+        },
         [_, _, ..] => Err(DreamError::usage(
             "unexpected arguments after the entry file",
         )),
@@ -156,5 +187,36 @@ mod tests {
         let cmd =
             parse_args(&["dream", "main.foo", "-t", "rust", "-o", "./out", "--fresh"]).unwrap();
         assert!(matches!(cmd, Command::Compose { fresh: true, .. }));
+    }
+
+    #[test]
+    fn lock_and_unlock_require_target_and_output() {
+        let lock = parse_args(&["dream", "lock", "main.foo", "-t", "rust", "-o", "./out"]).unwrap();
+        assert_eq!(
+            lock,
+            Command::Lock {
+                file: PathBuf::from("main.foo"),
+                target: "rust".into(),
+                output: PathBuf::from("./out"),
+            }
+        );
+        let unlock =
+            parse_args(&["dream", "unlock", "main.foo", "-t", "rust", "-o", "./out"]).unwrap();
+        assert!(matches!(unlock, Command::Unlock { .. }));
+        let err = parse_args(&["dream", "lock", "main.foo", "-t", "rust"]).unwrap_err();
+        assert!(err.to_string().contains("-o"));
+        let err = parse_args(&["dream", "unlock", "main.foo", "-o", "./out"]).unwrap_err();
+        assert!(err.to_string().contains("-t"));
+    }
+
+    #[test]
+    fn lock_rejects_compose_flags() {
+        let err = parse_args(&[
+            "dream", "--fresh", "lock", "main.foo", "-t", "rust", "-o", "./out",
+        ])
+        .unwrap_err();
+        assert!(err.to_string().contains("lock and unlock"));
+        let err = parse_args(&["dream", "--lucid", "lock", "main.foo"]).unwrap_err();
+        assert!(err.to_string().contains("lock and unlock"));
     }
 }

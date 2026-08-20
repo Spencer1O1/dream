@@ -26,6 +26,10 @@ pub struct UnitState {
     pub artifacts: Vec<String>,
     #[serde(default)]
     pub dependencies: Vec<Dependency>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub locked: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_hash: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -110,8 +114,9 @@ impl Store {
         for state in self.units.values_mut() {
             state.artifacts.retain(|artifact| artifact != rel);
         }
-        self.units
-            .retain(|_, state| !state.artifacts.is_empty() || !state.dependencies.is_empty());
+        self.units.retain(|_, state| {
+            !state.artifacts.is_empty() || !state.dependencies.is_empty() || state.locked
+        });
     }
 
     pub fn mark_project(&mut self, rel: &str) {
@@ -141,6 +146,24 @@ impl Store {
             .collect()
     }
 
+    pub fn is_locked(&self, unit: &str) -> bool {
+        self.units.get(unit).is_some_and(|state| state.locked)
+    }
+
+    pub fn set_lock(&mut self, unit: &str, source_hash: String) {
+        if let Some(state) = self.units.get_mut(unit) {
+            state.locked = true;
+            state.source_hash = Some(source_hash);
+        }
+    }
+
+    pub fn clear_lock(&mut self, unit: &str) {
+        if let Some(state) = self.units.get_mut(unit) {
+            state.locked = false;
+            state.source_hash = None;
+        }
+    }
+
     pub fn has_artifacts(&self) -> bool {
         self.units.values().any(|unit| !unit.artifacts.is_empty())
     }
@@ -168,7 +191,10 @@ fn write_unit(
     artifacts: Vec<String>,
     dependencies: Vec<Dependency>,
 ) {
-    if artifacts.is_empty() && dependencies.is_empty() {
+    let existing = store.units.get(unit);
+    let locked = existing.is_some_and(|state| state.locked);
+    let source_hash = existing.and_then(|state| state.source_hash.clone());
+    if artifacts.is_empty() && dependencies.is_empty() && !locked {
         store.units.remove(unit);
     } else {
         store.units.insert(
@@ -176,6 +202,8 @@ fn write_unit(
             UnitState {
                 artifacts,
                 dependencies,
+                locked,
+                source_hash,
             },
         );
     }
@@ -245,6 +273,20 @@ mod tests {
         );
         store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
         assert_eq!(store.units["main.foo"].dependencies[0].name, "serde");
+    }
+
+    #[test]
+    fn set_artifacts_keeps_a_lock() {
+        let mut store = Store::new("rust");
+        store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
+        store.set_lock("main.foo", "abc".into());
+        store.set_artifacts("main.foo", HashSet::from(["src/lib.rs".into()]));
+        assert!(store.is_locked("main.foo"));
+        assert_eq!(store.units["main.foo"].source_hash.as_deref(), Some("abc"));
+        store.set_artifacts("main.foo", HashSet::new());
+        assert!(store.is_locked("main.foo"));
+        store.take_from_units("src/lib.rs");
+        assert!(store.is_locked("main.foo"));
     }
 
     #[test]

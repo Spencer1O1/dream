@@ -36,4 +36,8 @@ dream [--lucid] [--strict] <file.foo>
 dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir>
 dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir> --build
 dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir> --run
+dream lock <file.foo> -t <target> -o <dir>
+dream unlock <file.foo> -t <target> -o <dir>
 ```
+
+Live checks (corpus + lock walkthrough): [docs/try.md](docs/try.md).

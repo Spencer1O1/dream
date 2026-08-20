@@ -41,7 +41,7 @@ pub(super) struct Raw {
     #[arg(long)]
     pub fresh: bool,
 
-    /// Entry .foo file.
+    /// Entry .foo, or `lock`/`unlock` plus a .foo.
     #[arg(required = true)]
     pub rest: Vec<String>,
 }

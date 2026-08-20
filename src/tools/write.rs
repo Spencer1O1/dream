@@ -14,7 +14,7 @@ impl Tool for WriteOutputFile {
         ToolSpec {
             name: "write_output_file",
             family: Family::Composer,
-            description: "Write one source file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists.",
+            description: "Write one source (code) file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists.",
             parameters: object_params(
                 &[
                     ("unit", string_arg("Project-relative .foo that owns this file")),

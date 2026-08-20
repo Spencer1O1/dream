@@ -1,6 +1,6 @@
 # Plan
 
-Progress lives here. Vault `Core Rules.md` is foundational. `--lucid` still matches vault `MVP.md` interpreter behavior. Compose matches vault `Artifact Ownership.md` through Phase 9. Next: Phase 10.
+Progress lives here. Vault `Core Rules.md` is foundational. `--lucid` still matches vault `MVP.md` interpreter behavior. Compose matches vault `Artifact Ownership.md` through Phase 10. Next: skip unchanged unlocked units.
 
 A Dream project is the directory around the entry `.foo`. The model lists and reads other units. There is no manifest and no all-files CLI.
 
@@ -138,19 +138,20 @@ Dream owns manifests. One tool: `set_dependencies(unit, …)` — package names 
 Needs Phase 8. Phase 9 preferred so locked units do not imply frozen stale manifests.
 
 ```bash
-dream lock <file.foo> -t <target>
+dream lock <file.foo> -t <target> -o <dir>
+dream unlock <file.foo> -t <target> -o <dir>
 ```
 
-Freezes that unit’s current artifact set and contents for that target. Normal `dream` skips those artifacts. No `redream` command. Unlock, then `dream`, to recompose. `--fresh` ignores locks.
+Freezes that unit’s current artifact **set** and the `.foo` source hash for that dest. Contents stay on disk; Dream does not snapshot file bodies. Writes, removes, and `set_dependencies` for a locked unit are rejected. Unreached locked units stay. No `redream` command. Unlock, then `dream`, to recompose. `--fresh` ignores locks.
 
 Inspect is later if needed.
 
-- [ ] Lock / unlock a unit for a target (store source hash)
-- [ ] Normal reconcile skips locked units
-- [ ] Compose `read_source_file` of a locked unit returns foocode plus frozen artifacts
-- [ ] `--lucid` reads stay `{ path, source }` only
-- [ ] Locked source hash mismatch or missing artifact → error
-- [ ] Hand-edited locked artifacts stay; Composer still will not write them
+- [x] Lock / unlock a unit for a target (store source hash)
+- [x] Normal reconcile skips locked units
+- [x] Compose `read_source_file` of a locked unit returns foocode plus frozen artifacts
+- [x] `--lucid` reads stay `{ path, source }` only
+- [x] Locked source hash mismatch or missing artifact → error
+- [x] Hand-edited locked artifacts stay; Composer still will not write them
 
 ## Later
 

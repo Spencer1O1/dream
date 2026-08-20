@@ -18,7 +18,9 @@ pub fn authorize_write(
             "cannot write Dream-owned project metadata",
         ));
     }
-    match owner_including_job(store, rel, unit, this_job) {
+    let owner = owner_including_job(store, rel, unit, this_job);
+    reject_if_locked(store, unit, &owner, fresh)?;
+    match owner {
         Owner::Project => Err(DreamError::runtime(format!(
             "cannot write `{rel}`; Dream owns the manifest. Use set_dependencies."
         ))),
@@ -53,7 +55,9 @@ pub fn authorize_remove(
             "cannot remove Dream-owned project metadata",
         ));
     }
-    match owner_including_job(store, rel, unit, this_job) {
+    let owner = owner_including_job(store, rel, unit, this_job);
+    reject_if_locked(store, unit, &owner, false)?;
+    match owner {
         Owner::Unit(owner) if unit == Some(owner.as_str()) => Ok(()),
         Owner::Unit(owner) => Err(DreamError::runtime(format!(
             "output `{rel}` is owned by `{owner}`"
@@ -63,6 +67,28 @@ pub fn authorize_remove(
         ))),
         Owner::Unmanaged => Err(DreamError::runtime(format!("output `{rel}` is user-owned"))),
     }
+}
+
+fn reject_if_locked(
+    store: &Store,
+    unit: Option<&str>,
+    owner: &Owner,
+    fresh: bool,
+) -> Result<(), DreamError> {
+    if fresh {
+        return Ok(());
+    }
+    if let Some(unit) = unit {
+        if store.is_locked(unit) {
+            return Err(DreamError::runtime(format!("`{unit}` is locked")));
+        }
+    }
+    if let Owner::Unit(owner) = owner {
+        if store.is_locked(owner) {
+            return Err(DreamError::runtime(format!("`{owner}` is locked")));
+        }
+    }
+    Ok(())
 }
 
 fn owner_including_job(
@@ -158,5 +184,29 @@ mod tests {
             authorize_write(&store, dest.path(), "src/new.rs", None, false, None).unwrap_err();
         assert!(repair_new.to_string().contains("repair cannot create"));
         authorize_write(&store, dest.path(), "src/main.rs", None, false, None).unwrap();
+
+        store.set_lock("main.foo", "abc".into());
+        let locked = authorize_write(
+            &store,
+            dest.path(),
+            "src/main.rs",
+            Some("main.foo"),
+            false,
+            None,
+        )
+        .unwrap_err();
+        assert!(locked.to_string().contains("`main.foo` is locked"));
+        let repair_locked =
+            authorize_write(&store, dest.path(), "src/main.rs", None, false, None).unwrap_err();
+        assert!(repair_locked.to_string().contains("`main.foo` is locked"));
+        authorize_write(
+            &store,
+            dest.path(),
+            "src/main.rs",
+            Some("main.foo"),
+            true,
+            None,
+        )
+        .unwrap();
     }
 }
