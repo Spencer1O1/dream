@@ -1,6 +1,6 @@
 # Plan
 
-Progress lives here. Vault `Core Rules.md` is foundational. `--lucid` still matches vault `MVP.md` interpreter behavior. Compose matches vault `Artifact Ownership.md` through Phase 10. Next: skip unchanged unlocked units.
+Progress lives here. Vault `Core Rules.md` is foundational. `--lucid` still matches vault `MVP.md` interpreter behavior. Compose matches vault `Artifact Ownership.md` through Phase 10. Next: skip unchanged unlocked units. Audit punch list: [audit.md](audit.md).
 
 A Dream project is the directory around the entry `.foo`. The model lists and reads other units. There is no manifest and no all-files CLI.
 

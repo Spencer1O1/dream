@@ -1,0 +1,38 @@
+# Audit
+
+Auditor pass. Verdict was **fix-first**. Check off as we go.
+
+Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as-flags were judged sound. Do not grow a new subsystem while working these.
+
+## Must-fix
+
+- [ ] **DepGraph cycle** — Stop treating last-read as the composer. A re-read of the entry must not abort. Record reads as a set for `may_own`. (`src/source/graph.rs`)
+
+## Architecture
+
+- [ ] **tools ↔ composer cycle** — Lift provenance / dest I/O. Replace the `ToolCtx` option bag with a narrow ctx per family.
+- [ ] **One authorize** — Every unit-scoped mutation (write / remove / `set_dependencies`) goes through one authorize. Drop the dead `--fresh` lock bypass.
+- [ ] **write / remove duplication** — One output-mutation helper. Repair: drop the required unused `unit`, or stop requiring it.
+- [ ] **Pick Session** — Do not construct a composer `Session` for pick. Pick owns the builder registry.
+- [ ] **reserved / staging** — One `reserved()` for `.dream`. Rename `files.rs` `staging` params to `dest`.
+- [ ] **Source list skip** — Stop silently skipping `target/` and `.*`, or document it as an explicit source-root rule.
+
+## Prompting
+
+- [x] **Parallel catalog sentence** — Keep the batch instruction. Dropped “Anything else is invalid.” Sequential still works. The listed tools are the interface.
+- [ ] **Lucid tool text** — Mode-specific list/read descriptions. `--lucid` must not hear about compose locks. Describe the tool, not heuristics.
+- [ ] **Flags on the wrong turn** — `--no-warn` out of prompts (the build step already implements it). `--strict` only on turns that have `dream_error`.
+- [ ] **Write/remove description** — Dest-relative file owned by that `.foo`, not “source (code) file” only.
+- [ ] **Warning tool name** — Decide: keep `set_dependencies` in the project-owned warning, or say “use the project dependency tool.”
+
+## Taxonomy
+
+- [ ] **Lock-staleness error type** — Same condition is Usage on `dream lock` and Runtime on compose `check`. Pick one and use it consistently.
+- [ ] **Missing remove** — Missing / non-file remove is a tool warning, not a process error. Keep escape / I/O as `DreamError`.
+- [ ] **dream_error name** — Keep `dream_error` ⇒ `InterpreterError` if that is the rule. Do not use `InterpreterError` for the compose turn cap.
+
+## Leftovers
+
+- [ ] **plan.md Phase 3–7** — Mark replace-`-o` / builder-last as historical. Phase 8 is the contract break.
+- [ ] **tempfile** — Move `tempfile` from `[dependencies]` to `[dev-dependencies]`.
+- [ ] **Go features twice** — One check at the tool. `apply` stays internal / assert, not a second process error.

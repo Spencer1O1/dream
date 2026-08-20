@@ -16,7 +16,7 @@ impl Registry {
     pub fn prompt_catalog(&self) -> String {
         let mut out = self.tool_list();
         out.push_str(
-            "These tools are the entire interface. Must use multiple tool calls in one turn for the next contiguous calls that can run without waiting on a result. Anything else is invalid.\n",
+            "These tools are the entire interface. Must use multiple tool calls in one turn for the next contiguous calls that can run without waiting on a result.\n",
         );
         out
     }
