@@ -1,9 +1,12 @@
+mod dispatch;
 pub(crate) mod output;
 mod pick;
 mod progress;
 mod prompt;
+pub(crate) mod provenance;
 mod repair;
 mod session;
+mod state;
 
 use std::path::Path;
 
@@ -18,6 +21,7 @@ use crate::source::Project;
 use crate::tools::Registry;
 
 use session::Session;
+use state::ComposeState;
 
 pub struct RunOpts<'a> {
     pub entry: &'a Path,
@@ -27,6 +31,7 @@ pub struct RunOpts<'a> {
     pub no_warn: bool,
     pub build: bool,
     pub run_program: bool,
+    pub fresh: bool,
 }
 
 pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
@@ -36,7 +41,6 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
 
     let (project, unit) = Project::from_entry(opts.entry)?;
     let output = output::resolve_output_dir(project.root(), opts.output)?;
-    let staging = tempfile::tempdir()?;
     let mut deps = DepGraph::new(&unit.rel);
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
     let registry = Registry::composer();
@@ -52,28 +56,25 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         )
     })];
 
-    let mut session = Session {
+    let session = Session {
         openai: &openai,
         registry: &registry,
         instructions: &instructions,
         schemas: &schemas,
         project: &project,
-        deps: &mut deps,
-        input: &mut input,
         flags: &flags,
         turn_cap: config.turn_cap,
         repair_cap: config.repair_cap,
         no_warn: opts.no_warn,
     };
 
-    let builder = session.ask_builder().await?;
-    session.write_until_settled(staging.path()).await?;
-    output::require_files(staging.path())?;
-    output::replace_output(&output, staging.path())?;
-    let _ = staging.keep();
+    let builder = session.ask_builder(&mut deps, &mut input).await?;
+    let mut state = ComposeState::open(&output, opts.target, opts.fresh)?;
+    state.compose(&session, &mut deps, &mut input).await?;
+    provenance::require_composed(&state.store)?;
     if opts.build || opts.run_program {
         session
-            .build_and_repair(builder, &output, opts.run_program)
+            .build_and_repair(builder, &mut state, &mut input, &mut deps, opts.run_program)
             .await?;
     }
     Ok(())

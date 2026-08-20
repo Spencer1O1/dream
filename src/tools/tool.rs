@@ -1,9 +1,11 @@
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 use std::path::Path;
 
 use serde_json::{json, Value};
 
 use crate::builder::Builder;
+use crate::composer::provenance::Store;
 use crate::error::DreamError;
 use crate::source::{DepGraph, Project};
 
@@ -50,10 +52,20 @@ impl ToolSpec {
     }
 }
 
+pub enum WriteSlot<'a> {
+    Compose {
+        artifacts: &'a mut HashMap<String, HashSet<String>>,
+        fresh: bool,
+    },
+    Repair,
+}
+
 pub struct ToolCtx<'a> {
     pub project: &'a Project,
     pub deps: &'a mut DepGraph,
-    pub staging: Option<&'a Path>,
+    pub dest: Option<&'a Path>,
+    pub store: Option<&'a Store>,
+    pub write: Option<WriteSlot<'a>>,
     pub builder: Option<&'a mut Option<Builder>>,
 }
 

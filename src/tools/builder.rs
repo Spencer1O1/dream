@@ -56,7 +56,9 @@ mod tests {
         ToolCtx {
             project,
             deps,
-            staging: None,
+            dest: None,
+            store: None,
+            write: None,
             builder: Some(builder),
         }
     }

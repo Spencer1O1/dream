@@ -1,34 +1,38 @@
-use std::path::Path;
-
 use serde_json::json;
 
 use crate::builder::{Builder, Outcome};
 use crate::error::DreamError;
+use crate::source::DepGraph;
 
-use super::output;
 use super::progress;
+use super::provenance;
 use super::session::Session;
+use super::state::ComposeState;
 
 impl Session<'_> {
     pub async fn build_and_repair(
-        &mut self,
+        &self,
         builder: Option<Builder>,
-        output_dir: &Path,
+        state: &mut ComposeState,
+        input: &mut Vec<serde_json::Value>,
+        deps: &mut DepGraph,
         run_program: bool,
     ) -> Result<(), DreamError> {
         for attempt in 0..=self.repair_cap {
-            match crate::builder::after_compose(builder, output_dir, run_program, self.no_warn)? {
+            match crate::builder::after_compose(builder, &state.dest, run_program, self.no_warn)? {
                 Outcome::Ok => return Ok(()),
                 Outcome::Failed { step, diagnostics }
                     if should_repair(attempt, step, self.repair_cap) =>
                 {
                     progress::repair();
-                    self.input.push(json!({
+                    input.push(json!({
                         "role": "user",
                         "content": repair_message(&diagnostics),
                     }));
-                    self.write_until_settled(output_dir).await?;
-                    output::require_files(output_dir)?;
+                    let mut artifacts = std::collections::HashMap::new();
+                    self.write_until_settled(state, deps, input, &mut artifacts, true)
+                        .await?;
+                    provenance::require_composed(&state.store)?;
                 }
                 outcome => return outcome.into_error(),
             }

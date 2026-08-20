@@ -26,7 +26,11 @@ pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
 }
 
 pub fn builder(registry: &Registry, flags: &ActiveFlags) -> String {
-    registry.instructions(BUILDER_PREAMBLE, flags)
+    let tools = registry.tool_list();
+    match flags.prompt_catalog() {
+        Some(catalog) => format!("{BUILDER_PREAMBLE}\n\n{tools}\n{catalog}"),
+        None => format!("{BUILDER_PREAMBLE}\n\n{tools}"),
+    }
 }
 
 #[cfg(test)]
@@ -64,5 +68,7 @@ mod tests {
         assert!(!instructions.contains("just wrote"));
         assert!(instructions.contains("set_builder"));
         assert!(!instructions.contains("write_output_file"));
+        assert!(!instructions.contains("dream_error"));
+        assert!(!instructions.contains("entire interface"));
     }
 }

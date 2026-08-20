@@ -30,30 +30,6 @@ pub fn remove_file(staging: &Path, path: &str) -> Result<String, DreamError> {
     rel_output(staging, &dest)
 }
 
-pub fn tree_has_files(dir: &Path) -> Result<bool, DreamError> {
-    if !dir.exists() {
-        return Ok(false);
-    }
-    for entry in fs::read_dir(dir)? {
-        let path = entry?.path();
-        if path.is_dir() {
-            if tree_has_files(&path)? {
-                return Ok(true);
-            }
-        } else {
-            return Ok(true);
-        }
-    }
-    Ok(false)
-}
-
-pub fn require_files(dir: &Path) -> Result<(), DreamError> {
-    if !tree_has_files(dir)? {
-        return Err(DreamError::runtime("composition produced no files"));
-    }
-    Ok(())
-}
-
 fn prune_empty_parents(root: &Path, mut dir: Option<&Path>) -> Result<(), DreamError> {
     while let Some(current) = dir {
         if current == root {
@@ -88,7 +64,7 @@ mod tests {
         let staging = tempfile::tempdir().unwrap();
         let err = write_file(staging.path(), "../outside.rs", "no").unwrap_err();
         assert!(err.to_string().contains("output write escapes -o"));
-        assert!(!tree_has_files(staging.path()).unwrap());
+        assert!(!staging.path().join("outside.rs").exists());
     }
 
     #[test]
@@ -121,19 +97,5 @@ mod tests {
 
         let escape = remove_file(staging.path(), "../secret").unwrap_err();
         assert!(escape.to_string().contains("output write escapes -o"));
-    }
-
-    #[test]
-    fn no_files_is_an_error() {
-        let staging = tempfile::tempdir().unwrap();
-        let err = require_files(staging.path()).unwrap_err();
-        assert!(err.to_string().contains("produced no files"));
-    }
-
-    #[test]
-    fn empty_dirs_are_not_files() {
-        let staging = tempfile::tempdir().unwrap();
-        fs::create_dir(staging.path().join("empty")).unwrap();
-        assert!(!tree_has_files(staging.path()).unwrap());
     }
 }

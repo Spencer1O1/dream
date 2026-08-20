@@ -1,8 +1,12 @@
+mod capture;
 mod catalog;
 mod exec;
+mod inherit;
+mod outcome;
 
 pub use catalog::{BuilderSpec, CATALOG};
-pub use exec::{after_compose, Outcome};
+pub use exec::after_compose;
+pub use outcome::Outcome;
 
 use crate::error::DreamError;
 

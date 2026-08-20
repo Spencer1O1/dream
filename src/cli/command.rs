@@ -1,67 +1,11 @@
 use std::path::PathBuf;
 
-use clap::Parser;
-
 use crate::error::DreamError;
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum Command {
-    Now {
-        file: PathBuf,
-        strict: bool,
-    },
-    Compose {
-        file: PathBuf,
-        target: String,
-        output: PathBuf,
-        build: bool,
-        run: bool,
-        strict: bool,
-        no_warn: bool,
-    },
-}
+use super::raw::Raw;
+use super::Command;
 
-#[derive(Parser, Debug)]
-#[command(
-    name = "dream",
-    about = "Dream is executable pseudocode.",
-    disable_help_subcommand = true
-)]
-struct Raw {
-    /// Stricter prompt. Not a parser.
-    #[arg(long)]
-    strict: bool,
-
-    /// Target language (compose mode). Open-ended string.
-    #[arg(short = 't', long = "target")]
-    target: Option<String>,
-
-    /// Output directory to replace (compose mode).
-    #[arg(short = 'o', long = "output")]
-    output: Option<PathBuf>,
-
-    /// Compose, then build if Dream knows a toolchain.
-    #[arg(long)]
-    build: bool,
-
-    /// Compose, build, and run. Implies --build.
-    #[arg(long)]
-    run: bool,
-
-    /// Treat toolchain warnings as a failed build.
-    #[arg(long = "no-warn")]
-    no_warn: bool,
-
-    /// `now` plus a .foo file, or a .foo file for compose.
-    #[arg(required = true)]
-    rest: Vec<String>,
-}
-
-pub fn parse() -> Result<Command, DreamError> {
-    command_from_raw(Raw::try_parse().unwrap_or_else(|err| err.exit()))
-}
-
-fn command_from_raw(
+pub(super) fn from_raw(
     Raw {
         strict,
         target,
@@ -69,6 +13,7 @@ fn command_from_raw(
         build,
         run,
         no_warn,
+        fresh,
         rest,
     }: Raw,
 ) -> Result<Command, DreamError> {
@@ -76,9 +21,9 @@ fn command_from_raw(
         [] => Err(DreamError::usage("expected a .foo file")),
         [cmd] if cmd == "now" => Err(DreamError::usage("expected a .foo file")),
         [cmd, file] if cmd == "now" => {
-            if target.is_some() || output.is_some() || build || run || no_warn {
+            if target.is_some() || output.is_some() || build || run || no_warn || fresh {
                 return Err(DreamError::usage(
-                    "`dream now` interprets immediately; do not pass -t, -o, --build, --run, or --no-warn",
+                    "`dream now` interprets immediately; do not pass -t, -o, --build, --run, --no-warn, or --fresh",
                 ));
             }
             Ok(Command::Now {
@@ -107,6 +52,7 @@ fn command_from_raw(
                 run,
                 strict,
                 no_warn,
+                fresh,
             })
         }
     }
@@ -119,7 +65,7 @@ mod tests {
 
     fn parse_args(args: &[&str]) -> Result<Command, DreamError> {
         let raw = Raw::try_parse_from(args).expect("clap should accept these args");
-        command_from_raw(raw)
+        from_raw(raw)
     }
 
     #[test]
@@ -193,5 +139,14 @@ mod tests {
         assert!(err.to_string().contains("dream now"));
         let err = parse_args(&["dream", "now", "--no-warn", "main.foo"]).unwrap_err();
         assert!(err.to_string().contains("--no-warn"));
+        let err = parse_args(&["dream", "now", "--fresh", "main.foo"]).unwrap_err();
+        assert!(err.to_string().contains("--fresh"));
+    }
+
+    #[test]
+    fn compose_fresh() {
+        let cmd =
+            parse_args(&["dream", "main.foo", "-t", "rust", "-o", "./out", "--fresh"]).unwrap();
+        assert!(matches!(cmd, Command::Compose { fresh: true, .. }));
     }
 }

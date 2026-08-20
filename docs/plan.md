@@ -99,9 +99,9 @@ Do not infer the builder from `-t` or from the tree. Do not put `set_builder` in
 
 Needs Phase 7. This is the contract break. See vault `Artifact Ownership.md`.
 
-Normal `dream` must not clear `-o`. Persist a minimal target-specific map in a Dream-owned file under `-o`. Writes belong to the compose-stack current unit. `read_source_file` of an unlocked unsettled unit recurses and composes that unit first. Locked or already-settled reads return foocode + artifacts.
+Normal `dream` must not clear `-o`. Persist a minimal target-specific map in a Dream-owned file under `-o`. One composition session from the entry. `read_source_file` never composes; it returns foocode plus stored artifacts if any. Writes name the owning `.foo`. Dream checks the claim (unit exists, was read or is the entry, not stolen / project / user-owned).
 
-Reject overwrite of another unit, project-owned, or unmanaged path. After a unit settles, delete only that unit’s previous paths that are gone from the new set.
+Reject overwrite of another unit, project-owned, or unmanaged path. After the session settles, delete only each writing unit’s previous paths that are gone from its new set.
 
 `-o` has files but no store → error (use `--fresh` or an empty dir). Store target ≠ `-t` → error unless `--fresh`.
 
@@ -111,14 +111,16 @@ Repair after Phase 8: stack is empty; only overwrite existing unlocked unit-owne
 
 Do not invent lock CLI, project tools, or a formal IR in this phase. Do not require one `.foo` → one target file. No source-hash skip yet.
 
-- [ ] Stop replace-`-o` on normal compose
-- [ ] Persist unit → artifact paths in `-o` (format not precious)
-- [ ] Compose stack: writes belong to the current unit
-- [ ] Recurse on `read_source_file` of unlocked unsettled units
-- [ ] Enforce write / delete against provenance
-- [ ] Preserve unmanaged paths
-- [ ] No-store-with-files and target-mismatch errors
-- [ ] `--fresh` drops Dream-owned only
+- [x] Stop replace-`-o` on normal compose
+- [x] Persist unit → artifact paths in `-o` (format not precious)
+- [x] Compose stack: writes belong to the current unit (replaced: write names `unit`)
+- [x] Recurse on `read_source_file` of unlocked unsettled units (replaced: read never composes)
+- [x] Write / remove require `unit`; Dream checks the claim
+- [x] One composition session; no nested job
+- [x] Enforce write / delete against provenance
+- [x] Preserve unmanaged paths
+- [x] No-store-with-files and target-mismatch errors
+- [x] `--fresh` drops Dream-owned only
 
 ## Phase 9 — Project layer
 

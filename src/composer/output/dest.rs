@@ -32,7 +32,7 @@ pub fn resolve_output_dir(project_root: &Path, output: &Path) -> Result<PathBuf,
 
     if output == project_root || project_root.starts_with(&output) {
         return Err(DreamError::usage(
-            "output directory would replace the Dream project",
+            "output directory cannot be the Dream project",
         ));
     }
 
@@ -56,14 +56,12 @@ mod tests {
         let project = project.canonicalize().unwrap();
 
         let root_err = resolve_output_dir(&project, &project).unwrap_err();
-        assert!(root_err
-            .to_string()
-            .contains("would replace the Dream project"));
+        assert!(root_err.to_string().contains("cannot be the Dream project"));
 
         let ancestor_err = resolve_output_dir(&project, tmp.path()).unwrap_err();
         assert!(ancestor_err
             .to_string()
-            .contains("would replace the Dream project"));
+            .contains("cannot be the Dream project"));
 
         let child = resolve_output_dir(&project, &project.join("gen")).unwrap();
         assert_eq!(child, project.join("gen"));

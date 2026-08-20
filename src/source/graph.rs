@@ -4,16 +4,25 @@ use crate::error::DreamError;
 
 #[derive(Debug)]
 pub struct DepGraph {
+    entry: String,
     current: String,
     edges: HashMap<String, HashSet<String>>,
 }
 
 impl DepGraph {
     pub fn new(entry: impl Into<String>) -> Self {
+        let entry = entry.into();
         Self {
-            current: entry.into(),
+            current: entry.clone(),
+            entry,
             edges: HashMap::new(),
         }
+    }
+
+    pub fn may_own(&self, unit: &str) -> bool {
+        unit == self.entry
+            || unit == self.current
+            || self.edges.values().any(|set| set.contains(unit))
     }
 
     pub fn record_read(&mut self, path: &str) -> Result<(), DreamError> {
@@ -92,5 +101,15 @@ mod tests {
         graph.record_read("main.foo").unwrap();
         graph.record_read("users/a.foo").unwrap();
         graph.record_read("users/a.foo").unwrap();
+    }
+
+    #[test]
+    fn may_own_entry_or_a_unit_that_was_read() {
+        let mut graph = DepGraph::new("main.foo");
+        assert!(graph.may_own("main.foo"));
+        assert!(!graph.may_own("utils.foo"));
+        graph.record_read("utils.foo").unwrap();
+        assert!(graph.may_own("utils.foo"));
+        assert!(graph.may_own("main.foo"));
     }
 }

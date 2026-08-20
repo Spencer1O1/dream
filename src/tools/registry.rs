@@ -29,7 +29,7 @@ impl Registry {
     }
 
     pub fn builder() -> Self {
-        Self::gather(&[super::builder::tools, super::control::tools])
+        Self::gather(&[super::builder::tools])
     }
 
     fn gather(families: &[FamilyTools]) -> Self {
@@ -100,9 +100,6 @@ mod tests {
 
     #[test]
     fn builder_names() {
-        assert_eq!(
-            Registry::builder().names(),
-            vec!["set_builder", "dream_error"]
-        );
+        assert_eq!(Registry::builder().names(), vec!["set_builder"]);
     }
 }

@@ -14,6 +14,14 @@ impl Registry {
     }
 
     pub fn prompt_catalog(&self) -> String {
+        let mut out = self.tool_list();
+        out.push_str(
+            "These tools are the entire interface. Must use multiple tool calls in one turn for the next contiguous calls that can run without waiting on a result. Anything else is invalid.\n",
+        );
+        out
+    }
+
+    pub(crate) fn tool_list(&self) -> String {
         let mut out = String::from("Tools:\n");
         for family in Family::ORDER {
             let members: Vec<&dyn Tool> = self
@@ -32,9 +40,6 @@ impl Registry {
             }
         }
         out.push('\n');
-        out.push_str(
-            "These tools are the entire interface. Must use multiple tool calls in one turn for the next contiguous calls that can run without waiting on a result. Anything else is invalid.\n",
-        );
         out
     }
 }
@@ -73,5 +78,6 @@ mod tests {
         let catalog = Registry::builder().prompt_catalog();
         assert!(catalog.contains("- set_builder:"));
         assert!(!catalog.contains("write_output_file"));
+        assert!(!catalog.contains("dream_error"));
     }
 }

@@ -2,24 +2,30 @@ use serde_json::json;
 
 use crate::builder::Builder;
 use crate::error::DreamError;
+use crate::source::DepGraph;
 use crate::tools::Registry;
 
+use super::dispatch::{dispatch, ToolIo};
 use super::prompt;
-use super::session::{dispatch, Session};
+use super::session::Session;
 
 impl Session<'_> {
-    pub async fn ask_builder(&mut self) -> Result<Option<Builder>, DreamError> {
+    pub async fn ask_builder(
+        &self,
+        deps: &mut DepGraph,
+        input: &mut Vec<serde_json::Value>,
+    ) -> Result<Option<Builder>, DreamError> {
         let registry = Registry::builder();
         let instructions = prompt::builder(&registry, self.flags);
-        self.input.push(json!({
+        input.push(json!({
             "role": "user",
             "content": "Declare the toolchain before writing files."
         }));
         let turn = self
             .openai
-            .respond(&instructions, self.input, &registry.schemas())
+            .respond(&instructions, input, &registry.schemas())
             .await?;
-        self.input.extend(turn.output);
+        input.extend(turn.output);
         if turn.function_calls.is_empty() {
             return Ok(None);
         }
@@ -29,12 +35,16 @@ impl Session<'_> {
             let tool_output = dispatch(
                 &registry,
                 self.project,
-                self.deps,
-                None,
-                Some(&mut builder),
+                deps,
+                ToolIo {
+                    dest: None,
+                    store: None,
+                    write: None,
+                    builder: Some(&mut builder),
+                },
                 &call,
             )?;
-            self.input.push(json!({
+            input.push(json!({
                 "type": "function_call_output",
                 "call_id": call.call_id,
                 "output": tool_output,

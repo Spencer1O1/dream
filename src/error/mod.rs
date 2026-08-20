@@ -49,6 +49,12 @@ impl From<io::Error> for DreamError {
     }
 }
 
+impl From<serde_json::Error> for DreamError {
+    fn from(err: serde_json::Error) -> Self {
+        Self::runtime(err.to_string())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

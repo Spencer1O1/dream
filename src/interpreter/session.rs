@@ -55,7 +55,9 @@ fn dispatch(
     let mut ctx = ToolCtx {
         project,
         deps,
-        staging: None,
+        dest: None,
+        store: None,
+        write: None,
         builder: None,
     };
     registry.dispatch(&mut ctx, call)

@@ -1,136 +1,59 @@
-use serde_json::{json, Value};
+use std::path::Path;
 
-use crate::composer::output;
+use crate::composer::provenance::Store;
 use crate::error::DreamError;
+use crate::source::paths;
 
-use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
+use super::remove::RemoveOutputFile;
+use super::write::WriteOutputFile;
+use super::{Tool, ToolCtx};
 
 pub fn tools() -> Vec<Box<dyn Tool>> {
     vec![Box::new(WriteOutputFile), Box::new(RemoveOutputFile)]
 }
 
-struct WriteOutputFile;
-
-impl Tool for WriteOutputFile {
-    fn spec(&self) -> ToolSpec {
-        ToolSpec {
-            name: "write_output_file",
-            family: Family::Composer,
-            description: "Write one file into the target project. Path is relative to the output root. Overwrites if the file exists.",
-            parameters: object_params(
-                &[
-                    ("path", string_arg("Output-relative file path")),
-                    ("contents", string_arg("Exact file contents")),
-                ],
-                &["path", "contents"],
-            ),
-        }
+pub(super) fn claim_unit(ctx: &ToolCtx<'_>, requested: &str) -> Result<String, DreamError> {
+    let unit = ctx.project.read_source_file(requested)?;
+    if !ctx.deps.may_own(&unit.rel) {
+        return Err(DreamError::runtime(format!(
+            "cannot write for `{}`; read that unit first",
+            unit.rel
+        )));
     }
-
-    fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let staging = ctx.staging.ok_or_else(|| {
-            DreamError::runtime("write_output_file is only available while composing")
-        })?;
-        let path = output::write_file(staging, arg_str(args, "path"), arg_str(args, "contents"))?;
-        Ok(json!({ "ok": true, "path": path }).to_string())
-    }
+    Ok(unit.rel)
 }
 
-struct RemoveOutputFile;
-
-impl Tool for RemoveOutputFile {
-    fn spec(&self) -> ToolSpec {
-        ToolSpec {
-            name: "remove_output_file",
-            family: Family::Composer,
-            description:
-                "Remove one file from the target project. Path is relative to the output root.",
-            parameters: object_params(
-                &[("path", string_arg("Output-relative file path"))],
-                &["path"],
-            ),
-        }
-    }
-
-    fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let staging = ctx.staging.ok_or_else(|| {
-            DreamError::runtime("remove_output_file is only available while composing")
-        })?;
-        let path = output::remove_file(staging, arg_str(args, "path"))?;
-        Ok(json!({ "ok": true, "path": path }).to_string())
-    }
+pub(super) fn dest_rel<'a>(
+    ctx: &ToolCtx<'a>,
+    requested: &str,
+) -> Result<(&'a Path, &'a Store, String), DreamError> {
+    let dest = ctx
+        .dest
+        .ok_or_else(|| DreamError::runtime("output tools are only available while composing"))?;
+    let store = ctx
+        .store
+        .ok_or_else(|| DreamError::runtime("output tools are only available while composing"))?;
+    let abs = paths::resolve_output(dest, requested)?;
+    let rel = paths::rel_output(dest, &abs)?;
+    Ok((dest, store, rel))
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::source::{DepGraph, Project};
-    use crate::tools::ToolCtx;
-    use serde_json::json;
-
-    fn compose_ctx<'a>(
-        project: &'a Project,
-        deps: &'a mut DepGraph,
-        staging: &'a std::path::Path,
-    ) -> ToolCtx<'a> {
-        ToolCtx {
-            project,
-            deps,
-            staging: Some(staging),
-            builder: None,
-        }
-    }
-
-    #[test]
-    fn writes_into_staging() {
-        let project_dir = tempfile::tempdir().unwrap();
-        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
-        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
-        let mut deps = DepGraph::new(unit.rel);
-        let staging = tempfile::tempdir().unwrap();
-        let mut ctx = compose_ctx(&project, &mut deps, staging.path());
-        let out = WriteOutputFile
-            .call(
-                &mut ctx,
-                &json!({ "path": "hello.txt", "contents": "hello" }),
-            )
-            .unwrap();
-        assert!(out.contains("hello.txt"));
-        assert_eq!(
-            std::fs::read_to_string(staging.path().join("hello.txt")).unwrap(),
-            "hello"
-        );
-    }
-
-    #[test]
-    fn rejects_escape() {
-        let project_dir = tempfile::tempdir().unwrap();
-        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
-        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
-        let mut deps = DepGraph::new(unit.rel);
-        let staging = tempfile::tempdir().unwrap();
-        let mut ctx = compose_ctx(&project, &mut deps, staging.path());
-        let err = WriteOutputFile
-            .call(&mut ctx, &json!({ "path": "../secret", "contents": "no" }))
-            .unwrap_err();
-        assert!(err.to_string().contains("output write escapes -o"));
-    }
-
-    #[test]
-    fn removes_a_written_file() {
-        let project_dir = tempfile::tempdir().unwrap();
-        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
-        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
-        let mut deps = DepGraph::new(unit.rel);
-        let staging = tempfile::tempdir().unwrap();
-        let mut ctx = compose_ctx(&project, &mut deps, staging.path());
-        WriteOutputFile
-            .call(&mut ctx, &json!({ "path": "oops.rs", "contents": "nope" }))
-            .unwrap();
-        let out = RemoveOutputFile
-            .call(&mut ctx, &json!({ "path": "oops.rs" }))
-            .unwrap();
-        assert!(out.contains("oops.rs"));
-        assert!(!staging.path().join("oops.rs").exists());
+pub(super) fn compose_ctx<'a>(
+    project: &'a crate::source::Project,
+    deps: &'a mut crate::source::DepGraph,
+    dest: &'a Path,
+    store: &'a Store,
+    artifacts: &'a mut std::collections::HashMap<String, std::collections::HashSet<String>>,
+    fresh: bool,
+) -> ToolCtx<'a> {
+    use super::WriteSlot;
+    ToolCtx {
+        project,
+        deps,
+        dest: Some(dest),
+        store: Some(store),
+        write: Some(WriteSlot::Compose { artifacts, fresh }),
+        builder: None,
     }
 }

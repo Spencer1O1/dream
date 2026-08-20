@@ -1,15 +1,15 @@
-use std::path::Path;
+use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Value};
 
-use crate::builder::Builder;
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
-use crate::llm::{FunctionCall, OpenAi};
+use crate::llm::OpenAi;
 use crate::source::{DepGraph, Project};
-use crate::tools::{Registry, ToolCtx};
+use crate::tools::{Registry, WriteSlot};
 
-use super::progress;
+use super::dispatch::{dispatch, ToolIo};
+use super::state::ComposeState;
 
 pub(crate) struct Session<'a> {
     pub openai: &'a OpenAi,
@@ -17,8 +17,6 @@ pub(crate) struct Session<'a> {
     pub instructions: &'a str,
     pub schemas: &'a [Value],
     pub project: &'a Project,
-    pub deps: &'a mut DepGraph,
-    pub input: &'a mut Vec<Value>,
     pub flags: &'a ActiveFlags,
     pub turn_cap: usize,
     pub repair_cap: usize,
@@ -26,28 +24,46 @@ pub(crate) struct Session<'a> {
 }
 
 impl Session<'_> {
-    pub async fn write_until_settled(&mut self, staging: &Path) -> Result<(), DreamError> {
+    pub async fn write_until_settled(
+        &self,
+        state: &mut ComposeState,
+        deps: &mut DepGraph,
+        input: &mut Vec<Value>,
+        artifacts: &mut HashMap<String, HashSet<String>>,
+        repair: bool,
+    ) -> Result<(), DreamError> {
         for _ in 0..self.turn_cap {
             let turn = self
                 .openai
-                .respond(self.instructions, self.input, self.schemas)
+                .respond(self.instructions, input, self.schemas)
                 .await?;
             if turn.function_calls.is_empty() {
                 return Ok(());
             }
 
-            self.input.extend(turn.output);
+            input.extend(turn.output);
 
             for call in turn.function_calls {
                 let tool_output = dispatch(
                     self.registry,
                     self.project,
-                    self.deps,
-                    Some(staging),
-                    None,
+                    deps,
+                    ToolIo {
+                        dest: Some(&state.dest),
+                        store: Some(&state.store),
+                        write: if repair {
+                            Some(WriteSlot::Repair)
+                        } else {
+                            Some(WriteSlot::Compose {
+                                artifacts,
+                                fresh: state.fresh,
+                            })
+                        },
+                        builder: None,
+                    },
                     &call,
                 )?;
-                self.input.push(json!({
+                input.push(json!({
                     "type": "function_call_output",
                     "call_id": call.call_id,
                     "output": tool_output,
@@ -60,23 +76,4 @@ impl Session<'_> {
             self.turn_cap
         )))
     }
-}
-
-pub(crate) fn dispatch(
-    registry: &Registry,
-    project: &Project,
-    deps: &mut DepGraph,
-    staging: Option<&Path>,
-    builder: Option<&mut Option<Builder>>,
-    call: &FunctionCall,
-) -> Result<String, DreamError> {
-    let args = call.parsed_args()?;
-    progress::tool(&call.name, &args);
-    let mut ctx = ToolCtx {
-        project,
-        deps,
-        staging,
-        builder,
-    };
-    registry.dispatch(&mut ctx, call)
 }

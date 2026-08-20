@@ -35,6 +35,7 @@ async fn run() -> Result<(), DreamError> {
             run,
             strict,
             no_warn,
+            fresh,
         } => {
             let config = config::load()?;
             composer::run(
@@ -47,6 +48,7 @@ async fn run() -> Result<(), DreamError> {
                     no_warn,
                     build,
                     run_program: run,
+                    fresh,
                 },
             )
             .await
