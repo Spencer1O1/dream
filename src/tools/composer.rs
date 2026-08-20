@@ -45,6 +45,10 @@ pub(super) fn compose_ctx<'a>(
     dest: &'a Path,
     store: &'a Store,
     artifacts: &'a mut std::collections::HashMap<String, std::collections::HashSet<String>>,
+    dependencies: &'a mut std::collections::HashMap<
+        String,
+        Vec<crate::composer::provenance::Dependency>,
+    >,
     fresh: bool,
 ) -> ToolCtx<'a> {
     use super::WriteSlot;
@@ -53,7 +57,12 @@ pub(super) fn compose_ctx<'a>(
         deps,
         dest: Some(dest),
         store: Some(store),
-        write: Some(WriteSlot::Compose { artifacts, fresh }),
+        write: Some(WriteSlot::Compose {
+            artifacts,
+            dependencies,
+            fresh,
+        }),
         builder: None,
+        toolchain: None,
     }
 }

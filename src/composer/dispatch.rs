@@ -13,6 +13,7 @@ pub(crate) struct ToolIo<'a> {
     pub store: Option<&'a Store>,
     pub write: Option<WriteSlot<'a>>,
     pub builder: Option<&'a mut Option<crate::builder::Builder>>,
+    pub toolchain: Option<crate::builder::Builder>,
 }
 
 pub(crate) fn dispatch(
@@ -31,6 +32,7 @@ pub(crate) fn dispatch(
         store: io.store,
         write: io.write,
         builder: io.builder,
+        toolchain: io.toolchain,
     };
     registry.dispatch(&mut ctx, call)
 }

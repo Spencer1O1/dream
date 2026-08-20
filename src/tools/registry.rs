@@ -21,11 +21,24 @@ impl Registry {
     }
 
     pub fn composer() -> Self {
-        Self::gather(&[
-            super::source::tools,
-            super::composer::tools,
-            super::control::tools,
-        ])
+        Self::composer_for(None)
+    }
+
+    pub fn composer_for(builder: Option<crate::builder::Builder>) -> Self {
+        if builder.and_then(|known| known.spec()).is_some() {
+            Self::gather(&[
+                super::source::tools,
+                super::composer::tools,
+                super::deps::tools,
+                super::control::tools,
+            ])
+        } else {
+            Self::gather(&[
+                super::source::tools,
+                super::composer::tools,
+                super::control::tools,
+            ])
+        }
     }
 
     pub fn builder() -> Self {
@@ -93,6 +106,17 @@ mod tests {
                 "read_source_file",
                 "write_output_file",
                 "remove_output_file",
+                "dream_error"
+            ]
+        );
+        assert_eq!(
+            Registry::composer_for(Some(crate::builder::Builder::parse("cargo").unwrap())).names(),
+            vec![
+                "list_source_files",
+                "read_source_file",
+                "write_output_file",
+                "remove_output_file",
+                "set_dependencies",
                 "dream_error"
             ]
         );

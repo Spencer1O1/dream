@@ -41,6 +41,7 @@ impl Session<'_> {
                     store: None,
                     write: None,
                     builder: Some(&mut builder),
+                    toolchain: None,
                 },
                 &call,
             )?;

@@ -59,6 +59,7 @@ fn dispatch(
         store: None,
         write: None,
         builder: None,
+        toolchain: None,
     };
     registry.dispatch(&mut ctx, call)
 }

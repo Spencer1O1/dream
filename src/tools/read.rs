@@ -62,6 +62,7 @@ mod tests {
             store: None,
             write: None,
             builder: None,
+            toolchain: None,
         };
         let out = ReadSourceFile
             .call(&mut ctx, &json!({ "path": "main.foo" }))
@@ -88,6 +89,7 @@ mod tests {
             store: Some(&store),
             write: None,
             builder: None,
+            toolchain: None,
         };
         let out = ReadSourceFile
             .call(&mut ctx, &json!({ "path": "main.foo" }))

@@ -6,6 +6,8 @@ pub struct BuilderSpec {
     pub build: &'static [&'static str],
     pub run: &'static [&'static str],
     pub install_hint: &'static str,
+    /// Project-owned manifest. Empty means this toolchain has none.
+    pub manifest: &'static str,
 }
 
 pub const CATALOG: &[BuilderSpec] = &[
@@ -14,18 +16,21 @@ pub const CATALOG: &[BuilderSpec] = &[
         build: &["cargo", "build"],
         run: &["cargo", "run"],
         install_hint: "Install Rust from https://rustup.rs/",
+        manifest: "Cargo.toml",
     },
     BuilderSpec {
         name: "go",
         build: &["go", "build"],
         run: &["go", "run", "."],
         install_hint: "Install Go from https://go.dev/dl/",
+        manifest: "go.mod",
     },
     BuilderSpec {
         name: "python",
         build: &[],
         run: &["python"],
         install_hint: "Install Python 3 from https://www.python.org/downloads/",
+        manifest: "pyproject.toml",
     },
 ];
 
@@ -46,6 +51,7 @@ mod tests {
             assert!(seen.insert(spec.name), "duplicate builder `{}`", spec.name);
             assert!(!spec.install_hint.is_empty());
             assert!(!spec.run.is_empty());
+            assert!(!spec.manifest.is_empty());
         }
     }
 }

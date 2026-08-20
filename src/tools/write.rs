@@ -14,7 +14,7 @@ impl Tool for WriteOutputFile {
         ToolSpec {
             name: "write_output_file",
             family: Family::Composer,
-            description: "Write one file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists.",
+            description: "Write one source file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists.",
             parameters: object_params(
                 &[
                     ("unit", string_arg("Project-relative .foo that owns this file")),
@@ -34,7 +34,9 @@ impl Tool for WriteOutputFile {
         };
         let (dest, store, rel) = dest_rel(ctx, arg_str(args, "path"))?;
         match &mut ctx.write {
-            Some(WriteSlot::Compose { artifacts, fresh }) => {
+            Some(WriteSlot::Compose {
+                artifacts, fresh, ..
+            }) => {
                 let unit = claimed
                     .ok_or_else(|| DreamError::runtime("write_output_file requires unit"))?;
                 provenance::authorize_write(
@@ -84,12 +86,14 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
+        let mut claims = HashMap::new();
         let mut ctx = compose_ctx(
             &project,
             &mut deps,
             dest.path(),
             &store,
             &mut artifacts,
+            &mut claims,
             false,
         );
         let out = WriteOutputFile
@@ -113,12 +117,14 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
+        let mut claims = HashMap::new();
         let mut ctx = compose_ctx(
             &project,
             &mut deps,
             dest.path(),
             &store,
             &mut artifacts,
+            &mut claims,
             false,
         );
         let err = WriteOutputFile
@@ -136,12 +142,14 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
+        let mut claims = HashMap::new();
         let mut ctx = compose_ctx(
             &project,
             &mut deps,
             dest.path(),
             &store,
             &mut artifacts,
+            &mut claims,
             false,
         );
         let err = WriteOutputFile
@@ -165,6 +173,7 @@ mod tests {
             store: Some(&store),
             write: Some(WriteSlot::Repair),
             builder: None,
+            toolchain: None,
         };
         let err = WriteOutputFile
             .call(&mut ctx, &write_args(&unit.rel, "src/new.rs", "no"))

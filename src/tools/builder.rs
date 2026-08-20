@@ -60,6 +60,7 @@ mod tests {
             store: None,
             write: None,
             builder: Some(builder),
+            toolchain: None,
         }
     }
 

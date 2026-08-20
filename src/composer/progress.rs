@@ -9,7 +9,7 @@ pub fn repair() {
 }
 
 fn line(name: &str, args: &Value) -> String {
-    for key in ["path", "builder"] {
+    for key in ["path", "builder", "unit"] {
         if let Some(value) = args
             .get(key)
             .and_then(Value::as_str)
@@ -35,6 +35,10 @@ mod tests {
         assert_eq!(
             line("set_builder", &json!({"builder": "cargo"})),
             "set_builder cargo"
+        );
+        assert_eq!(
+            line("set_dependencies", &json!({"unit": "main.foo"})),
+            "set_dependencies main.foo"
         );
         assert_eq!(line("list_source_files", &json!({})), "list_source_files");
         assert_eq!(

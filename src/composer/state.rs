@@ -3,6 +3,8 @@ use std::path::Path;
 
 use serde_json::Value;
 
+use crate::builder::Builder;
+use crate::composer::provenance::Dependency;
 use crate::error::DreamError;
 use crate::source::DepGraph;
 
@@ -30,17 +32,42 @@ impl ComposeState {
         session: &Session<'_>,
         deps: &mut DepGraph,
         input: &mut Vec<Value>,
+        builder: Option<Builder>,
     ) -> Result<(), DreamError> {
         let mut artifacts = HashMap::new();
+        let mut dependencies = HashMap::new();
         session
-            .write_until_settled(self, deps, input, &mut artifacts, false)
+            .write_until_settled(
+                self,
+                deps,
+                input,
+                super::session::WriteLoop {
+                    artifacts: &mut artifacts,
+                    dependencies: &mut dependencies,
+                    repair: false,
+                    toolchain: builder,
+                },
+            )
             .await?;
-        self.settle(artifacts)
+        self.settle(artifacts, dependencies, builder)
     }
 
-    fn settle(&mut self, artifacts: HashMap<String, HashSet<String>>) -> Result<(), DreamError> {
+    fn settle(
+        &mut self,
+        artifacts: HashMap<String, HashSet<String>>,
+        dependencies: HashMap<String, Vec<Dependency>>,
+        builder: Option<Builder>,
+    ) -> Result<(), DreamError> {
         for (unit, paths) in artifacts {
             provenance::reconcile(&mut self.store, &self.dest, &unit, paths)?;
+        }
+        for (unit, deps) in dependencies {
+            self.store.set_dependencies(&unit, deps);
+        }
+        if let Some(spec) = builder.and_then(Builder::spec) {
+            crate::project::reconcile(&self.dest, spec, &mut self.store)?;
+        } else {
+            self.store.save(&self.dest)?;
         }
         Ok(())
     }
@@ -62,10 +89,14 @@ mod tests {
             .set_artifacts("main.foo", HashSet::from(["src/old.rs".into()]));
 
         state
-            .settle(HashMap::from([
-                ("main.foo".into(), HashSet::from(["src/main.rs".into()])),
-                ("utils.foo".into(), HashSet::from(["src/lib.rs".into()])),
-            ]))
+            .settle(
+                HashMap::from([
+                    ("main.foo".into(), HashSet::from(["src/main.rs".into()])),
+                    ("utils.foo".into(), HashSet::from(["src/lib.rs".into()])),
+                ]),
+                HashMap::new(),
+                None,
+            )
             .unwrap();
 
         assert!(!dest.path().join("src/old.rs").exists());

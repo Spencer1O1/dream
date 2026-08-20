@@ -30,8 +30,19 @@ impl Session<'_> {
                         "content": repair_message(&diagnostics),
                     }));
                     let mut artifacts = std::collections::HashMap::new();
-                    self.write_until_settled(state, deps, input, &mut artifacts, true)
-                        .await?;
+                    let mut dependencies = std::collections::HashMap::new();
+                    self.write_until_settled(
+                        state,
+                        deps,
+                        input,
+                        super::session::WriteLoop {
+                            artifacts: &mut artifacts,
+                            dependencies: &mut dependencies,
+                            repair: true,
+                            toolchain: builder,
+                        },
+                    )
+                    .await?;
                     provenance::require_composed(&state.store)?;
                 }
                 outcome => return outcome.into_error(),

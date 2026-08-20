@@ -28,6 +28,14 @@ pub fn string_arg(description: &str) -> Value {
     })
 }
 
+pub fn object_array_arg(description: &str, fields: &[(&str, Value)], required: &[&str]) -> Value {
+    json!({
+        "type": "array",
+        "description": description,
+        "items": object_params(fields, required)
+    })
+}
+
 pub fn arg_str<'a>(args: &'a Value, name: &str) -> &'a str {
     args[name].as_str().unwrap_or("")
 }

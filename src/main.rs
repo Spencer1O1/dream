@@ -6,6 +6,7 @@ mod error;
 mod flags;
 mod interpreter;
 mod llm;
+mod project;
 mod prompt;
 mod source;
 mod tools;

@@ -1,6 +1,6 @@
 # Plan
 
-Progress lives here. Vault `Core Rules.md` is foundational. `dream now` still matches vault `MVP.md`. Compose matches vault `Artifact Ownership.md` through Phase 8. Next: Phase 9, then 10.
+Progress lives here. Vault `Core Rules.md` is foundational. `dream now` still matches vault `MVP.md`. Compose matches vault `Artifact Ownership.md` through Phase 9. Next: Phase 10.
 
 A Dream project is the directory around the entry `.foo`. The model lists and reads other units. There is no manifest and no all-files CLI.
 
@@ -126,12 +126,12 @@ Do not invent lock CLI, project tools, or a formal IR in this phase. Do not requ
 
 Needs Phase 8. Known builders only.
 
-Dream owns manifests. One tool: `set_dependencies` for the current unit — package names plus optional features; Dream chooses versions. Package name = entry stem on init only; do not overwrite later. Dream does not generate target-language wiring (`mod` / `import` / …). `unsupported`: first writer owns manifest-shaped files.
+Dream owns manifests. One tool: `set_dependencies(unit, …)` — package names plus optional features; Dream chooses versions. Package name = entry stem on init only; do not overwrite later. Dream does not generate target-language wiring (`mod` / `import` / …). `unsupported`: first writer owns manifest-shaped files.
 
-- [ ] Dream-owned manifest mutation for catalog builders
-- [ ] Composer writes of those paths rejected
-- [ ] `set_dependencies` replaces the current unit’s claims (name + optional features)
-- [ ] Init package name from entry stem; leave existing names alone
+- [x] Dream-owned manifest mutation for catalog builders
+- [x] Composer writes of those paths rejected
+- [x] `set_dependencies` replaces that unit’s dependencies (name + optional features)
+- [x] Init package name from entry stem; leave existing names alone
 
 ## Phase 10 — Target-specific locks
 

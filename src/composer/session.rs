@@ -2,6 +2,8 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Value};
 
+use crate::builder::Builder;
+use crate::composer::provenance::Dependency;
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
 use crate::llm::OpenAi;
@@ -10,6 +12,13 @@ use crate::tools::{Registry, WriteSlot};
 
 use super::dispatch::{dispatch, ToolIo};
 use super::state::ComposeState;
+
+pub(crate) struct WriteLoop<'a> {
+    pub artifacts: &'a mut HashMap<String, HashSet<String>>,
+    pub dependencies: &'a mut HashMap<String, Vec<Dependency>>,
+    pub repair: bool,
+    pub toolchain: Option<Builder>,
+}
 
 pub(crate) struct Session<'a> {
     pub openai: &'a OpenAi,
@@ -29,9 +38,14 @@ impl Session<'_> {
         state: &mut ComposeState,
         deps: &mut DepGraph,
         input: &mut Vec<Value>,
-        artifacts: &mut HashMap<String, HashSet<String>>,
-        repair: bool,
+        loop_state: WriteLoop<'_>,
     ) -> Result<(), DreamError> {
+        let WriteLoop {
+            artifacts,
+            dependencies,
+            repair,
+            toolchain,
+        } = loop_state;
         for _ in 0..self.turn_cap {
             let turn = self
                 .openai
@@ -44,7 +58,7 @@ impl Session<'_> {
             input.extend(turn.output);
 
             for call in turn.function_calls {
-                let tool_output = dispatch(
+                let tool_output = tool_output(dispatch(
                     self.registry,
                     self.project,
                     deps,
@@ -56,13 +70,15 @@ impl Session<'_> {
                         } else {
                             Some(WriteSlot::Compose {
                                 artifacts,
+                                dependencies,
                                 fresh: state.fresh,
                             })
                         },
                         builder: None,
+                        toolchain,
                     },
                     &call,
-                )?;
+                ))?;
                 input.push(json!({
                     "type": "function_call_output",
                     "call_id": call.call_id,
@@ -75,5 +91,32 @@ impl Session<'_> {
             "turn limit reached before composition settled ({})",
             self.turn_cap
         )))
+    }
+}
+
+/// `dream_error` still aborts. Other tool failures go back to the model.
+fn tool_output(result: Result<String, DreamError>) -> Result<String, DreamError> {
+    match result {
+        Ok(output) => Ok(output),
+        Err(DreamError::Interpreter(err)) => Err(err.into()),
+        Err(err) => {
+            eprintln!("{err}");
+            Ok(err.to_string())
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn runtime_tool_errors_return_to_the_model() {
+        let output = tool_output(Err(DreamError::runtime(
+            "cannot write `Cargo.toml`; Dream owns the manifest. Use set_dependencies.",
+        )))
+        .unwrap();
+        assert!(output.contains("set_dependencies"));
+        assert!(tool_output(Err(DreamError::interpreter("gave up"))).is_err());
     }
 }

@@ -5,7 +5,7 @@ use std::path::Path;
 use serde_json::{json, Value};
 
 use crate::builder::Builder;
-use crate::composer::provenance::Store;
+use crate::composer::provenance::{Dependency, Store};
 use crate::error::DreamError;
 use crate::source::{DepGraph, Project};
 
@@ -14,12 +14,18 @@ pub enum Family {
     Source,
     Runtime,
     Composer,
+    Project,
     Control,
 }
 
 impl Family {
-    pub(crate) const ORDER: [Self; 4] =
-        [Self::Source, Self::Runtime, Self::Composer, Self::Control];
+    pub(crate) const ORDER: [Self; 5] = [
+        Self::Source,
+        Self::Runtime,
+        Self::Composer,
+        Self::Project,
+        Self::Control,
+    ];
 }
 
 impl fmt::Display for Family {
@@ -28,6 +34,7 @@ impl fmt::Display for Family {
             Self::Source => "Source",
             Self::Runtime => "Runtime",
             Self::Composer => "Composer",
+            Self::Project => "Project",
             Self::Control => "Control",
         })
     }
@@ -55,6 +62,7 @@ impl ToolSpec {
 pub enum WriteSlot<'a> {
     Compose {
         artifacts: &'a mut HashMap<String, HashSet<String>>,
+        dependencies: &'a mut HashMap<String, Vec<Dependency>>,
         fresh: bool,
     },
     Repair,
@@ -67,6 +75,7 @@ pub struct ToolCtx<'a> {
     pub store: Option<&'a Store>,
     pub write: Option<WriteSlot<'a>>,
     pub builder: Option<&'a mut Option<Builder>>,
+    pub toolchain: Option<Builder>,
 }
 
 pub trait Tool: Send + Sync {

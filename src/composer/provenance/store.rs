@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet, HashSet};
 use std::fs;
 use std::path::Path;
 
@@ -15,11 +15,24 @@ pub struct Store {
     pub target: String,
     #[serde(default)]
     pub units: BTreeMap<String, UnitState>,
+    #[serde(default)]
+    pub project: Vec<String>,
+    #[serde(default)]
+    pub installed: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnitState {
     pub artifacts: Vec<String>,
+    #[serde(default)]
+    pub dependencies: Vec<Dependency>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct Dependency {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub features: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -34,6 +47,8 @@ impl Store {
         Self {
             target: target.into(),
             units: BTreeMap::new(),
+            project: Vec::new(),
+            installed: Vec::new(),
         }
     }
 
@@ -62,7 +77,7 @@ impl Store {
     }
 
     pub fn owner(&self, rel: &str) -> Owner {
-        if reserved(rel) {
+        if reserved(rel) || self.project.iter().any(|path| path == rel) {
             return Owner::Project;
         }
         for (unit, state) in &self.units {
@@ -74,13 +89,56 @@ impl Store {
     }
 
     pub fn set_artifacts(&mut self, unit: &str, artifacts: HashSet<String>) {
-        let mut artifacts: Vec<String> = artifacts.into_iter().collect();
-        artifacts.sort();
-        if artifacts.is_empty() {
-            self.units.remove(unit);
-        } else {
-            self.units.insert(unit.to_string(), UnitState { artifacts });
+        let dependencies = self
+            .units
+            .get(unit)
+            .map(|state| state.dependencies.clone())
+            .unwrap_or_default();
+        write_unit(self, unit, sorted_paths(artifacts), dependencies);
+    }
+
+    pub fn set_dependencies(&mut self, unit: &str, dependencies: Vec<Dependency>) {
+        let artifacts = self
+            .units
+            .get(unit)
+            .map(|state| state.artifacts.clone())
+            .unwrap_or_default();
+        write_unit(self, unit, artifacts, dependencies);
+    }
+
+    pub fn take_from_units(&mut self, rel: &str) {
+        for state in self.units.values_mut() {
+            state.artifacts.retain(|artifact| artifact != rel);
         }
+        self.units
+            .retain(|_, state| !state.artifacts.is_empty() || !state.dependencies.is_empty());
+    }
+
+    pub fn mark_project(&mut self, rel: &str) {
+        self.take_from_units(rel);
+        if !self.project.iter().any(|path| path == rel) {
+            self.project.push(rel.to_string());
+            self.project.sort();
+        }
+    }
+
+    pub fn union_dependencies(&self) -> Vec<Dependency> {
+        let mut features: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for state in self.units.values() {
+            for dep in &state.dependencies {
+                features
+                    .entry(dep.name.clone())
+                    .or_default()
+                    .extend(dep.features.iter().cloned());
+            }
+        }
+        features
+            .into_iter()
+            .map(|(name, features)| Dependency {
+                name,
+                features: features.into_iter().collect(),
+            })
+            .collect()
     }
 
     pub fn has_artifacts(&self) -> bool {
@@ -88,6 +146,9 @@ impl Store {
     }
 
     pub fn drop_owned(&self, dest: &Path) -> Result<(), DreamError> {
+        for path in &self.project {
+            let _ = output::remove_file(dest, path);
+        }
         for state in self.units.values() {
             for artifact in &state.artifacts {
                 let _ = output::remove_file(dest, artifact);
@@ -99,6 +160,31 @@ impl Store {
         }
         Ok(())
     }
+}
+
+fn write_unit(
+    store: &mut Store,
+    unit: &str,
+    artifacts: Vec<String>,
+    dependencies: Vec<Dependency>,
+) {
+    if artifacts.is_empty() && dependencies.is_empty() {
+        store.units.remove(unit);
+    } else {
+        store.units.insert(
+            unit.to_string(),
+            UnitState {
+                artifacts,
+                dependencies,
+            },
+        );
+    }
+}
+
+fn sorted_paths(artifacts: HashSet<String>) -> Vec<String> {
+    let mut artifacts: Vec<String> = artifacts.into_iter().collect();
+    artifacts.sort();
+    artifacts
 }
 
 pub fn reserved(rel: &str) -> bool {
@@ -118,17 +204,93 @@ mod tests {
     }
 
     #[test]
-    fn owner_prefers_unit_then_unmanaged() {
+    fn owner_prefers_project_then_unit_then_unmanaged() {
         let mut store = Store::new("rust");
         store.set_artifacts(
             "server.foo",
             HashSet::from(["src/server.rs".into(), "src/routes.rs".into()]),
         );
+        store.mark_project("Cargo.toml");
         assert_eq!(
             store.owner("src/server.rs"),
             Owner::Unit("server.foo".into())
         );
+        assert_eq!(store.owner("Cargo.toml"), Owner::Project);
         assert_eq!(store.owner("README.md"), Owner::Unmanaged);
         assert_eq!(store.owner(".dream/provenance.json"), Owner::Project);
+    }
+
+    #[test]
+    fn mark_project_steals_from_units() {
+        let mut store = Store::new("rust");
+        store.set_artifacts(
+            "main.foo",
+            HashSet::from(["Cargo.toml".into(), "src/main.rs".into()]),
+        );
+        store.mark_project("Cargo.toml");
+        assert_eq!(store.units["main.foo"].artifacts, vec!["src/main.rs"]);
+        assert_eq!(store.project, vec!["Cargo.toml"]);
+        assert_eq!(store.owner("Cargo.toml"), Owner::Project);
+    }
+
+    #[test]
+    fn set_artifacts_keeps_dependencies() {
+        let mut store = Store::new("rust");
+        store.set_dependencies(
+            "main.foo",
+            vec![Dependency {
+                name: "serde".into(),
+                features: vec!["derive".into()],
+            }],
+        );
+        store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
+        assert_eq!(store.units["main.foo"].dependencies[0].name, "serde");
+    }
+
+    #[test]
+    fn drop_owned_deletes_project_and_unit_files() {
+        let dest = tempfile::tempdir().unwrap();
+        std::fs::write(dest.path().join("Cargo.toml"), "[package]\n").unwrap();
+        std::fs::create_dir_all(dest.path().join("src")).unwrap();
+        std::fs::write(dest.path().join("src/main.rs"), "fn main() {}").unwrap();
+        std::fs::write(dest.path().join("README.md"), "keep").unwrap();
+        let mut store = Store::new("rust");
+        store.mark_project("Cargo.toml");
+        store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
+        store.save(dest.path()).unwrap();
+        store.drop_owned(dest.path()).unwrap();
+        assert!(!dest.path().join("Cargo.toml").exists());
+        assert!(!dest.path().join("src/main.rs").exists());
+        assert!(dest.path().join("README.md").exists());
+        assert!(!Store::path(dest.path()).exists());
+    }
+
+    #[test]
+    fn union_dependencies_merges_features() {
+        let mut store = Store::new("rust");
+        store.set_dependencies(
+            "a.foo",
+            vec![Dependency {
+                name: "serde".into(),
+                features: vec!["derive".into()],
+            }],
+        );
+        store.set_dependencies(
+            "b.foo",
+            vec![
+                Dependency {
+                    name: "serde".into(),
+                    features: vec!["rc".into()],
+                },
+                Dependency {
+                    name: "tokio".into(),
+                    features: vec![],
+                },
+            ],
+        );
+        let union = store.union_dependencies();
+        assert_eq!(union[0].name, "serde");
+        assert_eq!(union[0].features, vec!["derive", "rc"]);
+        assert_eq!(union[1].name, "tokio");
     }
 }

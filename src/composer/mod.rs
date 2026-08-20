@@ -43,10 +43,10 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     let output = output::resolve_output_dir(project.root(), opts.output)?;
     let mut deps = DepGraph::new(&unit.rel);
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
-    let registry = Registry::composer();
     let flags = ActiveFlags::new(opts.strict, opts.no_warn);
-    let instructions = prompt::compose(&registry, &flags);
-    let schemas = registry.schemas();
+    let pick_registry = Registry::composer();
+    let pick_instructions = prompt::compose(&pick_registry, &flags);
+    let pick_schemas = pick_registry.schemas();
 
     let mut input = vec![json!({
         "role": "user",
@@ -56,6 +56,22 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         )
     })];
 
+    let pick = Session {
+        openai: &openai,
+        registry: &pick_registry,
+        instructions: &pick_instructions,
+        schemas: &pick_schemas,
+        project: &project,
+        flags: &flags,
+        turn_cap: config.turn_cap,
+        repair_cap: config.repair_cap,
+        no_warn: opts.no_warn,
+    };
+    let builder = pick.ask_builder(&mut deps, &mut input).await?;
+
+    let registry = Registry::composer_for(builder);
+    let instructions = prompt::compose(&registry, &flags);
+    let schemas = registry.schemas();
     let session = Session {
         openai: &openai,
         registry: &registry,
@@ -68,9 +84,18 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         no_warn: opts.no_warn,
     };
 
-    let builder = session.ask_builder(&mut deps, &mut input).await?;
     let mut state = ComposeState::open(&output, opts.target, opts.fresh)?;
-    state.compose(&session, &mut deps, &mut input).await?;
+    if let Some(spec) = builder.and_then(crate::builder::Builder::spec) {
+        crate::project::init(
+            &state.dest,
+            spec,
+            &crate::project::from_entry(&unit.rel)?,
+            &mut state.store,
+        )?;
+    }
+    state
+        .compose(&session, &mut deps, &mut input, builder)
+        .await?;
     provenance::require_composed(&state.store)?;
     if opts.build || opts.run_program {
         session

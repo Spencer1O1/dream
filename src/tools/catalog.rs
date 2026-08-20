@@ -68,9 +68,16 @@ mod tests {
         assert!(catalog.contains("Composer"));
         assert!(catalog.contains("- write_output_file:"));
         assert!(catalog.contains("- remove_output_file:"));
+        assert!(!catalog.contains("set_dependencies"));
         assert!(!catalog.contains("set_builder"));
         assert!(!catalog.contains("Runtime"));
         assert!(!catalog.contains("stdout"));
+        let with_project =
+            Registry::composer_for(Some(crate::builder::Builder::parse("cargo").unwrap()))
+                .prompt_catalog();
+        assert!(with_project.contains("Project"));
+        assert!(with_project.contains("- set_dependencies:"));
+        assert!(with_project.contains("Dream owns the manifest"));
     }
 
     #[test]
