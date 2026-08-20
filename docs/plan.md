@@ -64,9 +64,12 @@ dream <file.foo> -t <target> -o <dir> --run
 
 Needs Phase 4. Worth doing for **repair** (Phase 7), not as a `cargo` wrapper. Until then, the user builds the folder themselves. CLI flags already parse and error.
 
+If the declared builder’s toolchain is not on the machine, Dream errors and says how to install it. Dream does not install it. That is different from `unsupported` (Dream has no builder). Compose has already replaced `-o`.
+
 - [ ] `--build` after a settled compose, only if a known builder was declared
 - [ ] `--run` implies build
 - [ ] Forward standard process IO
+- [ ] Missing toolchain → error + install hint (do not auto-install)
 
 ## Phase 6 — Semantic cache foundations
 
