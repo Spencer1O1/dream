@@ -26,6 +26,15 @@ pub fn lock(dest: &Path, target: &str, source_file: &Path) -> Result<(), DreamEr
     let locked = state.locked;
     let source_hash = state.source_hash.clone();
     require_artifacts(dest, &unit, &artifacts)?;
+    if !source_file.is_file() {
+        return Err(if locked {
+            DreamError::composer(format!(
+                "locked unit `{unit}` is missing; unlock or restore the .foo"
+            ))
+        } else {
+            DreamError::usage(format!("`{unit}` does not exist"))
+        });
+    }
     let hash = hash_file(source_file)?;
     if locked {
         if source_hash.as_deref() != Some(hash.as_str()) {
@@ -114,8 +123,13 @@ fn unit_from_root(store: &Store, source_file: &Path) -> Result<String, DreamErro
 }
 
 fn hash_unit(project: &Project, unit: &str) -> Result<String, DreamError> {
-    let source = project.read_source_file(unit)?.source;
-    Ok(hex_sha256(source.as_bytes()))
+    match project.read_source_file(unit) {
+        Ok(read) => Ok(hex_sha256(read.source.as_bytes())),
+        Err(err) if err.detail().contains("does not exist") => Err(DreamError::composer(format!(
+            "locked unit `{unit}` is missing; unlock or restore the .foo"
+        ))),
+        Err(err) => Err(err),
+    }
 }
 
 fn hash_file(path: &Path) -> Result<String, DreamError> {
@@ -187,6 +201,31 @@ mod tests {
         let err = check(&store, dest.path(), &project).unwrap_err();
         assert!(err.to_string().starts_with("ComposerError:"));
         assert!(err.to_string().contains("source changed"));
+    }
+
+    #[test]
+    fn check_errors_when_locked_source_is_missing() {
+        let (src, project, unit) = project_with("main.foo", "print hi");
+        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
+        lock(dest.path(), "rust", &src.path().join(&unit)).unwrap();
+        fs::remove_file(src.path().join("main.foo")).unwrap();
+        let store = Store::load(dest.path()).unwrap().unwrap();
+        let err = check(&store, dest.path(), &project).unwrap_err();
+        assert!(err.to_string().starts_with("ComposerError:"));
+        assert!(err.to_string().contains("is missing"));
+        assert!(!err.to_string().starts_with("RuntimeError:"));
+    }
+
+    #[test]
+    fn lock_errors_when_locked_source_is_missing() {
+        let (src, _project, unit) = project_with("main.foo", "print hi");
+        let file = src.path().join(&unit);
+        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
+        lock(dest.path(), "rust", &file).unwrap();
+        fs::remove_file(&file).unwrap();
+        let err = lock(dest.path(), "rust", &file).unwrap_err();
+        assert!(err.to_string().starts_with("ComposerError:"));
+        assert!(err.to_string().contains("is missing"));
     }
 
     #[test]

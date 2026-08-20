@@ -39,10 +39,7 @@ pub(super) fn with_unit(fields: &[(&str, Value)], required: &[&str]) -> Value {
 pub(super) fn authorize(ctx: &ToolCtx<'_>, requested: &str) -> Result<String, DreamError> {
     let unit = ctx.project.read_source_file(requested)?;
     if !ctx.deps.reached(&unit.rel) {
-        return Err(DreamError::composer(format!(
-            "cannot write for `{}`; read that unit first",
-            unit.rel
-        )));
+        return Err(DreamError::composer(format!("read `{}` first", unit.rel)));
     }
     if let Some(store) = store_of(ctx) {
         provenance::authorize_unit(store, &unit.rel)?;

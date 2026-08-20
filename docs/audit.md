@@ -20,8 +20,8 @@ Effect ownership, `Mode` isolation, in-place provenance, `--lucid` isolation, an
 
 ## Taxonomy
 
-- [ ] **Missing locked `.foo`** — Hash mismatch is `ComposerError`. A deleted locked source is `RuntimeError` from `read_source_file`. Map the missing locked unit in `hash_unit` / `check` / `lock`. Do not change tool reads.
-- [ ] **Authorize wording** — Shared reached-check says `cannot write for`; `set_dependencies` uses it. Say “read that unit first.” Do not split authorize.
+- [x] **Missing locked `.foo`** — Hash mismatch is `ComposerError`. A deleted locked source is `RuntimeError` from `read_source_file`. Map the missing locked unit in `hash_unit` / `check` / `lock`. Do not change tool reads.
+- [x] **Authorize wording** — Shared reached-check says `cannot write for`; `set_dependencies` uses it. Say “read that unit first.” Do not split authorize.
 
 ## Leftovers
 

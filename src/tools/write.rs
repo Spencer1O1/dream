@@ -122,10 +122,9 @@ mod tests {
         let out = WriteOutputFile::compose()
             .call(&mut ctx, &write_args("utils.foo", "src/lib.rs", "no"))
             .unwrap();
-        assert!(out.contains("read that unit first"));
         assert_eq!(
             reply::warning_of(&out).as_deref(),
-            Some("cannot write for `utils.foo`; read that unit first")
+            Some("read `utils.foo` first")
         );
     }
 
