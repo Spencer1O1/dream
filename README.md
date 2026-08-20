@@ -2,9 +2,7 @@
 
 Executable pseudocode. A programmer writes foocode in `.foo` files. Dream interprets that notation.
 
-The product contract is the Dream vault: `MVP.md` and `Core Rules.md`.
-
-## Phase 1–3
+The product contract is the Dream vault: `MVP.md` and `Core Rules.md`. Implementation progress is [docs/plan.md](docs/plan.md).
 
 ```bash
 cp .env.example .env
@@ -13,8 +11,8 @@ cp .env.example .env
 cargo run -- now examples/hey-you.foo
 cargo run -- now --strict examples/hey-you.foo
 
-cargo run -- examples/hello.foo -t rust -o ./out
-cargo run -- --strict examples/hello.foo -t rust -o ./out
+cargo run -- examples/hey-you.foo -t rust -o ./out
+cargo run -- --strict examples/hey-you.foo -t rust -o ./out
 ```
 
 `-o` replaces the whole folder after a successful compose. A failed compose leaves the destination alone. `--build` and `--run` are not implemented yet.
