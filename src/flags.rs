@@ -15,11 +15,9 @@ pub struct ActiveFlags {
 
 impl ActiveFlags {
     pub fn new(strict: bool) -> Self {
-        let mut flags = Vec::new();
-        if strict {
-            flags.push(&STRICT);
+        Self {
+            flags: strict.then_some(&STRICT).into_iter().collect(),
         }
-        Self { flags }
     }
 
     pub fn prompt_catalog(&self) -> Option<String> {

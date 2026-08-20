@@ -53,75 +53,56 @@ struct Raw {
 }
 
 pub fn parse() -> Result<Command, DreamError> {
-    let raw = match Raw::try_parse() {
-        Ok(raw) => raw,
-        Err(err) => {
-            err.print().ok();
-            std::process::exit(err.exit_code());
-        }
-    };
-    command_from_raw(raw)
+    command_from_raw(Raw::try_parse().unwrap_or_else(|err| err.exit()))
 }
 
-fn command_from_raw(raw: Raw) -> Result<Command, DreamError> {
-    command_from_parts(
-        raw.strict, raw.target, raw.output, raw.build, raw.run, raw.rest,
-    )
-}
-
-fn command_from_parts(
-    strict: bool,
-    target: Option<String>,
-    output: Option<PathBuf>,
-    build: bool,
-    run: bool,
-    rest: Vec<String>,
-) -> Result<Command, DreamError> {
-    if rest.is_empty() {
-        return Err(DreamError::runtime("expected a .foo file"));
-    }
-
-    if rest[0] == "now" {
-        if rest.len() < 2 {
-            return Err(DreamError::runtime("expected a .foo file"));
-        }
-        if rest.len() > 2 {
-            return Err(DreamError::runtime(
-                "unexpected arguments after the entry file",
-            ));
-        }
-        if target.is_some() || output.is_some() || build || run {
-            return Err(DreamError::runtime(
-                "`dream now` interprets immediately; do not pass -t, -o, --build, or --run",
-            ));
-        }
-        return Ok(Command::Now {
-            file: PathBuf::from(&rest[1]),
-            strict,
-        });
-    }
-
-    if rest.len() != 1 {
-        return Err(DreamError::runtime(
-            "unexpected arguments after the entry file",
-        ));
-    }
-
-    let Some(target) = target else {
-        return Err(DreamError::runtime("compose requires -t <target>"));
-    };
-    let Some(output) = output else {
-        return Err(DreamError::runtime("compose requires -o <dir>"));
-    };
-
-    Ok(Command::Compose {
-        file: PathBuf::from(&rest[0]),
+fn command_from_raw(
+    Raw {
+        strict,
         target,
         output,
-        build: build || run,
+        build,
         run,
-        strict,
-    })
+        rest,
+    }: Raw,
+) -> Result<Command, DreamError> {
+    match rest.as_slice() {
+        [] => Err(DreamError::usage("expected a .foo file")),
+        [cmd] if cmd == "now" => Err(DreamError::usage("expected a .foo file")),
+        [cmd, file] if cmd == "now" => {
+            if target.is_some() || output.is_some() || build || run {
+                return Err(DreamError::usage(
+                    "`dream now` interprets immediately; do not pass -t, -o, --build, or --run",
+                ));
+            }
+            Ok(Command::Now {
+                file: PathBuf::from(file),
+                strict,
+            })
+        }
+        [cmd, ..] if cmd == "now" => Err(DreamError::usage(
+            "unexpected arguments after the entry file",
+        )),
+        [_, _, ..] => Err(DreamError::usage(
+            "unexpected arguments after the entry file",
+        )),
+        [file] => {
+            let Some(target) = target else {
+                return Err(DreamError::usage("compose requires -t <target>"));
+            };
+            let Some(output) = output else {
+                return Err(DreamError::usage("compose requires -o <dir>"));
+            };
+            Ok(Command::Compose {
+                file: PathBuf::from(file),
+                target,
+                output,
+                build: build || run,
+                run,
+                strict,
+            })
+        }
+    }
 }
 
 #[cfg(test)]
@@ -167,13 +148,14 @@ mod tests {
     #[test]
     fn compose_run_implies_build() {
         let cmd = parse_args(&["dream", "main.foo", "-t", "rust", "-o", "./out", "--run"]).unwrap();
-        match cmd {
-            Command::Compose { build, run, .. } => {
-                assert!(build);
-                assert!(run);
+        assert!(matches!(
+            cmd,
+            Command::Compose {
+                build: true,
+                run: true,
+                ..
             }
-            Command::Now { .. } => panic!("expected compose"),
-        }
+        ));
     }
 
     #[test]

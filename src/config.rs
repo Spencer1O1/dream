@@ -14,9 +14,9 @@ pub fn load() -> Result<Config, DreamError> {
     let _ = dotenvy::from_filename(".env");
 
     let api_key = std::env::var("OPENAI_API_KEY")
-        .map_err(|_| DreamError::runtime("OPENAI_API_KEY is not set"))?;
+        .map_err(|_| DreamError::config("OPENAI_API_KEY is not set"))?;
     if api_key.trim().is_empty() {
-        return Err(DreamError::runtime("OPENAI_API_KEY is not set"));
+        return Err(DreamError::config("OPENAI_API_KEY is not set"));
     }
 
     let model = std::env::var("DREAM_MODEL")
@@ -40,9 +40,9 @@ fn parse_turn_cap(raw: Option<&str>) -> Result<usize, DreamError> {
     };
     let turn_cap: usize = raw
         .parse()
-        .map_err(|_| DreamError::runtime("DREAM_TURN_CAP must be a positive integer"))?;
+        .map_err(|_| DreamError::config("DREAM_TURN_CAP must be a positive integer"))?;
     if turn_cap == 0 {
-        return Err(DreamError::runtime(
+        return Err(DreamError::config(
             "DREAM_TURN_CAP must be a positive integer",
         ));
     }

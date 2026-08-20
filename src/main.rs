@@ -11,7 +11,7 @@ mod tools;
 use cli::Command;
 use error::DreamError;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     if let Err(err) = run().await {
         eprintln!("{err}");

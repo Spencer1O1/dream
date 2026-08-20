@@ -1,7 +1,9 @@
 use std::fs;
-use std::path::{Component, Path, PathBuf};
+use std::path::{Path, PathBuf};
 
 use crate::error::DreamError;
+
+use super::paths::{rel_path, resolve_inside};
 
 #[derive(Debug, Clone)]
 pub struct Unit {
@@ -17,10 +19,10 @@ pub struct Project {
 impl Project {
     pub fn from_entry(entry: &Path) -> Result<(Self, Unit), DreamError> {
         if entry.extension().and_then(|ext| ext.to_str()) != Some("foo") {
-            return Err(DreamError::runtime("expected a .foo file"));
+            return Err(DreamError::usage("expected a .foo file"));
         }
         if !entry.exists() {
-            return Err(DreamError::runtime(format!(
+            return Err(DreamError::usage(format!(
                 "entry file `{}` does not exist",
                 entry.display()
             )));
@@ -29,7 +31,7 @@ impl Project {
         let entry_canon = entry.canonicalize()?;
         let root = entry_canon
             .parent()
-            .ok_or_else(|| DreamError::runtime("entry file has no project root"))?
+            .ok_or_else(|| DreamError::usage("entry file has no project root"))?
             .to_path_buf();
         let rel = rel_path(&root, &entry_canon)?;
         let source = fs::read_to_string(&entry_canon)?;
@@ -86,57 +88,17 @@ fn collect_foo_files(root: &Path, dir: &Path, out: &mut Vec<String>) -> Result<(
     Ok(())
 }
 
-fn resolve_inside(root: &Path, requested: &str) -> Result<PathBuf, DreamError> {
-    if requested.trim().is_empty() {
-        return Err(DreamError::runtime("source request is empty"));
-    }
-    let requested_path = Path::new(requested);
-    let joined = if requested_path.is_absolute() {
-        requested_path.to_path_buf()
-    } else {
-        root.join(requested_path)
-    };
-    let normalized = normalize_lexically(&joined);
-    if !normalized.starts_with(root) {
-        return Err(DreamError::runtime("source request escapes project root"));
-    }
-    Ok(normalized)
-}
-
-fn normalize_lexically(path: &Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for component in path.components() {
-        match component {
-            Component::ParentDir => {
-                out.pop();
-            }
-            Component::CurDir => {}
-            other => out.push(other.as_os_str()),
-        }
-    }
-    out
-}
-
-fn rel_path(root: &Path, path: &Path) -> Result<String, DreamError> {
-    let rel = path
-        .strip_prefix(root)
-        .map_err(|_| DreamError::runtime("source request escapes project root"))?;
-    Ok(rel.to_string_lossy().replace('\\', "/"))
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use std::fs;
-    use std::io::Write;
 
     fn write_foo(dir: &Path, rel: &str, contents: &str) {
         let path = dir.join(rel);
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent).unwrap();
         }
-        let mut file = fs::File::create(path).unwrap();
-        file.write_all(contents.as_bytes()).unwrap();
+        fs::write(path, contents).unwrap();
     }
 
     #[test]
