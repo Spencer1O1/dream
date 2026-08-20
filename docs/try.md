@@ -47,7 +47,7 @@ cat ./try/.dream/provenance.json
 ls ./try
 ```
 
-Dream should own `Cargo.toml`. Composer writes of that path should have been rejected (stderr would say to use `set_dependencies`).
+Dream should own `Cargo.toml`. Composer writes of that path should have been rejected (Dream owns the manifest).
 
 In-place again, no `--fresh`:
 

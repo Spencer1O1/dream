@@ -15,7 +15,9 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 - [x] **write / remove duplication** — One `mutate_output` helper. Repair registry omits `unit` (owner is the map) and `set_dependencies`.
 - [x] **Pick Session** — `ask_builder` is a function. It owns `Registry::builder()`. Compose `Session` is only for compose / repair.
 - [x] **reserved / staging** — One `reserved()` in `provenance/store.rs`. Dest I/O params are `dest`.
-- [x] **Source list skip** — `list_source_files` returns every project-relative `.foo`. No skip of `target/` or `.*`.
+- [x] **Source list skip** — `list_source_files` returns every project-relative `.foo`. No skip of `target/` or `.`*.
+
+
 
 ## Prompting
 
@@ -23,13 +25,17 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 - [x] **Lucid tool text** — Lucid list/read are path/source only. Compose list/read describe `locked` and stored artifacts. Mutation tools still say they fail if the unit is locked.
 - [x] **Flags on the wrong turn** — `--no-warn` is build-step only; it is not in prompts. `--strict` is on interpret / compose / repair (`dream_error`). The pick turn has neither.
 - [x] **Write/remove description** — Compose write/remove say source (code) under the output root. Fails if that unit is locked. Not “unit owns,” “dest,” or “Dream-owned.” No Cargo.toml filename. Manifest writes are still refused.
-- [ ] **Warning tool name** — Decide: keep `set_dependencies` in the project-owned warning, or say “use the project dependency tool.”
+- [x] **Warning tool name** — Project-owned write/remove say Dream owns the manifest. They do not name `set_dependencies` (absent on repair / unsupported) or invent “the project dependency tool.” The catalog already names that tool when it exists.
+
+
 
 ## Taxonomy
 
 - [ ] **Lock-staleness error type** — Same condition is Usage on `dream lock` and Runtime on compose `check`. Pick one and use it consistently.
 - [ ] **Missing remove** — Missing / non-file remove is a tool warning, not a process error. Keep escape / I/O as `DreamError`.
 - [ ] **dream_error name** — Keep `dream_error` ⇒ `InterpreterError` if that is the rule. Do not use `InterpreterError` for the compose turn cap.
+
+
 
 ## Leftovers
 

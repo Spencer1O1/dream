@@ -28,7 +28,7 @@ pub fn authorize_write(
     reject_if_locked(store, unit, &owner)?;
     match owner {
         Owner::Project => Err(DreamError::runtime(format!(
-            "cannot write `{rel}`; Dream owns the manifest. Use set_dependencies."
+            "cannot write `{rel}`; Dream owns the manifest."
         ))),
         Owner::Unit(owner) => match unit {
             Some(unit) if owner == unit => Ok(()),
@@ -68,7 +68,7 @@ pub fn authorize_remove(
             "output `{rel}` is owned by `{owner}`"
         ))),
         Owner::Project => Err(DreamError::runtime(format!(
-            "cannot remove `{rel}`; Dream owns the manifest. Use set_dependencies."
+            "cannot remove `{rel}`; Dream owns the manifest."
         ))),
         Owner::Unmanaged => Err(DreamError::runtime(format!("output `{rel}` is user-owned"))),
     }
@@ -127,8 +127,9 @@ mod tests {
         store.mark_project("Cargo.toml");
         let manifest =
             authorize_write(&store, dest.path(), "Cargo.toml", Some("main.foo"), None).unwrap_err();
-        assert!(manifest.to_string().contains("set_dependencies"));
+        assert!(manifest.to_string().contains("Dream owns the manifest"));
         assert!(manifest.to_string().contains("Cargo.toml"));
+        assert!(!manifest.to_string().contains("set_dependencies"));
 
         let reserved_err =
             authorize_write(&store, dest.path(), STORE_REL, Some("main.foo"), None).unwrap_err();
