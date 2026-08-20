@@ -9,7 +9,7 @@ use crate::error::DreamError;
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    Now {
+    Lucid {
         file: PathBuf,
         strict: bool,
     },

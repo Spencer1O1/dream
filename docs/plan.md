@@ -1,16 +1,16 @@
 # Plan
 
-Progress lives here. Vault `Core Rules.md` is foundational. `dream now` still matches vault `MVP.md`. Compose matches vault `Artifact Ownership.md` through Phase 9. Next: Phase 10.
+Progress lives here. Vault `Core Rules.md` is foundational. `--lucid` still matches vault `MVP.md` interpreter behavior. Compose matches vault `Artifact Ownership.md` through Phase 9. Next: Phase 10.
 
 A Dream project is the directory around the entry `.foo`. The model lists and reads other units. There is no manifest and no all-files CLI.
 
 ## Phase 1 — Interpreter
 
 ```bash
-dream now [--strict] <file.foo>
+dream [--lucid] [--strict] <file.foo>
 ```
 
-- [x] CLI (`now`, `--strict`, compose flags parse)
+- [x] CLI (`--lucid`, `--strict`, compose flags parse)
 - [x] Config (`.env` / `.env.local`, `OPENAI_API_KEY`, `DREAM_MODEL`, `DREAM_TURN_CAP`)
 - [x] OpenAI Responses tool loop
 - [x] `list_source_files` / `read_source_file`
@@ -148,7 +148,7 @@ Inspect is later if needed.
 - [ ] Lock / unlock a unit for a target (store source hash)
 - [ ] Normal reconcile skips locked units
 - [ ] Compose `read_source_file` of a locked unit returns foocode plus frozen artifacts
-- [ ] `dream now` reads stay `{ path, source }` only
+- [ ] `--lucid` reads stay `{ path, source }` only
 - [ ] Locked source hash mismatch or missing artifact → error
 - [ ] Hand-edited locked artifacts stay; Composer still will not write them
 
@@ -161,6 +161,6 @@ Do not start these during the phases above.
 - [ ] `dream.toml` (name / entry so `dream .` works)
 - [ ] Formal semantic core / Gimbal
 - [ ] Target-independent locks
-- [ ] Deterministic `dream now` runtime
+- [ ] Deterministic `--lucid` runtime
 - [ ] Data-file / HTTP tools
 - [ ] Provider plugins

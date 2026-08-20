@@ -8,6 +8,7 @@ use super::Command;
 pub(super) fn from_raw(
     Raw {
         strict,
+        lucid,
         target,
         output,
         build,
@@ -17,26 +18,27 @@ pub(super) fn from_raw(
         rest,
     }: Raw,
 ) -> Result<Command, DreamError> {
+    if rest.first().is_some_and(|cmd| cmd == "now") {
+        return Err(DreamError::usage(
+            "`now` is not a command; pass --lucid to interpret",
+        ));
+    }
     match rest.as_slice() {
         [] => Err(DreamError::usage("expected a .foo file")),
-        [cmd] if cmd == "now" => Err(DreamError::usage("expected a .foo file")),
-        [cmd, file] if cmd == "now" => {
+        [_, _, ..] => Err(DreamError::usage(
+            "unexpected arguments after the entry file",
+        )),
+        [file] if lucid => {
             if target.is_some() || output.is_some() || build || run || no_warn || fresh {
                 return Err(DreamError::usage(
-                    "`dream now` interprets immediately; do not pass -t, -o, --build, --run, --no-warn, or --fresh",
+                    "--lucid interprets immediately; do not pass -t, -o, --build, --run, --no-warn, or --fresh",
                 ));
             }
-            Ok(Command::Now {
+            Ok(Command::Lucid {
                 file: PathBuf::from(file),
                 strict,
             })
         }
-        [cmd, ..] if cmd == "now" => Err(DreamError::usage(
-            "unexpected arguments after the entry file",
-        )),
-        [_, _, ..] => Err(DreamError::usage(
-            "unexpected arguments after the entry file",
-        )),
         [file] => {
             let Some(target) = target else {
                 return Err(DreamError::usage("compose requires -t <target>"));
@@ -69,11 +71,11 @@ mod tests {
     }
 
     #[test]
-    fn now_file() {
-        let cmd = parse_args(&["dream", "now", "main.foo"]).unwrap();
+    fn lucid_file() {
+        let cmd = parse_args(&["dream", "--lucid", "main.foo"]).unwrap();
         assert_eq!(
             cmd,
-            Command::Now {
+            Command::Lucid {
                 file: PathBuf::from("main.foo"),
                 strict: false,
             }
@@ -81,11 +83,11 @@ mod tests {
     }
 
     #[test]
-    fn now_strict() {
-        let cmd = parse_args(&["dream", "now", "--strict", "main.foo"]).unwrap();
+    fn lucid_strict() {
+        let cmd = parse_args(&["dream", "--lucid", "--strict", "main.foo"]).unwrap();
         assert_eq!(
             cmd,
-            Command::Now {
+            Command::Lucid {
                 file: PathBuf::from("main.foo"),
                 strict: true,
             }
@@ -134,13 +136,19 @@ mod tests {
     }
 
     #[test]
-    fn now_rejects_compose_flags() {
-        let err = parse_args(&["dream", "now", "main.foo", "-t", "rust"]).unwrap_err();
-        assert!(err.to_string().contains("dream now"));
-        let err = parse_args(&["dream", "now", "--no-warn", "main.foo"]).unwrap_err();
+    fn lucid_rejects_compose_flags() {
+        let err = parse_args(&["dream", "--lucid", "main.foo", "-t", "rust"]).unwrap_err();
+        assert!(err.to_string().contains("--lucid"));
+        let err = parse_args(&["dream", "--lucid", "--no-warn", "main.foo"]).unwrap_err();
         assert!(err.to_string().contains("--no-warn"));
-        let err = parse_args(&["dream", "now", "--fresh", "main.foo"]).unwrap_err();
+        let err = parse_args(&["dream", "--lucid", "--fresh", "main.foo"]).unwrap_err();
         assert!(err.to_string().contains("--fresh"));
+    }
+
+    #[test]
+    fn now_is_not_a_command() {
+        let err = parse_args(&["dream", "now", "main.foo"]).unwrap_err();
+        assert!(err.to_string().contains("--lucid"));
     }
 
     #[test]

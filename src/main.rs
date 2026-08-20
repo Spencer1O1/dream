@@ -24,7 +24,7 @@ async fn main() {
 
 async fn run() -> Result<(), DreamError> {
     match cli::parse()? {
-        Command::Now { file, strict } => {
+        Command::Lucid { file, strict } => {
             let config = config::load()?;
             interpreter::run(&config, &file, strict).await
         }

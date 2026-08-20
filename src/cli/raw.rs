@@ -13,6 +13,10 @@ pub(super) struct Raw {
     #[arg(long)]
     pub strict: bool,
 
+    /// Interpret immediately instead of composing.
+    #[arg(long)]
+    pub lucid: bool,
+
     /// Target language (compose mode). Open-ended string.
     #[arg(short = 't', long = "target")]
     pub target: Option<String>,
@@ -37,7 +41,7 @@ pub(super) struct Raw {
     #[arg(long)]
     pub fresh: bool,
 
-    /// `now` plus a .foo file, or a .foo file for compose.
+    /// Entry .foo file.
     #[arg(required = true)]
     pub rest: Vec<String>,
 }

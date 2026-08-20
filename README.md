@@ -8,8 +8,8 @@ The implemented v0 contract is the Dream vault: `MVP.md` and `Core Rules.md`. Ne
 cp .env.example .env
 # or put secrets in .env.local (overrides .env)
 
-cargo run -- now examples/hey-you.foo
-cargo run -- now --strict examples/hey-you.foo
+cargo run -- --lucid examples/hey-you.foo
+cargo run -- --lucid --strict examples/hey-you.foo
 
 cargo run -- examples/hey-you.foo -t rust -o ./out
 cargo run -- --strict examples/hey-you.foo -t rust -o ./out --run
@@ -32,7 +32,7 @@ DREAM_REPAIR_CAP=3
 ## CLI
 
 ```bash
-dream now [--strict] <file.foo>
+dream [--lucid] [--strict] <file.foo>
 dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir>
 dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir> --build
 dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir> --run
