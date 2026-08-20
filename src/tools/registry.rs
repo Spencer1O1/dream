@@ -144,7 +144,6 @@ mod tests {
                 "list_source_files",
                 "read_source_file",
                 "write_output_file",
-                "remove_output_file",
                 "dream_error"
             ]
         );

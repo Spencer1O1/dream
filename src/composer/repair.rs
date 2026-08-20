@@ -34,7 +34,7 @@ impl Session<'_> {
                     let mut artifacts = std::collections::HashMap::new();
                     let mut dependencies = std::collections::HashMap::new();
                     let registry = Registry::repair();
-                    let instructions = prompt::compose(&registry, self.flags);
+                    let instructions = prompt::repair(&registry, self.flags);
                     let schemas = registry.schemas();
                     self.write_until_settled(
                         state,

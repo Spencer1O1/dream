@@ -14,11 +14,7 @@ impl Registry {
     }
 
     pub fn prompt_catalog(&self) -> String {
-        let mut out = self.tool_list();
-        out.push_str(
-            "These tools are the entire interface. Must use multiple tool calls in one turn for the next contiguous calls that can run without waiting on a result.\n",
-        );
-        out
+        self.tool_list()
     }
 
     pub(crate) fn tool_list(&self) -> String {
@@ -58,7 +54,7 @@ mod tests {
         assert!(catalog.contains("- list_source_files:"));
         assert!(catalog.contains("- stdout:"));
         assert!(catalog.contains("- dream_error:"));
-        assert!(catalog.contains("next contiguous calls that can run without waiting on a result"));
+        assert!(!catalog.contains("contiguous"));
         assert!(!catalog.contains("--strict"));
         assert!(!catalog.contains("locked"));
         assert!(!catalog.contains("artifacts"));
@@ -86,7 +82,7 @@ mod tests {
         let registry = Registry::repair();
         let catalog = registry.prompt_catalog();
         assert!(catalog.contains("- write_output_file:"));
-        assert!(catalog.contains("- remove_output_file:"));
+        assert!(!catalog.contains("remove_output_file"));
         assert!(!catalog.contains("set_dependencies"));
         let write = registry
             .tools()

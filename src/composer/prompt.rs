@@ -4,18 +4,21 @@ use crate::tools::Registry;
 
 const GOAL: &str = "\
 Your goal is to compose this Dream program as if you were implementing it for the requested target. \
-Use tool calls to write a complete, hand-maintainable project with the same meaning.";
+Write a complete, hand-maintainable project with the same meaning.";
+
+const REPAIR: &str = "\
+Your goal is to rewrite existing output files so the build succeeds.";
 
 const TARGET: &str = "\
 The requested target is already in the conversation. \
 Use ordinary target libraries when that is how the program would be written.";
 
-fn no_exec() -> String {
-    format!("Do not execute the program. {NO_CHAT}")
+fn preamble() -> String {
+    paragraphs(&[GOAL, FOOCODE, ENTRY, TARGET, NO_CHAT])
 }
 
-fn preamble() -> String {
-    paragraphs(&[GOAL, FOOCODE, ENTRY, TARGET, &no_exec()])
+fn repair_preamble() -> String {
+    paragraphs(&[REPAIR, FOOCODE, ENTRY, TARGET, NO_CHAT])
 }
 
 pub const BUILDER_PREAMBLE: &str = "\
@@ -23,6 +26,10 @@ Declare the toolchain for the project you are about to write.";
 
 pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
     registry.instructions(&preamble(), flags)
+}
+
+pub fn repair(registry: &Registry, flags: &ActiveFlags) -> String {
+    registry.instructions(&repair_preamble(), flags)
 }
 
 pub fn builder(registry: &Registry) -> String {
@@ -61,5 +68,21 @@ mod tests {
         assert!(!instructions.contains("--strict"));
         assert!(!instructions.contains("--no-warn"));
         assert!(!instructions.contains("Running with flags"));
+    }
+
+    #[test]
+    fn repair_is_overwrite_not_compose() {
+        let registry = Registry::repair();
+        let instructions = repair(&registry, &ActiveFlags::new(false));
+        assert!(instructions.contains(&repair_preamble()));
+        assert!(!instructions.contains(&preamble()));
+        assert!(instructions.contains("write_output_file"));
+        assert!(!instructions.contains("remove_output_file"));
+        assert!(!instructions.contains("set_dependencies"));
+        assert!(!instructions.contains("set_builder"));
+        assert!(!instructions.contains("stdout"));
+        assert!(!instructions.contains("--strict"));
+        assert!(!instructions.contains("--no-warn"));
+        assert!(repair(&registry, &ActiveFlags::new(true)).contains("--strict:"));
     }
 }

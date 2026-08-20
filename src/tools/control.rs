@@ -15,8 +15,8 @@ impl Tool for DreamErrorTool {
         ToolSpec {
             name: "dream_error",
             family: Family::Control,
-            description: "Abort. Report why the program cannot continue.",
-            parameters: object_params(&[("error", string_arg("What went wrong"))], &["error"]),
+            description: "Abort. Report the failure condition.",
+            parameters: object_params(&[("error", string_arg("Failure condition"))], &["error"]),
         }
     }
 

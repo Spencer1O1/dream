@@ -3,19 +3,13 @@ use serde_json::Value;
 use crate::error::DreamError;
 
 use super::composer::{mutate_output, with_unit, OutputOp};
-use super::{object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
+use super::{string_arg, Family, Tool, ToolCtx, ToolSpec};
 
-pub(super) struct RemoveOutputFile {
-    repair: bool,
-}
+pub(super) struct RemoveOutputFile;
 
 impl RemoveOutputFile {
     pub(super) fn compose() -> Self {
-        Self { repair: false }
-    }
-
-    pub(super) fn repair() -> Self {
-        Self { repair: true }
+        Self
     }
 }
 
@@ -24,19 +18,11 @@ impl Tool for RemoveOutputFile {
         ToolSpec {
             name: "remove_output_file",
             family: Family::Composer,
-            description: if self.repair {
-                "Remove one source (code) file under the output root. Path is relative to the output root."
-            } else {
-                "Remove one source (code) file under the output root. unit is the project-relative .foo path. Path is relative to the output root. Fails if that unit is locked."
-            },
-            parameters: {
-                let fields = [("path", string_arg("Output-relative file path"))];
-                if self.repair {
-                    object_params(&fields, &["path"])
-                } else {
-                    with_unit(&fields, &["path"])
-                }
-            },
+            description: "Remove one source (code) file under the output root. unit is the project-relative .foo path. Path is relative to the output root. Fails if that unit is locked.",
+            parameters: with_unit(
+                &[("path", string_arg("Output-relative file path"))],
+                &["path"],
+            ),
         }
     }
 
@@ -87,14 +73,6 @@ mod tests {
         assert!(out.contains("oops.rs"));
         assert!(!dest.path().join("oops.rs").exists());
         assert!(!artifacts[&unit.rel].contains("oops.rs"));
-    }
-
-    #[test]
-    fn repair_schema_has_no_unit() {
-        let spec = RemoveOutputFile::repair().spec();
-        let required = spec.parameters["required"].as_array().unwrap();
-        assert!(!required.iter().any(|value| value == "unit"));
-        assert!(spec.parameters["properties"].get("unit").is_none());
     }
 
     #[test]

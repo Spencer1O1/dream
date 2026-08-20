@@ -22,10 +22,7 @@ pub fn tools() -> Vec<Box<dyn Tool>> {
 }
 
 pub fn repair_tools() -> Vec<Box<dyn Tool>> {
-    vec![
-        Box::new(WriteOutputFile::repair()),
-        Box::new(RemoveOutputFile::repair()),
-    ]
+    vec![Box::new(WriteOutputFile::repair())]
 }
 
 pub(super) fn with_unit(fields: &[(&str, Value)], required: &[&str]) -> Value {

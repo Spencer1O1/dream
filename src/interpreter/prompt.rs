@@ -3,8 +3,8 @@ use crate::prompt::{paragraphs, ENTRY, FOOCODE, NO_CHAT};
 use crate::tools::Registry;
 
 const GOAL: &str = "\
-Your goal is to execute this Dream program as if it were actually running. \
-Use tool calls to do that, in the order the running program would.";
+Your goal is to execute this Dream program as if it were actually running, \
+in the order the running program would.";
 
 fn preamble() -> String {
     paragraphs(&[GOAL, FOOCODE, ENTRY, NO_CHAT])
