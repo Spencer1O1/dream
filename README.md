@@ -10,8 +10,8 @@ The product contract is the Dream vault: `MVP.md` and `Core Rules.md`.
 cp .env.example .env
 # or put secrets in .env.local (overrides .env)
 
-cargo run -- now examples/hello.foo
-cargo run -- now --strict examples/hello.foo
+cargo run -- now examples/hey-you.foo
+cargo run -- now --strict examples/hey-you.foo
 ```
 
 ## Config
@@ -19,7 +19,7 @@ cargo run -- now --strict examples/hello.foo
 ```env
 OPENAI_API_KEY=...
 DREAM_MODEL=gpt-4.1
-DREAM_TURN_CAP=40
+DREAM_TURN_CAP=10
 ```
 
 ## CLI
