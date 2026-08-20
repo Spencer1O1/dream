@@ -114,6 +114,8 @@ impl Registry {
                 out.push('\n');
             }
         }
+        out.push('\n');
+        out.push_str("These tools are the entire interface. Anything else is invalid.\n");
         out
     }
 
@@ -171,6 +173,8 @@ mod tests {
         assert!(catalog.contains("- list_source_files:"));
         assert!(catalog.contains("- stdout:"));
         assert!(catalog.contains("- dream_error:"));
+        assert!(catalog.contains("These tools are the entire interface."));
+        assert!(!catalog.contains("--strict"));
         assert_eq!(
             registry.names(),
             vec![

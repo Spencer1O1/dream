@@ -15,24 +15,18 @@ impl Tool for DreamErrorTool {
         ToolSpec {
             name: "dream_error",
             family: Family::Control,
-            description: "Abort with a DreamError. Use when the program cannot be executed with these tools, or when --strict and meaning is importantly ambiguous.",
-            parameters: object_params(
-                &[(
-                    "message",
-                    string_arg("Error message without a DreamError prefix"),
-                )],
-                &["message"],
-            ),
+            description: "Abort. Report why the program cannot continue.",
+            parameters: object_params(&[("error", string_arg("What went wrong"))], &["error"]),
         }
     }
 
     fn call(&self, _ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let message = arg_str(args, "message");
-        let message = if message.is_empty() {
+        let error = arg_str(args, "error");
+        let error = if error.is_empty() {
             "unspecified error"
         } else {
-            message
+            error
         };
-        Err(DreamError::new(message))
+        Err(DreamError::new(error))
     }
 }

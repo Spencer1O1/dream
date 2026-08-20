@@ -2,6 +2,7 @@ mod cli;
 mod composer;
 mod config;
 mod error;
+mod flags;
 mod interpreter;
 mod llm;
 mod source;
