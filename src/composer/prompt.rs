@@ -19,7 +19,7 @@ fn preamble() -> String {
 }
 
 pub const BUILDER_PREAMBLE: &str = "\
-Declare the toolchain for the project you just wrote.";
+Declare the toolchain for the project you are about to write.";
 
 pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
     registry.instructions(&preamble(), flags)
@@ -60,6 +60,8 @@ mod tests {
         let registry = Registry::builder();
         let instructions = builder(&registry, &ActiveFlags::new(false, false));
         assert!(instructions.contains(BUILDER_PREAMBLE));
+        assert!(instructions.contains("about to write"));
+        assert!(!instructions.contains("just wrote"));
         assert!(instructions.contains("set_builder"));
         assert!(!instructions.contains("write_output_file"));
     }

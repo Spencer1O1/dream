@@ -66,9 +66,9 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         no_warn: opts.no_warn,
     };
 
+    let builder = session.ask_builder().await?;
     session.write_until_settled(staging.path()).await?;
     output::require_files(staging.path())?;
-    let builder = session.ask_builder().await?;
     output::replace_output(&output, staging.path())?;
     let _ = staging.keep();
     if opts.build || opts.run_program {

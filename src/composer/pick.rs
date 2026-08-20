@@ -13,7 +13,7 @@ impl Session<'_> {
         let instructions = prompt::builder(&registry, self.flags);
         self.input.push(json!({
             "role": "user",
-            "content": "Declare the toolchain for this project."
+            "content": "Declare the toolchain before writing files."
         }));
         let turn = self
             .openai

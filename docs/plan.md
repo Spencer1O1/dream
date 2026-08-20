@@ -45,7 +45,7 @@ dream [--strict] <file.foo> -t <target> -o <dir>
 
 Declare the toolchain before Dream can build. `-t` stays an open-ended compose hint. A **builder** is a toolchain Dream will exec.
 
-**v0:** after the write loop settles, Dream asks once for a builder. Next: ask **before** writes (Phase 7).
+**v0:** asked after the write loop. Phase 7 asks **before** writes.
 
 No pick, or `unsupported`, means do not `--build`, `--run`, or repair. Compose still succeeds.
 
@@ -92,8 +92,8 @@ Ask `set_builder` **once, before any output writes**. That turn has only `set_bu
 
 Do not infer the builder from `-t` or from the tree. Do not put `set_builder` in the write-loop catalog.
 
-- [ ] `set_builder` before `write_output_file`
-- [ ] `unsupported` / no pick → compose only, as today
+- [x] `set_builder` before `write_output_file`
+- [x] `unsupported` / no pick → compose only, as today
 
 ## Phase 8 — Provenance and in-place reconcile
 
