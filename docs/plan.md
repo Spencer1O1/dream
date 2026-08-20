@@ -1,6 +1,6 @@
 # Plan
 
-Progress lives here. The vault (`MVP.md`, `Core Rules.md`) is the implemented v0 contract. The next contract is vault `Artifact Ownership.md`.
+Progress lives here. Vault `Core Rules.md` is foundational. `dream now` still matches vault `MVP.md`. Compose matches vault `Artifact Ownership.md` through Phase 8. Next: Phase 9, then 10.
 
 A Dream project is the directory around the entry `.foo`. The model lists and reads other units. There is no manifest and no all-files CLI.
 
@@ -88,7 +88,7 @@ Cap is `DREAM_REPAIR_CAP` (default 3, `0` means no repair).
 
 Needs Phase 6. Still v0 replace-`-o` is fine for this phase.
 
-Ask `set_builder` **once, before any output writes**. That turn has only `set_builder` (and `dream_error`). Then the write loop runs with a known builder (or `unsupported`).
+Ask `set_builder` **once, before any output writes**. That turn has only `set_builder` (no `dream_error`, no write tools). Then the write loop runs with a known builder (or `unsupported`).
 
 Do not infer the builder from `-t` or from the tree. Do not put `set_builder` in the write-loop catalog.
 
@@ -103,7 +103,7 @@ Normal `dream` must not clear `-o`. Persist a minimal target-specific map in a D
 
 Reject overwrite of another unit, project-owned, or unmanaged path. After the session settles, delete only each writing unit’s previous paths that are gone from its new set.
 
-`-o` has files but no store → error (use `--fresh` or an empty dir). Store target ≠ `-t` → error unless `--fresh`.
+`-o` has files but no store → error (use `--fresh` or an empty dir). Any file outside `.dream/` counts, including leftover `target/`. Do not skip toolchain dirs by name. Store target ≠ `-t` → error unless `--fresh`.
 
 Repair after Phase 8: stack is empty; only overwrite existing unlocked unit-owned paths; no new files, no `set_dependencies`.
 
