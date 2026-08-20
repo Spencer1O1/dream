@@ -50,6 +50,7 @@ impl ComposeState {
                 },
             )
             .await?;
+        provenance::require_composed(&artifacts)?;
         self.settle(artifacts, dependencies, builder)
     }
 

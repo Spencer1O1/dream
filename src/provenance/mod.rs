@@ -12,5 +12,5 @@ pub use lock::{check, lock, unlock};
 pub use open::open;
 pub use ownership::{authorize_remove, authorize_unit, authorize_write};
 pub use reconcile::reconcile;
-pub use require::require_composed;
+pub use require::{require_composed, require_source_root};
 pub use store::{Dependency, Store};

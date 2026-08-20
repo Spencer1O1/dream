@@ -173,10 +173,6 @@ impl Store {
         }
     }
 
-    pub fn has_artifacts(&self) -> bool {
-        self.units.values().any(|unit| !unit.artifacts.is_empty())
-    }
-
     pub fn drop_owned(&self, dest: &Path) -> Result<(), DreamError> {
         for path in &self.project {
             let _ = output::remove_file(dest, path);

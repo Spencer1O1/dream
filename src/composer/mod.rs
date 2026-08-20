@@ -42,10 +42,11 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     let (project, unit) = Project::from_entry(opts.entry)?;
     let output = output::resolve_output_dir(project.root(), opts.output)?;
     let mut state = ComposeState::open(&output, opts.target, opts.fresh)?;
-    state.store.set_source_root(project.root())?;
     if !state.fresh {
+        provenance::require_source_root(&state.store, project.root())?;
         provenance::check(&state.store, &state.dest, &project)?;
     }
+    state.store.set_source_root(project.root())?;
     let mut deps = DepGraph::new(&unit.rel);
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
     let flags = ActiveFlags::new(opts.strict);
@@ -86,7 +87,6 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     state
         .compose(&session, &mut deps, &mut input, builder)
         .await?;
-    provenance::require_composed(&state.store)?;
     if opts.build || opts.run_program {
         session
             .build_and_repair(builder, &mut state, &mut input, &mut deps, opts.run_program)

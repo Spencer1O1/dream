@@ -2,7 +2,6 @@ use serde_json::json;
 
 use crate::builder::{Builder, Outcome};
 use crate::error::DreamError;
-use crate::provenance;
 use crate::source::DepGraph;
 use crate::tools::Registry;
 
@@ -51,7 +50,6 @@ impl Session<'_> {
                         },
                     )
                     .await?;
-                    provenance::require_composed(&state.store)?;
                 }
                 outcome => return outcome.into_error(),
             }
