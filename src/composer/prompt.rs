@@ -1,26 +1,28 @@
 use crate::flags::ActiveFlags;
+use crate::prompt::{paragraphs, ENTRY, FOOCODE, NO_CHAT};
 use crate::tools::Registry;
 
-pub const PREAMBLE: &str = "\
+const GOAL: &str = "\
 Your goal is to compose this Dream program as if you were implementing it for the requested target. \
-Use tool calls to write a complete, hand-maintainable project with the same meaning.
+Use tool calls to write a complete, hand-maintainable project with the same meaning.";
 
-A Dream program is foocode: informal notation in .foo files. \
-One .foo file is one semantic unit. There is no grammar and no keywords.
-
-The entry unit is already in the conversation. \
-Request other source units instead of inventing them.
-
+const TARGET: &str = "\
 The requested target is already in the conversation. \
-Use ordinary target libraries when that is how the program would be written.
+Use ordinary target libraries when that is how the program would be written.";
 
-Do not execute the program. Chat text is discarded. Do not chat.";
+fn no_exec() -> String {
+    format!("Do not execute the program. {NO_CHAT}")
+}
+
+fn preamble() -> String {
+    paragraphs(&[GOAL, FOOCODE, ENTRY, TARGET, &no_exec()])
+}
 
 pub const BUILDER_PREAMBLE: &str = "\
 Declare the toolchain for the project you just wrote.";
 
 pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
-    registry.instructions(PREAMBLE, flags)
+    registry.instructions(&preamble(), flags)
 }
 
 pub fn builder(registry: &Registry, flags: &ActiveFlags) -> String {
@@ -35,7 +37,10 @@ mod tests {
     fn includes_tools_and_only_active_flags() {
         let registry = Registry::composer();
         let instructions = compose(&registry, &ActiveFlags::new(false));
-        assert!(instructions.contains(PREAMBLE));
+        assert!(instructions.contains(&preamble()));
+        assert!(instructions.contains(FOOCODE));
+        assert!(instructions.contains(ENTRY));
+        assert!(instructions.contains(NO_CHAT));
         assert!(instructions.contains("compose this Dream program"));
         assert!(instructions.contains("same meaning"));
         assert!(instructions.contains("ordinary target libraries"));

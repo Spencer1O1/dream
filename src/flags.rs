@@ -6,7 +6,7 @@ pub struct Flag {
 
 pub const STRICT: Flag = Flag {
     name: "strict",
-    description: "Do not guess important ambiguity. Abort instead.",
+    description: "Do not guess important semantics. Abort instead.",
 };
 
 pub struct ActiveFlags {

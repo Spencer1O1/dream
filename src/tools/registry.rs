@@ -113,7 +113,7 @@ mod tests {
         assert!(catalog.contains("- list_source_files:"));
         assert!(catalog.contains("- stdout:"));
         assert!(catalog.contains("- dream_error:"));
-        assert!(catalog.contains("next contiguous calls that can already run"));
+        assert!(catalog.contains("next contiguous calls that can run without waiting on a result"));
         assert!(!catalog.contains("--strict"));
         assert_eq!(
             registry.names(),
