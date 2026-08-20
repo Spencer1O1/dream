@@ -13,6 +13,8 @@ pub const STORE_REL: &str = ".dream/provenance.json";
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Store {
     pub target: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_root: Option<String>,
     #[serde(default)]
     pub units: BTreeMap<String, UnitState>,
     #[serde(default)]
@@ -50,10 +52,17 @@ impl Store {
     pub fn new(target: impl Into<String>) -> Self {
         Self {
             target: target.into(),
+            source_root: None,
             units: BTreeMap::new(),
             project: Vec::new(),
             installed: Vec::new(),
         }
+    }
+
+    pub fn set_source_root(&mut self, root: &Path) -> Result<(), DreamError> {
+        let root = root.canonicalize()?;
+        self.source_root = Some(root.to_string_lossy().into_owned());
+        Ok(())
     }
 
     pub fn path(dest: &Path) -> std::path::PathBuf {

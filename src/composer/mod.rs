@@ -42,6 +42,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     let (project, unit) = Project::from_entry(opts.entry)?;
     let output = output::resolve_output_dir(project.root(), opts.output)?;
     let mut state = ComposeState::open(&output, opts.target, opts.fresh)?;
+    state.store.set_source_root(project.root())?;
     if !state.fresh {
         provenance::check(&state.store, &state.dest, &project)?;
     }
@@ -100,7 +101,7 @@ pub fn lock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamError>
     }
     let (project, unit) = Project::from_entry(entry)?;
     let output = output::resolve_output_dir(project.root(), output)?;
-    provenance::lock(&output, target, &project, &unit.rel)
+    provenance::lock(&output, target, &project.root().join(&unit.rel))
 }
 
 pub fn unlock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
@@ -109,5 +110,39 @@ pub fn unlock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamErro
     }
     let (project, unit) = Project::from_entry(entry)?;
     let output = output::resolve_output_dir(project.root(), output)?;
-    provenance::unlock(&output, target, &unit.rel)
+    provenance::unlock(&output, target, &project.root().join(&unit.rel))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::provenance::Store;
+    use std::collections::HashSet;
+    use std::fs;
+
+    #[test]
+    fn lock_nested_unit_uses_the_store_key() {
+        let src = tempfile::tempdir().unwrap();
+        fs::create_dir_all(src.path().join("users")).unwrap();
+        fs::write(src.path().join("main.foo"), "entry").unwrap();
+        fs::write(src.path().join("users/active.foo"), "active").unwrap();
+
+        let dest = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dest.path().join("src")).unwrap();
+        fs::write(dest.path().join("src/active.rs"), "fn active() {}").unwrap();
+        let mut store = Store::new("rust");
+        store.set_source_root(src.path()).unwrap();
+        store.set_artifacts("users/active.foo", HashSet::from(["src/active.rs".into()]));
+        store.save(dest.path()).unwrap();
+
+        lock(&src.path().join("users/active.foo"), "rust", dest.path()).unwrap();
+
+        let store = Store::load(dest.path()).unwrap().unwrap();
+        assert!(store.is_locked("users/active.foo"));
+        assert!(!store.units.contains_key("active.foo"));
+
+        unlock(&src.path().join("users/active.foo"), "rust", dest.path()).unwrap();
+        let store = Store::load(dest.path()).unwrap().unwrap();
+        assert!(!store.is_locked("users/active.foo"));
+    }
 }

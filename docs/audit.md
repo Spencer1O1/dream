@@ -6,7 +6,7 @@ Effect ownership, `Mode` isolation, in-place provenance, `--lucid` isolation, an
 
 ## Must-fix
 
-- [ ] **Lock nested unit** — `dream lock users/active.foo` re-roots at that file’s parent, so the store key is `active.foo` while compose recorded `users/active.foo`. Match the file to an existing store key. Test a subdirectory unit. (`src/composer/mod.rs`, `src/source/project.rs`, `src/provenance/lock.rs`)
+- [x] **Lock nested unit** — `dream lock users/active.foo` re-roots at that file’s parent, so the store key is `active.foo` while compose recorded `users/active.foo`. Match the file to an existing store key. Test a subdirectory unit. (`src/composer/mod.rs`, `src/source/project.rs`, `src/provenance/lock.rs`)
 - [ ] **Repair remove** — Repair catalog offers `remove_output_file`. `authorize_remove` with `unit: None` always fails; repair does not settle. Vault is overwrite-only. Drop remove from `Registry::repair()`. Do not teach remove to update the map.
 
 ## Architecture
