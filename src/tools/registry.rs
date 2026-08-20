@@ -20,6 +20,7 @@ impl Registry {
         ])
     }
 
+    #[cfg(test)]
     pub fn composer() -> Self {
         Self::composer_for(None)
     }
