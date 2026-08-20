@@ -12,7 +12,7 @@ Effect ownership, `Mode` isolation, in-place provenance, `--lucid` isolation, an
 ## Architecture
 
 - [x] **Go stub versions** — Optional `version` on `set_dependencies`. No version → omit `require`. Do not write `v0.0.0`. No crates.io/proxy resolver.
-- [ ] **Python `--run`** — Catalog `run` is `["python"]`. That starts a REPL, not the composed program. Pick a real argv or treat python run as unsupported. Do not take argv from the model.
+- [x] **Python `--run`** — Catalog `run` is `["python", "main.py"]`. Static argv; not a REPL; not from the model.
 
 ## Prompting
 

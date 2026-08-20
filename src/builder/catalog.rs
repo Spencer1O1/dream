@@ -28,7 +28,7 @@ pub const CATALOG: &[BuilderSpec] = &[
     BuilderSpec {
         name: "python",
         build: &[],
-        run: &["python"],
+        run: &["python", "main.py"],
         install_hint: "Install Python 3 from https://www.python.org/downloads/",
         manifest: "pyproject.toml",
     },
@@ -53,5 +53,6 @@ mod tests {
             assert!(!spec.run.is_empty());
             assert!(!spec.manifest.is_empty());
         }
+        assert_eq!(spec("python").unwrap().run, &["python", "main.py"]);
     }
 }
