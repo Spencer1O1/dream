@@ -20,7 +20,7 @@ pub fn apply(
     installed: &mut Vec<String>,
 ) -> Result<(), DreamError> {
     if wanted.iter().any(|dep| !dep.features.is_empty()) {
-        return Err(DreamError::runtime("go dependencies do not take features"));
+        return Err(DreamError::composer("go dependencies do not take features"));
     }
     let path = dest.join("go.mod");
     let mut text = fs::read_to_string(&path)?;

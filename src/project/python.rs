@@ -28,7 +28,7 @@ pub fn apply(
     let path = dest.join("pyproject.toml");
     let mut doc = fs::read_to_string(&path)?
         .parse::<toml_edit::DocumentMut>()
-        .map_err(|err| DreamError::runtime(format!("invalid pyproject.toml: {err}")))?;
+        .map_err(|err| DreamError::composer(format!("invalid pyproject.toml: {err}")))?;
     if doc
         .get("project")
         .and_then(|project| project.get("dependencies"))
@@ -39,7 +39,7 @@ pub fn apply(
     let deps = doc["project"]["dependencies"]
         .as_array_mut()
         .ok_or_else(|| {
-            DreamError::runtime("pyproject.toml project.dependencies must be an array")
+            DreamError::composer("pyproject.toml project.dependencies must be an array")
         })?;
 
     let existing: HashSet<String> = deps

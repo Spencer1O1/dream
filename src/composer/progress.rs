@@ -59,7 +59,7 @@ mod tests {
 
     #[test]
     fn rejected_uses_the_detail_not_the_subtype_prefix() {
-        let err = DreamError::runtime("`utils.foo` is locked");
+        let err = DreamError::composer("`utils.foo` is locked");
         assert_eq!(
             format!(
                 "{}: {}",

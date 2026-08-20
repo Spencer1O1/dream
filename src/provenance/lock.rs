@@ -22,7 +22,7 @@ pub fn lock(dest: &Path, target: &str, project: &Project, unit: &str) -> Result<
     let hash = hash_unit(project, unit)?;
     if state.locked {
         if state.source_hash.as_deref() != Some(hash.as_str()) {
-            return Err(DreamError::usage(format!(
+            return Err(DreamError::composer(format!(
                 "`{unit}` is locked with a different source; unlock first"
             )));
         }
@@ -50,7 +50,7 @@ pub fn check(store: &Store, dest: &Path, project: &Project) -> Result<(), DreamE
         }
         let hash = hash_unit(project, unit)?;
         if state.source_hash.as_deref() != Some(hash.as_str()) {
-            return Err(DreamError::runtime(format!(
+            return Err(DreamError::composer(format!(
                 "locked unit `{unit}` source changed; unlock or restore the .foo"
             )));
         }
@@ -78,7 +78,7 @@ fn require_artifacts(dest: &Path, unit: &str, artifacts: &[String]) -> Result<()
     for rel in artifacts {
         let path = dest.join(rel);
         if !path.is_file() {
-            return Err(DreamError::runtime(format!(
+            return Err(DreamError::composer(format!(
                 "locked artifact `{rel}` for `{unit}` is missing; restore the file, unlock, or --fresh"
             )));
         }
@@ -147,6 +147,7 @@ mod tests {
         fs::write(src.path().join("main.foo"), "print bye").unwrap();
         let store = Store::load(dest.path()).unwrap().unwrap();
         let err = check(&store, dest.path(), &project).unwrap_err();
+        assert!(err.to_string().starts_with("ComposerError:"));
         assert!(err.to_string().contains("source changed"));
     }
 
@@ -169,6 +170,7 @@ mod tests {
         lock(dest.path(), "rust", &project, &unit).unwrap();
         fs::write(src.path().join("main.foo"), "print bye").unwrap();
         let err = lock(dest.path(), "rust", &project, &unit).unwrap_err();
+        assert!(err.to_string().starts_with("ComposerError:"));
         assert!(err.to_string().contains("unlock first"));
     }
 

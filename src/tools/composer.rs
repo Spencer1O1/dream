@@ -42,7 +42,7 @@ pub(super) fn with_unit(fields: &[(&str, Value)], required: &[&str]) -> Value {
 pub(super) fn authorize(ctx: &ToolCtx<'_>, requested: &str) -> Result<String, DreamError> {
     let unit = ctx.project.read_source_file(requested)?;
     if !ctx.deps.reached(&unit.rel) {
-        return Err(DreamError::runtime(format!(
+        return Err(DreamError::composer(format!(
             "cannot write for `{}`; read that unit first",
             unit.rel
         )));
@@ -78,7 +78,7 @@ pub(super) fn mutate_output(
     op: OutputOp<'_>,
 ) -> Result<String, DreamError> {
     if matches!(ctx.mode, Mode::Lucid | Mode::Pick(_)) {
-        return Err(DreamError::runtime(format!(
+        return Err(DreamError::composer(format!(
             "{name} is only available while composing"
         )));
     }
@@ -98,7 +98,7 @@ pub(super) fn mutate_output(
             ..
         }) => {
             let unit =
-                claimed.ok_or_else(|| DreamError::runtime(format!("{name} requires unit")))?;
+                claimed.ok_or_else(|| DreamError::composer(format!("{name} requires unit")))?;
             apply(
                 dest,
                 store,

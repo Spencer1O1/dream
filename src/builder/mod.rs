@@ -26,7 +26,7 @@ impl Builder {
         }
         catalog::spec(name)
             .map(Self::Known)
-            .ok_or_else(|| DreamError::runtime(format!("unknown builder `{name}`")))
+            .ok_or_else(|| DreamError::composer(format!("unknown builder `{name}`")))
     }
 
     pub fn spec(self) -> Option<&'static BuilderSpec> {

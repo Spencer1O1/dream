@@ -1,13 +1,13 @@
 use thiserror::Error;
 
-/// Host plumbing: OpenAI, I/O, JSON, a corrupt store. Not the dreamed program and not compose.
+/// Composition, lock, repair, or build stopped.
 #[derive(Debug, Error)]
-#[error("RuntimeError: {error}")]
-pub struct RuntimeError {
+#[error("ComposerError: {error}")]
+pub struct ComposerError {
     error: String,
 }
 
-impl RuntimeError {
+impl ComposerError {
     pub fn new(error: impl Into<String>) -> Self {
         Self {
             error: error.into(),
@@ -25,10 +25,10 @@ mod tests {
 
     #[test]
     fn formats_error_string() {
-        let err = RuntimeError::new("source request escapes project root");
+        let err = ComposerError::new("locked unit `main.foo` source changed");
         assert_eq!(
             err.to_string(),
-            "RuntimeError: source request escapes project root"
+            "ComposerError: locked unit `main.foo` source changed"
         );
     }
 }

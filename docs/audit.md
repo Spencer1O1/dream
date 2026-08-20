@@ -31,9 +31,9 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 
 ## Taxonomy
 
-- [ ] **Lock-staleness error type** — Same condition is Usage on `dream lock` and Runtime on compose `check`. Pick one and use it consistently.
+- [x] **Lock-staleness error type** — Drifted lock is `ComposerError` on `dream lock` and compose `check`. Same class as a missing locked artifact. Usage stays for “this command does not apply.”
 - [ ] **Missing remove** — Missing / non-file remove is a tool warning, not a process error. Keep escape / I/O as `DreamError`.
-- [ ] **dream_error name** — Keep `dream_error` ⇒ `InterpreterError` if that is the rule. Do not use `InterpreterError` for the compose turn cap.
+- [x] **dream_error name** — `dream_error` and the lucid turn cap are `InterpreterError`. The compose turn cap is `ComposerError`. See `docs/errors.md`.
 
 
 

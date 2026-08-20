@@ -11,7 +11,7 @@ pub fn create_if_missing(dest: &Path, spec: &BuilderSpec, package: &str) -> Resu
         "cargo" => cargo::create_if_missing(dest, package),
         "go" => go::create_if_missing(dest, package),
         "python" => python::create_if_missing(dest, package),
-        other => Err(DreamError::runtime(format!(
+        other => Err(DreamError::composer(format!(
             "unknown builder `{other}` has no manifest"
         ))),
     }
@@ -27,7 +27,7 @@ pub fn apply(
         "cargo" => cargo::apply(dest, wanted, installed),
         "go" => go::apply(dest, wanted, installed),
         "python" => python::apply(dest, wanted, installed),
-        other => Err(DreamError::runtime(format!(
+        other => Err(DreamError::composer(format!(
             "unknown builder `{other}` has no manifest"
         ))),
     }
@@ -35,7 +35,7 @@ pub fn apply(
 
 pub fn path(spec: &BuilderSpec) -> Result<&str, DreamError> {
     if spec.manifest.is_empty() {
-        return Err(DreamError::runtime(format!(
+        return Err(DreamError::composer(format!(
             "builder `{}` has no manifest",
             spec.name
         )));

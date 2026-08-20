@@ -16,12 +16,12 @@ pub fn write_file(dest: &Path, path: &str, contents: &str) -> Result<String, Dre
 pub fn remove_file(dest: &Path, path: &str) -> Result<String, DreamError> {
     let abs = resolve_output(dest, path)?;
     if abs.is_dir() {
-        return Err(DreamError::runtime(format!(
+        return Err(DreamError::composer(format!(
             "output path `{path}` is a directory"
         )));
     }
     if !abs.exists() {
-        return Err(DreamError::runtime(format!(
+        return Err(DreamError::composer(format!(
             "output file `{path}` does not exist"
         )));
     }

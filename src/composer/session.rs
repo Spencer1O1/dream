@@ -85,7 +85,7 @@ impl Session<'_> {
             }
         }
 
-        Err(DreamError::runtime(format!(
+        Err(DreamError::composer(format!(
             "turn limit reached before composition settled ({})",
             self.turn_cap
         )))

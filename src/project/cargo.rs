@@ -29,13 +29,13 @@ pub fn apply(
     let path = dest.join("Cargo.toml");
     let mut doc = fs::read_to_string(&path)?
         .parse::<toml_edit::DocumentMut>()
-        .map_err(|err| DreamError::runtime(format!("invalid Cargo.toml: {err}")))?;
+        .map_err(|err| DreamError::composer(format!("invalid Cargo.toml: {err}")))?;
     if doc.get("dependencies").is_none() {
         doc["dependencies"] = Item::Table(Table::new());
     }
     let deps = doc["dependencies"]
         .as_table_mut()
-        .ok_or_else(|| DreamError::runtime("Cargo.toml [dependencies] must be a table"))?;
+        .ok_or_else(|| DreamError::composer("Cargo.toml [dependencies] must be a table"))?;
 
     let existing: HashSet<String> = deps.iter().map(|(name, _)| name.to_string()).collect();
     let wanted_names: HashSet<&str> = wanted.iter().map(|dep| dep.name.as_str()).collect();

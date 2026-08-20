@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// The dreamed program cannot continue. Produced by `dream_error`.
+/// The dreamed program stopped. Produced by `dream_error` and the lucid turn cap. Not compose.
 #[derive(Debug, Error)]
 #[error("InterpreterError: {error}")]
 pub struct InterpreterError {

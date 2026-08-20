@@ -9,6 +9,7 @@ pub fn resolve_inside(root: &Path, requested: &str) -> Result<PathBuf, DreamErro
         "source request is empty",
         "source request escapes project root",
     )
+    .map_err(DreamError::runtime)
 }
 
 pub fn resolve_output(root: &Path, requested: &str) -> Result<PathBuf, DreamError> {
@@ -17,9 +18,10 @@ pub fn resolve_output(root: &Path, requested: &str) -> Result<PathBuf, DreamErro
         requested,
         "output write is empty",
         "output write escapes -o",
-    )?;
+    )
+    .map_err(DreamError::composer)?;
     if dest == root {
-        return Err(DreamError::runtime("output write escapes -o"));
+        return Err(DreamError::composer("output write escapes -o"));
     }
     Ok(dest)
 }
@@ -27,11 +29,11 @@ pub fn resolve_output(root: &Path, requested: &str) -> Result<PathBuf, DreamErro
 fn resolve_under(
     root: &Path,
     requested: &str,
-    empty: &str,
-    escape: &str,
-) -> Result<PathBuf, DreamError> {
+    empty: &'static str,
+    escape: &'static str,
+) -> Result<PathBuf, &'static str> {
     if requested.trim().is_empty() {
-        return Err(DreamError::runtime(empty));
+        return Err(empty);
     }
     let requested_path = Path::new(requested);
     let joined = if requested_path.is_absolute() {
@@ -41,23 +43,21 @@ fn resolve_under(
     };
     let normalized = normalize_lexically(&joined);
     if !normalized.starts_with(root) {
-        return Err(DreamError::runtime(escape));
+        return Err(escape);
     }
     Ok(normalized)
 }
 
 pub fn rel_path(root: &Path, path: &Path) -> Result<String, DreamError> {
-    rel_under(root, path, "source request escapes project root")
+    rel_under(root, path).map_err(|_| DreamError::runtime("source request escapes project root"))
 }
 
 pub fn rel_output(root: &Path, path: &Path) -> Result<String, DreamError> {
-    rel_under(root, path, "output write escapes -o")
+    rel_under(root, path).map_err(|_| DreamError::composer("output write escapes -o"))
 }
 
-fn rel_under(root: &Path, path: &Path, escape: &str) -> Result<String, DreamError> {
-    let rel = path
-        .strip_prefix(root)
-        .map_err(|_| DreamError::runtime(escape))?;
+fn rel_under(root: &Path, path: &Path) -> Result<String, ()> {
+    let rel = path.strip_prefix(root).map_err(|_| ())?;
     Ok(rel.to_string_lossy().replace('\\', "/"))
 }
 
@@ -90,6 +90,7 @@ mod tests {
     fn output_rejects_escape_and_root() {
         let root = Path::new("/tmp/stage");
         let escape = resolve_output(root, "../secret").unwrap_err();
+        assert!(escape.to_string().starts_with("ComposerError:"));
         assert!(escape.to_string().contains("output write escapes -o"));
         let abs = resolve_output(root, "/etc/passwd").unwrap_err();
         assert!(abs.to_string().contains("output write escapes -o"));
@@ -103,6 +104,7 @@ mod tests {
     fn source_still_rejects_escape() {
         let root = Path::new("/tmp/proj");
         let err = resolve_inside(root, "../secret.foo").unwrap_err();
+        assert!(err.to_string().starts_with("RuntimeError:"));
         assert!(err
             .to_string()
             .contains("source request escapes project root"));

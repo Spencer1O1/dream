@@ -8,7 +8,7 @@ pub fn from_entry(entry_rel: &str) -> Result<String, DreamError> {
         .and_then(|stem| stem.to_str())
         .filter(|stem| !stem.is_empty())
         .map(ToOwned::to_owned)
-        .ok_or_else(|| DreamError::runtime("entry file has no package name"))
+        .ok_or_else(|| DreamError::composer("entry file has no package name"))
 }
 
 #[cfg(test)]

@@ -7,7 +7,7 @@ use crate::provenance::Dependency;
 
 pub fn dependencies(args: &Value) -> Result<Vec<Dependency>, DreamError> {
     let Some(items) = args["dependencies"].as_array() else {
-        return Err(DreamError::runtime(
+        return Err(DreamError::composer(
             "set_dependencies requires a dependencies array",
         ));
     };
@@ -16,10 +16,10 @@ pub fn dependencies(args: &Value) -> Result<Vec<Dependency>, DreamError> {
     for item in items {
         let name = item["name"].as_str().unwrap_or("").trim();
         if name.is_empty() {
-            return Err(DreamError::runtime("dependency name is required"));
+            return Err(DreamError::composer("dependency name is required"));
         }
         if !seen.insert(name.to_string()) {
-            return Err(DreamError::runtime(format!(
+            return Err(DreamError::composer(format!(
                 "duplicate dependency `{name}`"
             )));
         }
@@ -28,14 +28,14 @@ pub fn dependencies(args: &Value) -> Result<Vec<Dependency>, DreamError> {
                 .iter()
                 .map(|feature| {
                     feature.as_str().map(ToOwned::to_owned).ok_or_else(|| {
-                        DreamError::runtime(format!("features for `{name}` must be strings"))
+                        DreamError::composer(format!("features for `{name}` must be strings"))
                     })
                 })
                 .collect::<Result<Vec<_>, _>>()?,
             None => Vec::new(),
         };
         if features.iter().any(|feature| feature.is_empty()) {
-            return Err(DreamError::runtime(format!(
+            return Err(DreamError::composer(format!(
                 "features for `{name}` must be nonempty"
             )));
         }

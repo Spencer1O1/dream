@@ -34,7 +34,7 @@ impl Tool for SetBuilder {
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
         let Mode::Pick(pick) = &mut ctx.mode else {
-            return Err(DreamError::runtime(
+            return Err(DreamError::composer(
                 "set_builder is only available when declaring a builder",
             ));
         };

@@ -56,7 +56,7 @@ impl Session<'_> {
                 outcome => return outcome.into_error(),
             }
         }
-        Err(DreamError::runtime("build failed"))
+        Err(DreamError::composer("build failed"))
     }
 }
 

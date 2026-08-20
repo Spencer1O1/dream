@@ -81,7 +81,7 @@ impl Tool for SetDependencies {
         }
         let count = parsed.len();
         let Mode::Compose(compose) = &mut ctx.mode else {
-            return Err(DreamError::runtime(
+            return Err(DreamError::composer(
                 "set_dependencies is not available during repair",
             ));
         };

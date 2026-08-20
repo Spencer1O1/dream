@@ -6,6 +6,6 @@ pub fn require_composed(store: &Store) -> Result<(), DreamError> {
     if store.has_artifacts() {
         Ok(())
     } else {
-        Err(DreamError::runtime("composition produced no files"))
+        Err(DreamError::composer("composition produced no files"))
     }
 }

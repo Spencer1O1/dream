@@ -7,7 +7,7 @@ use super::store::{reserved, Owner, Store};
 
 pub fn authorize_unit(store: &Store, unit: &str) -> Result<(), DreamError> {
     if store.is_locked(unit) {
-        return Err(DreamError::runtime(format!("`{unit}` is locked")));
+        return Err(DreamError::composer(format!("`{unit}` is locked")));
     }
     Ok(())
 }
@@ -20,29 +20,33 @@ pub fn authorize_write(
     this_job: Option<&HashSet<String>>,
 ) -> Result<(), DreamError> {
     if reserved(rel) {
-        return Err(DreamError::runtime(
+        return Err(DreamError::composer(
             "cannot write Dream-owned project metadata",
         ));
     }
     let owner = owner_including_job(store, rel, unit, this_job);
     reject_if_locked(store, unit, &owner)?;
     match owner {
-        Owner::Project => Err(DreamError::runtime(format!(
+        Owner::Project => Err(DreamError::composer(format!(
             "cannot write `{rel}`; Dream owns the manifest."
         ))),
         Owner::Unit(owner) => match unit {
             Some(unit) if owner == unit => Ok(()),
             None => Ok(()),
-            Some(_) => Err(DreamError::runtime(format!(
+            Some(_) => Err(DreamError::composer(format!(
                 "output `{rel}` is owned by `{owner}`"
             ))),
         },
         Owner::Unmanaged => {
             if unit.is_none() {
-                return Err(DreamError::runtime(format!("repair cannot create `{rel}`")));
+                return Err(DreamError::composer(format!(
+                    "repair cannot create `{rel}`"
+                )));
             }
             if dest.join(rel).exists() {
-                return Err(DreamError::runtime(format!("output `{rel}` is user-owned")));
+                return Err(DreamError::composer(format!(
+                    "output `{rel}` is user-owned"
+                )));
             }
             Ok(())
         }
@@ -56,7 +60,7 @@ pub fn authorize_remove(
     this_job: Option<&HashSet<String>>,
 ) -> Result<(), DreamError> {
     if reserved(rel) {
-        return Err(DreamError::runtime(
+        return Err(DreamError::composer(
             "cannot remove Dream-owned project metadata",
         ));
     }
@@ -64,13 +68,15 @@ pub fn authorize_remove(
     reject_if_locked(store, unit, &owner)?;
     match owner {
         Owner::Unit(owner) if unit == Some(owner.as_str()) => Ok(()),
-        Owner::Unit(owner) => Err(DreamError::runtime(format!(
+        Owner::Unit(owner) => Err(DreamError::composer(format!(
             "output `{rel}` is owned by `{owner}`"
         ))),
-        Owner::Project => Err(DreamError::runtime(format!(
+        Owner::Project => Err(DreamError::composer(format!(
             "cannot remove `{rel}`; Dream owns the manifest."
         ))),
-        Owner::Unmanaged => Err(DreamError::runtime(format!("output `{rel}` is user-owned"))),
+        Owner::Unmanaged => Err(DreamError::composer(format!(
+            "output `{rel}` is user-owned"
+        ))),
     }
 }
 
