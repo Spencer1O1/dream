@@ -49,9 +49,11 @@ After the write loop settles, Dream asks once for a builder. That turn has only 
 
 Do not infer the builder from the tree. Do not take build argv from the model. Do not put `set_builder` in the write-loop catalog.
 
-Enum values are toolchains Dream owns (`cargo`, `go`, …), not language vibes (`cpp`, `embedded`). Vague `-t` (Arduino Nano, COBOL, …) should be `unsupported` until that builder exists.
+The source of truth is `src/builder/catalog.rs`: name, build argv, run argv, install hint. `set_builder` is those names plus `unsupported`. `unsupported` is not a catalog row.
 
-- [x] Closed builder list in Dream (`cargo`, `go`, `python`, `unsupported`)
+Enum values are toolchains Dream owns, not language vibes (`cpp`, `embedded`). Vague `-t` (Arduino Nano, COBOL, …) should be `unsupported` until that builder exists.
+
+- [x] Closed builder list in Dream (`src/builder/catalog.rs`)
 - [x] Follow-up `set_builder` turn after compose settles
 - [x] Missing / `unsupported` → compose only
 

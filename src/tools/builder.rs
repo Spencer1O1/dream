@@ -18,7 +18,7 @@ impl Tool for SetBuilder {
             family: Family::Composer,
             description: "Declare the toolchain for this project.",
             parameters: {
-                let names = Builder::ALL.map(Builder::as_str);
+                let names = Builder::schema_names();
                 object_params(
                     &[(
                         "builder",
@@ -75,7 +75,7 @@ mod tests {
         SetBuilder
             .call(&mut ctx, &json!({ "builder": "cargo" }))
             .unwrap();
-        assert_eq!(builder, Some(Builder::Cargo));
+        assert_eq!(builder.unwrap().as_str(), "cargo");
     }
 
     #[test]
