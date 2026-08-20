@@ -13,6 +13,8 @@ pub struct ToolchainSpec {
     /// Empty means no build step.
     pub build: &'static [&'static str],
     pub run: Run,
+    /// Official program names, in order. First is the argv name. Rest are exec fallbacks.
+    pub programs: &'static [&'static str],
     pub install_hint: &'static str,
     /// Project-owned manifest Dream writes. Empty means this toolchain has none.
     pub manifest: &'static str,
@@ -41,6 +43,7 @@ pub const CATALOG: &[ToolchainSpec] = &[
         name: "cargo",
         build: &["cargo", "build"],
         run: Run::Argv(&["cargo", "run"]),
+        programs: &["cargo"],
         install_hint: "Install Rust from https://rustup.rs/",
         manifest: "Cargo.toml",
         project: &["Cargo.lock", "target"],
@@ -49,6 +52,7 @@ pub const CATALOG: &[ToolchainSpec] = &[
         name: "go",
         build: &["go", "build"],
         run: Run::Argv(&["go", "run", "."]),
+        programs: &["go"],
         install_hint: "Install Go from https://go.dev/dl/",
         manifest: "go.mod",
         project: &["go.sum"],
@@ -57,6 +61,7 @@ pub const CATALOG: &[ToolchainSpec] = &[
         name: "python",
         build: &[],
         run: Run::PythonEntry,
+        programs: &["python", "python3", "py"],
         install_hint: "Install Python 3 from https://www.python.org/downloads/",
         manifest: "pyproject.toml",
         project: &["__pycache__"],
@@ -98,5 +103,9 @@ mod tests {
             vec!["python".to_string(), "hey-you.py".to_string()]
         );
         assert_eq!(spec("cargo").unwrap().project, &["Cargo.lock", "target"]);
+        assert_eq!(
+            spec("python").unwrap().programs,
+            &["python", "python3", "py"]
+        );
     }
 }

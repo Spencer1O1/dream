@@ -5,6 +5,7 @@ use std::process::{Command, Output, Stdio};
 use crate::error::DreamError;
 
 use super::outcome::Outcome;
+use super::program;
 use super::ToolchainSpec;
 
 pub(super) fn capture_step(
@@ -17,19 +18,17 @@ pub(super) fn capture_step(
     let Some((program, args)) = argv.split_first() else {
         return Ok(Outcome::Ok);
     };
-    let output = match Command::new(program)
-        .args(args)
-        .current_dir(dir)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-    {
-        Ok(output) => output,
-        Err(err) if err.kind() == io::ErrorKind::NotFound => {
-            return Ok(Outcome::MissingToolchain(spec.install_hint));
-        }
-        Err(err) => return Err(err.into()),
+    let Some(output) = program::launch(spec, program, |name| {
+        Command::new(name)
+            .args(args)
+            .current_dir(dir)
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+    })?
+    else {
+        return Ok(Outcome::MissingToolchain(spec.install_hint));
     };
     forward(&output)?;
     let text = diagnostics(&output);

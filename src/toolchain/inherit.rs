@@ -1,10 +1,10 @@
-use std::io;
 use std::path::Path;
 use std::process::{Command, Stdio};
 
 use crate::error::DreamError;
 
 use super::outcome::Outcome;
+use super::program;
 use super::ToolchainSpec;
 
 pub(super) fn inherit_step(
@@ -16,19 +16,17 @@ pub(super) fn inherit_step(
     let Some((program, args)) = argv.split_first() else {
         return Ok(Outcome::Ok);
     };
-    let status = match Command::new(program)
-        .args(args)
-        .current_dir(dir)
-        .stdin(Stdio::inherit())
-        .stdout(Stdio::inherit())
-        .stderr(Stdio::inherit())
-        .status()
-    {
-        Ok(status) => status,
-        Err(err) if err.kind() == io::ErrorKind::NotFound => {
-            return Ok(Outcome::MissingToolchain(spec.install_hint));
-        }
-        Err(err) => return Err(err.into()),
+    let Some(status) = program::launch(spec, program, |name| {
+        Command::new(name)
+            .args(args)
+            .current_dir(dir)
+            .stdin(Stdio::inherit())
+            .stdout(Stdio::inherit())
+            .stderr(Stdio::inherit())
+            .status()
+    })?
+    else {
+        return Ok(Outcome::MissingToolchain(spec.install_hint));
     };
     if status.success() {
         Ok(Outcome::Ok)

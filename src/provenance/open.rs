@@ -12,7 +12,7 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
     fs::create_dir_all(dest)?;
     match Store::load(dest)? {
         Some(store) if store.target != target && !fresh => Err(DreamError::usage(format!(
-            "output is for target `{}`; pass --fresh to compose `-t {target}`",
+            "output is for target `{}`; pass --fresh to overwrite `-t {target}`",
             store.target
         ))),
         Some(store) if fresh => {
@@ -22,7 +22,7 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
         }
         Some(store) => Ok((store, false)),
         None if has_user_files(dest)? && !fresh => Err(DreamError::usage(
-            "output has files Dream does not own; pass --fresh or use an empty directory",
+            "output has files Dream does not own; pass --fresh to overwrite or use an empty directory",
         )),
         None => {
             if fresh {

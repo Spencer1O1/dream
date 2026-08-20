@@ -3,6 +3,7 @@ mod catalog;
 mod exec;
 mod inherit;
 mod outcome;
+mod program;
 
 pub use catalog::{ToolchainSpec, CATALOG};
 pub use exec::after_compose;

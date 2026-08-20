@@ -51,6 +51,7 @@ mod tests {
             name: "test",
             build,
             run,
+            programs: &[],
             install_hint: "Install the test toolchain from somewhere.",
             manifest: "",
             project: &[],
@@ -88,6 +89,24 @@ mod tests {
             }
             other => panic!("expected missing toolchain, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn missing_first_program_tries_the_next() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = ToolchainSpec {
+            name: "test",
+            build: &[],
+            run: Run::Argv(&["dream-no-such-python-7f3a"]),
+            programs: &["dream-no-such-python-7f3a", "true"],
+            install_hint: "Install the test toolchain from somewhere.",
+            manifest: "",
+            project: &[],
+        };
+        assert!(matches!(
+            invoke(&spec, dir.path(), ENTRY, true, false).unwrap(),
+            Outcome::Ok
+        ));
     }
 
     #[test]
