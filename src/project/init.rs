@@ -12,8 +12,10 @@ pub fn init(
     package: &str,
     store: &mut Store,
 ) -> Result<(), DreamError> {
-    let rel = manifest::path(spec)?;
-    store.mark_project(rel);
+    manifest::path(spec)?;
+    for rel in spec.owned_dest(package) {
+        store.mark_project(&rel);
+    }
     manifest::create_if_missing(dest, spec, package)?;
     store.save(dest)?;
     Ok(())
@@ -37,9 +39,33 @@ mod tests {
         init(dest.path(), cargo(), "multifile", &mut store).unwrap();
         let text = fs::read_to_string(dest.path().join("Cargo.toml")).unwrap();
         assert!(text.contains("name = \"multifile\""));
-        assert_eq!(store.project, vec!["Cargo.toml"]);
+        assert_eq!(store.project, vec!["Cargo.lock", "Cargo.toml", "target"]);
         assert_eq!(
             store.owner("Cargo.toml"),
+            crate::provenance::store::Owner::Project
+        );
+        assert_eq!(
+            store.owner("Cargo.lock"),
+            crate::provenance::store::Owner::Project
+        );
+        assert_eq!(
+            store.owner("target"),
+            crate::provenance::store::Owner::Project
+        );
+    }
+
+    #[test]
+    fn go_marks_the_build_binary() {
+        let dest = tempfile::tempdir().unwrap();
+        let spec = Toolchain::parse("go").unwrap().spec().unwrap();
+        let mut store = Store::new("go");
+        init(dest.path(), spec, "hey-you", &mut store).unwrap();
+        assert_eq!(
+            store.project,
+            vec!["go.mod", "go.sum", "hey-you", "hey-you.exe"]
+        );
+        assert_eq!(
+            store.owner("hey-you"),
             crate::provenance::store::Owner::Project
         );
     }

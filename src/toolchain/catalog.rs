@@ -36,6 +36,21 @@ impl ToolchainSpec {
             Run::PythonEntry => Some(format!("{entry_stem}.py")),
         }
     }
+
+    /// Dest paths this row owns: the manifest, then lockfiles, build dirs, and
+    /// the Go binary `go build` writes (`{stem}` / `{stem}.exe`).
+    pub fn owned_dest(&self, entry_stem: &str) -> Vec<String> {
+        let mut paths = Vec::new();
+        if !self.manifest.is_empty() {
+            paths.push(self.manifest.to_string());
+        }
+        paths.extend(self.project.iter().map(|path| (*path).to_string()));
+        if self.name == "go" {
+            paths.push(entry_stem.to_string());
+            paths.push(format!("{entry_stem}.exe"));
+        }
+        paths
+    }
 }
 
 pub const CATALOG: &[ToolchainSpec] = &[
@@ -48,6 +63,7 @@ pub const CATALOG: &[ToolchainSpec] = &[
         manifest: "Cargo.toml",
         project: &["Cargo.lock", "target"],
     },
+    // `go build` also writes `{stem}` / `{stem}.exe` (owned_dest).
     ToolchainSpec {
         name: "go",
         build: &["go", "build"],
@@ -106,6 +122,14 @@ mod tests {
         assert_eq!(
             spec("python").unwrap().programs,
             &["python", "python3", "py"]
+        );
+        assert_eq!(
+            spec("go").unwrap().owned_dest("hey-you"),
+            ["go.mod", "go.sum", "hey-you", "hey-you.exe"]
+        );
+        assert_eq!(
+            spec("cargo").unwrap().owned_dest("hey-you"),
+            ["Cargo.toml", "Cargo.lock", "target"]
         );
     }
 }

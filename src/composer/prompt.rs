@@ -13,12 +13,18 @@ const TARGET: &str = "\
 The requested target is already in the conversation. \
 Use ordinary target libraries when that is how the program would be written.";
 
+const PROJECT: &str = "\
+Files at project-owned paths from the toolchain must not be modified.";
+
+const LOCKED: &str = "\
+Owned files and dependencies of a locked `.foo` file must not be modified.";
+
 fn preamble() -> String {
-    paragraphs(&[GOAL, FOOCODE, ENTRY, TARGET, NO_CHAT])
+    paragraphs(&[GOAL, FOOCODE, ENTRY, TARGET, PROJECT, LOCKED, NO_CHAT])
 }
 
 fn repair_preamble() -> String {
-    paragraphs(&[REPAIR, FOOCODE, ENTRY, TARGET, NO_CHAT])
+    paragraphs(&[REPAIR, FOOCODE, ENTRY, TARGET, PROJECT, LOCKED, NO_CHAT])
 }
 
 pub const TOOLCHAIN_PREAMBLE: &str = "\
@@ -48,6 +54,8 @@ mod tests {
         assert!(instructions.contains(&registry.prompt_catalog()));
         assert!(instructions.contains("write_output_file"));
         assert!(instructions.contains("remove_output_file"));
+        assert!(instructions.contains("project-owned paths"));
+        assert!(instructions.contains("locked `.foo` file"));
         assert!(!instructions.contains("set_toolchain"));
         assert!(!instructions.contains("stdout"));
         assert!(!instructions.contains("--strict"));
@@ -68,6 +76,8 @@ mod tests {
         assert!(!instructions.contains("--strict"));
         assert!(!instructions.contains("--no-warn"));
         assert!(!instructions.contains("Running with flags"));
+        assert!(!instructions.contains("project-owned"));
+        assert!(!instructions.contains("locked"));
     }
 
     #[test]
@@ -77,6 +87,8 @@ mod tests {
         assert!(instructions.contains(&repair_preamble()));
         assert!(!instructions.contains(&preamble()));
         assert!(instructions.contains("write_output_file"));
+        assert!(instructions.contains("project-owned paths"));
+        assert!(instructions.contains("locked `.foo` file"));
         assert!(!instructions.contains("remove_output_file"));
         assert!(!instructions.contains("set_dependencies"));
         assert!(!instructions.contains("set_toolchain"));

@@ -18,9 +18,9 @@ impl Tool for RemoveOutputFile {
         ToolSpec {
             name: "remove_output_file",
             family: Family::Composer,
-            description: "Remove one source (code) file under the output root. unit is the project-relative .foo path. Path is relative to the output root. Fails if that unit is locked.",
+            description: "Remove one source file from the project.",
             parameters: with_unit(
-                &[("path", string_arg("Output-relative file path"))],
+                &[("path", string_arg("Where the file is in the project"))],
                 &["path"],
             ),
         }

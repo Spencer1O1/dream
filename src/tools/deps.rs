@@ -23,10 +23,15 @@ impl Tool for SetDependencies {
         ToolSpec {
             name: "set_dependencies",
             family: Family::Project,
-            description: "Replace this unit's dependencies in the selected toolchain's manifest. Dream owns the manifest. Each entry is a package name, optional version, and optional features. Fails if that unit is locked.",
+            description: "Replace this `.foo` file's dependencies in the toolchain manifest.",
             parameters: object_params(
                 &[
-                    ("unit", string_arg("Project-relative .foo these packages belong to")),
+                    (
+                        "unit",
+                        string_arg(
+                            "Project-relative path of the `.foo` file these packages belong to",
+                        ),
+                    ),
                     (
                         "dependencies",
                         object_array_arg(

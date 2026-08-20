@@ -16,8 +16,13 @@ pub(crate) struct ComposeState {
 }
 
 impl ComposeState {
-    pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<Self, DreamError> {
-        let (store, fresh) = provenance::open(dest, target, fresh)?;
+    pub fn open(
+        dest: &Path,
+        target: &str,
+        fresh: bool,
+        entry_stem: &str,
+    ) -> Result<Self, DreamError> {
+        let (store, fresh) = provenance::open(dest, target, fresh, entry_stem)?;
         Ok(Self {
             dest: dest.to_path_buf(),
             store,
@@ -83,7 +88,7 @@ mod tests {
     #[test]
     fn settle_reconciles_each_unit_that_wrote() {
         let dest = tempfile::tempdir().unwrap();
-        let mut state = ComposeState::open(dest.path(), "rust", true).unwrap();
+        let mut state = ComposeState::open(dest.path(), "rust", true, "main").unwrap();
         fs::create_dir_all(dest.path().join("src")).unwrap();
         fs::write(dest.path().join("src/old.rs"), "gone").unwrap();
         state

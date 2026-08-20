@@ -1,0 +1,29 @@
+---
+description: Tool descriptions must not explain parameters
+globs: src/tools/**/*.rs
+alwaysApply: true
+---
+
+# Tool descriptions vs parameters
+
+The tool `description` says what the tool does. It does not explain parameters.
+
+Each parameter has its own `description`. That is where the argument is defined.
+
+```rust
+// Bad — tool text teaches `unit`
+description: "Write a file. `unit` is the `.foo` that owns it."
+
+// Good
+description: "Write one source file in the project."
+// unit: "Project-relative path of the `.foo` file that owns this file"
+// path: "Where the file goes in the project"
+```
+
+Do not mention a parameter by name in the tool description (no `` `unit` ``, no "`path` is …").
+
+Call it a `` `.foo` file ``. Not a bare `` `.foo` ``, not a `` `.foo` path ``.
+
+Dest files a `.foo` file owns are **owned files**, not artifacts. A read returns `owned`.
+
+A tool description may say what the tool returns. A parameter description says what to write. If the locator matters, say "project-relative path" on the return or on the argument — do not rename the thing.

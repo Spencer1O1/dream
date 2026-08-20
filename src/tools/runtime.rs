@@ -17,7 +17,7 @@ impl Tool for Stdout {
         ToolSpec {
             name: "stdout",
             family: Family::Runtime,
-            description: "Write observable program output immediately. Multiple calls are the print stream, in order. Writes exactly the text you send.",
+            description: "Write observable program output immediately. Multiple calls are the print stream, in order.",
             parameters: object_params(
                 &[("text", string_arg("Exact text (bytes) to write"))],
                 &["text"],

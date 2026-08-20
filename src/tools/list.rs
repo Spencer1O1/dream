@@ -26,9 +26,9 @@ impl Tool for ListSourceFiles {
             name: "list_source_files",
             family: Family::Source,
             description: if self.compose {
-                "List every project-relative .foo path. No contents. Each path includes whether that unit is locked."
+                "List every `.foo` file. Returns each project-relative path and whether that file is locked. No contents."
             } else {
-                "List every project-relative .foo path. No contents."
+                "List every `.foo` file. Returns each project-relative path. No contents."
             },
             parameters: object_params(&[], &[]),
         }

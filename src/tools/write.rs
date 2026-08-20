@@ -24,14 +24,10 @@ impl Tool for WriteOutputFile {
         ToolSpec {
             name: "write_output_file",
             family: Family::Composer,
-            description: if self.repair {
-                "Write one source (code) file under the output root. Path is relative to the output root. Overwrites if the file exists."
-            } else {
-                "Write one source (code) file under the output root. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists. Fails if that unit is locked."
-            },
+            description: "Write one source file in the project. Overwrites if the file exists.",
             parameters: {
                 let fields = [
-                    ("path", string_arg("Output-relative file path")),
+                    ("path", string_arg("Where the file goes in the project")),
                     ("contents", string_arg("Exact file contents")),
                 ];
                 if self.repair {
@@ -158,6 +154,45 @@ mod tests {
             .call(&mut ctx, &write_args(&unit.rel, "../secret", "no"))
             .unwrap_err();
         assert!(err.to_string().contains("output write escapes -o"));
+    }
+
+    #[test]
+    fn rejects_a_project_owned_path() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let dest = tempfile::tempdir().unwrap();
+        let mut store = Store::new("go");
+        store.mark_project("go.mod");
+        store.mark_project("go.sum");
+        let mut artifacts = HashMap::new();
+        let mut claims = HashMap::new();
+        let mut ctx = ToolCtx::compose(
+            &project,
+            &mut deps,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                toolchain: Some(crate::toolchain::Toolchain::parse("go").unwrap()),
+            },
+        );
+        let out = WriteOutputFile::compose()
+            .call(&mut ctx, &write_args(&unit.rel, "go.mod", "module x"))
+            .unwrap();
+        assert_eq!(
+            reply::warning_of(&out).as_deref(),
+            Some("cannot write `go.mod`; Dream owns the manifest.")
+        );
+        let lock = WriteOutputFile::compose()
+            .call(&mut ctx, &write_args(&unit.rel, "go.sum", ""))
+            .unwrap();
+        assert_eq!(
+            reply::warning_of(&lock).as_deref(),
+            Some("cannot write `go.sum`; Dream owns the manifest.")
+        );
     }
 
     #[test]

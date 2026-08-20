@@ -28,7 +28,7 @@ pub fn repair_tools() -> Vec<Box<dyn Tool>> {
 pub(super) fn with_unit(fields: &[(&str, Value)], required: &[&str]) -> Value {
     let mut all = vec![(
         "unit",
-        string_arg("Project-relative .foo that owns this file"),
+        string_arg("Project-relative path of the `.foo` file that owns this file"),
     )];
     all.extend(fields.iter().cloned());
     let mut names = vec!["unit"];

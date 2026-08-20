@@ -41,7 +41,8 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
 
     let (project, unit) = Project::from_entry(opts.entry)?;
     let output = output::resolve_output_dir(project.root(), opts.output)?;
-    let mut state = ComposeState::open(&output, opts.target, opts.fresh)?;
+    let stem = crate::project::from_entry(&unit.rel)?;
+    let mut state = ComposeState::open(&output, opts.target, opts.fresh, &stem)?;
     if !state.fresh {
         provenance::require_source_root(&state.store, project.root())?;
         provenance::check(&state.store, &state.dest, &project)?;
@@ -78,12 +79,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     };
 
     if let Some(spec) = toolchain.and_then(crate::toolchain::Toolchain::spec) {
-        crate::project::init(
-            &state.dest,
-            spec,
-            &crate::project::from_entry(&unit.rel)?,
-            &mut state.store,
-        )?;
+        crate::project::init(&state.dest, spec, &stem, &mut state.store)?;
     }
     state
         .compose(&session, &mut deps, &mut input, toolchain)

@@ -70,11 +70,27 @@ mod tests {
         assert!(!catalog.contains("set_toolchain"));
         assert!(!catalog.contains("Runtime"));
         assert!(!catalog.contains("stdout"));
+        assert!(catalog.contains("owned files"));
+        assert!(!catalog.contains("artifacts"));
         let with_project =
             Registry::composer_for(Some(crate::toolchain::Toolchain::parse("cargo").unwrap()))
                 .prompt_catalog();
         assert!(with_project.contains("Project"));
         assert!(with_project.contains("- set_dependencies:"));
+        for name in [
+            "write_output_file",
+            "remove_output_file",
+            "set_dependencies",
+        ] {
+            let description = with_project
+                .lines()
+                .find(|line| line.contains(&format!("- {name}:")))
+                .unwrap();
+            assert!(
+                !description.contains("locked"),
+                "{name} description repeats the lock rule: {description}"
+            );
+        }
     }
 
     #[test]

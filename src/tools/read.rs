@@ -27,12 +27,15 @@ impl Tool for ReadSourceFile {
             name: "read_source_file",
             family: Family::Source,
             description: if self.compose {
-                "Read one .foo unit. Returns path, source, whether it is locked, and stored artifacts if any."
+                "Read one `.foo` file. Returns the project-relative path, the source, whether it is locked, and owned files if any."
             } else {
-                "Read one .foo unit. Returns path and source."
+                "Read one `.foo` file. Returns the project-relative path and the source."
             },
             parameters: object_params(
-                &[("path", string_arg("Project-relative .foo path"))],
+                &[(
+                    "path",
+                    string_arg("Project-relative path of the `.foo` file"),
+                )],
                 &["path"],
             ),
         }
@@ -56,7 +59,7 @@ impl Tool for ReadSourceFile {
                 "path": unit.rel,
                 "source": unit.source,
                 "locked": locked,
-                "artifacts": provenance::read_artifacts(dest, &artifacts),
+                "owned": provenance::read_artifacts(dest, &artifacts),
             })
             .to_string());
         }
@@ -86,10 +89,11 @@ mod tests {
             .unwrap();
         assert!(out.contains("print hi"));
         assert!(!out.contains("artifacts"));
+        assert!(!out.contains("owned"));
     }
 
     #[test]
-    fn compose_read_attaches_store_artifacts() {
+    fn compose_read_attaches_owned_files() {
         let project_dir = tempfile::tempdir().unwrap();
         fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
@@ -116,9 +120,11 @@ mod tests {
             .call(&mut ctx, &json!({ "path": "main.foo" }))
             .unwrap();
         assert!(out.contains("print hi"));
+        assert!(out.contains("\"owned\""));
         assert!(out.contains("src/main.rs"));
         assert!(out.contains("fn main()"));
         assert!(out.contains("\"locked\":false"));
+        assert!(!out.contains("artifacts"));
     }
 
     #[test]

@@ -57,6 +57,10 @@ fn declared(toolchain: Toolchain, entry_rel: &str) -> Result<Value, DreamError> 
     if !spec.build.is_empty() {
         reply["build"] = json!({ "argv": spec.build });
     }
+    let owned = spec.owned_dest(&stem);
+    if !owned.is_empty() {
+        reply["project"] = json!(owned);
+    }
     if let Some(entry) = spec.owned_entry(&stem) {
         reply["entry"] = Value::String(entry);
     }
@@ -97,6 +101,10 @@ mod tests {
         let cargo: Value = serde_json::from_str(&cargo).unwrap();
         assert_eq!(cargo["build"], json!({ "argv": ["cargo", "build"] }));
         assert_eq!(cargo["run"], json!({ "argv": ["cargo", "run"] }));
+        assert_eq!(
+            cargo["project"],
+            json!(["Cargo.toml", "Cargo.lock", "target"])
+        );
         assert!(cargo.get("entry").is_none());
     }
 
@@ -115,7 +123,27 @@ mod tests {
         assert_eq!(out["toolchain"], "python");
         assert!(out.get("build").is_none());
         assert_eq!(out["run"], json!({ "argv": ["python", "hey-you.py"] }));
+        assert_eq!(out["project"], json!(["pyproject.toml", "__pycache__"]));
         assert_eq!(out["entry"], "hey-you.py");
+    }
+
+    #[test]
+    fn go_project_includes_the_build_binary() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("hey-you.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("hey-you.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let mut toolchain = None;
+        let mut ctx = toolchain_ctx(&project, &mut deps, &mut toolchain);
+        let out = SetToolchain
+            .call(&mut ctx, &json!({ "toolchain": "go" }))
+            .unwrap();
+        let out: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(
+            out["project"],
+            json!(["go.mod", "go.sum", "hey-you", "hey-you.exe"])
+        );
+        assert!(out.get("entry").is_none());
     }
 
     #[test]

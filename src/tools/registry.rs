@@ -138,6 +138,105 @@ mod tests {
     }
 
     #[test]
+    fn foo_is_a_file() {
+        let cargo = crate::toolchain::Toolchain::parse("cargo").unwrap();
+        for registry in [
+            Registry::interpreter(),
+            Registry::composer(),
+            Registry::composer_for(Some(cargo)),
+            Registry::toolchain(),
+            Registry::repair(),
+        ] {
+            for tool in registry.tools() {
+                let spec = tool.spec();
+                assert!(
+                    !spec.description.contains("artifact"),
+                    "{} description says artifact: {}",
+                    spec.name,
+                    spec.description
+                );
+                assert_foo_wording(spec.name, spec.description, false);
+                for text in schema_descriptions(&spec.parameters) {
+                    assert_foo_wording(spec.name, text, true);
+                }
+            }
+        }
+    }
+
+    fn assert_foo_wording(tool: &str, text: &str, parameter: bool) {
+        assert!(
+            !text.contains("`.foo` path"),
+            "{tool} says `.foo` path: {text}"
+        );
+        if !text.contains("`.foo`") {
+            return;
+        }
+        assert!(
+            text.contains("`.foo` file"),
+            "{tool} says `.foo` without file: {text}"
+        );
+        if parameter {
+            assert!(
+                text.contains("path"),
+                "{tool} parameter names a `.foo` file without path: {text}"
+            );
+        }
+    }
+
+    fn schema_descriptions(schema: &Value) -> Vec<&str> {
+        let mut texts = Vec::new();
+        if let Some(description) = schema.get("description").and_then(Value::as_str) {
+            texts.push(description);
+        }
+        if let Some(properties) = schema.get("properties").and_then(Value::as_object) {
+            for value in properties.values() {
+                texts.extend(schema_descriptions(value));
+            }
+        }
+        if let Some(items) = schema.get("items") {
+            texts.extend(schema_descriptions(items));
+        }
+        texts
+    }
+
+    #[test]
+    fn description_does_not_explain_parameters() {
+        let cargo = crate::toolchain::Toolchain::parse("cargo").unwrap();
+        for registry in [
+            Registry::interpreter(),
+            Registry::composer(),
+            Registry::composer_for(Some(cargo)),
+            Registry::toolchain(),
+            Registry::repair(),
+        ] {
+            for tool in registry.tools() {
+                let spec = tool.spec();
+                for key in property_names(&spec.parameters) {
+                    assert!(
+                        !spec.description.contains(&format!("`{key}`")),
+                        "{} description explains parameter `{key}`",
+                        spec.name
+                    );
+                }
+            }
+        }
+    }
+
+    fn property_names(schema: &Value) -> Vec<String> {
+        let mut names = Vec::new();
+        if let Some(properties) = schema.get("properties").and_then(Value::as_object) {
+            for (key, value) in properties {
+                names.push(key.clone());
+                names.extend(property_names(value));
+            }
+        }
+        if let Some(items) = schema.get("items") {
+            names.extend(property_names(items));
+        }
+        names
+    }
+
+    #[test]
     fn openai_strict_lists_every_property() {
         let cargo = crate::toolchain::Toolchain::parse("cargo").unwrap();
         for registry in [

@@ -15,7 +15,7 @@ impl Tool for DreamErrorTool {
         ToolSpec {
             name: "dream_error",
             family: Family::Control,
-            description: "Abort. Report the failure condition.",
+            description: "Abort on error.",
             parameters: object_params(&[("error", string_arg("Failure condition"))], &["error"]),
         }
     }
