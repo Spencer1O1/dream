@@ -195,11 +195,11 @@ impl Store {
 
     pub fn drop_owned(&self, dest: &Path) -> Result<(), DreamError> {
         for path in &self.project {
-            let _ = output::remove_file(dest, path);
+            output::remove_file(dest, path)?;
         }
         for state in self.units.values() {
             for artifact in &state.artifacts {
-                let _ = output::remove_file(dest, artifact);
+                output::remove_file(dest, artifact)?;
             }
         }
         let dream_dir = dest.join(".dream");

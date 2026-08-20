@@ -34,6 +34,21 @@ pub fn remove_file(dest: &Path, path: &str) -> Result<Removed, DreamError> {
     Ok(Removed::Ok(rel))
 }
 
+/// File or directory. Dest-bounded. Missing is fine.
+pub fn remove_dest(dest: &Path, path: &str) -> Result<(), DreamError> {
+    let abs = resolve_output(dest, path)?;
+    if !abs.exists() {
+        return Ok(());
+    }
+    if abs.is_dir() {
+        fs::remove_dir_all(abs)?;
+        return Ok(());
+    }
+    fs::remove_file(&abs)?;
+    prune_empty_parents(dest, abs.parent())?;
+    Ok(())
+}
+
 fn prune_empty_parents(root: &Path, mut dir: Option<&Path>) -> Result<(), DreamError> {
     while let Some(current) = dir {
         if current == root {
@@ -106,6 +121,23 @@ mod tests {
         assert!(dest.path().join("lib").is_dir());
 
         let escape = remove_file(dest.path(), "../secret").unwrap_err();
+        assert!(escape.to_string().contains("output write escapes -o"));
+    }
+
+    #[test]
+    fn remove_dest_deletes_a_directory_tree() {
+        let dest = tempfile::tempdir().unwrap();
+        fs::create_dir_all(dest.path().join("target/debug")).unwrap();
+        fs::write(dest.path().join("target/debug/x"), "bin").unwrap();
+        fs::write(dest.path().join("keep.txt"), "keep").unwrap();
+        remove_dest(dest.path(), "target").unwrap();
+        assert!(!dest.path().join("target").exists());
+        assert_eq!(
+            fs::read_to_string(dest.path().join("keep.txt")).unwrap(),
+            "keep"
+        );
+        remove_dest(dest.path(), "missing.lock").unwrap();
+        let escape = remove_dest(dest.path(), "../secret").unwrap_err();
         assert!(escape.to_string().contains("output write escapes -o"));
     }
 }

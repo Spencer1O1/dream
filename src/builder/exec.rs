@@ -47,6 +47,7 @@ mod tests {
             run,
             install_hint: "Install the test toolchain from somewhere.",
             manifest: "",
+            project: &[],
         }
     }
 

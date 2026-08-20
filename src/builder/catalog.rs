@@ -6,8 +6,10 @@ pub struct BuilderSpec {
     pub build: &'static [&'static str],
     pub run: &'static [&'static str],
     pub install_hint: &'static str,
-    /// Project-owned manifest. Empty means this toolchain has none.
+    /// Project-owned manifest Dream writes. Empty means this toolchain has none.
     pub manifest: &'static str,
+    /// Other dest paths this toolchain owns (lockfiles, build dirs). Dropped on `--fresh`.
+    pub project: &'static [&'static str],
 }
 
 pub const CATALOG: &[BuilderSpec] = &[
@@ -17,6 +19,7 @@ pub const CATALOG: &[BuilderSpec] = &[
         run: &["cargo", "run"],
         install_hint: "Install Rust from https://rustup.rs/",
         manifest: "Cargo.toml",
+        project: &["Cargo.lock", "target"],
     },
     BuilderSpec {
         name: "go",
@@ -24,6 +27,7 @@ pub const CATALOG: &[BuilderSpec] = &[
         run: &["go", "run", "."],
         install_hint: "Install Go from https://go.dev/dl/",
         manifest: "go.mod",
+        project: &["go.sum"],
     },
     BuilderSpec {
         name: "python",
@@ -31,6 +35,7 @@ pub const CATALOG: &[BuilderSpec] = &[
         run: &["python", "main.py"],
         install_hint: "Install Python 3 from https://www.python.org/downloads/",
         manifest: "pyproject.toml",
+        project: &["__pycache__"],
     },
 ];
 
@@ -52,7 +57,16 @@ mod tests {
             assert!(!spec.install_hint.is_empty());
             assert!(!spec.run.is_empty());
             assert!(!spec.manifest.is_empty());
+            for path in spec.project {
+                assert!(!path.is_empty(), "empty project path on `{}`", spec.name);
+                assert_ne!(
+                    *path, spec.manifest,
+                    "`{}` lists the manifest again in project",
+                    spec.name
+                );
+            }
         }
         assert_eq!(spec("python").unwrap().run, &["python", "main.py"]);
+        assert_eq!(spec("cargo").unwrap().project, &["Cargo.lock", "target"]);
     }
 }

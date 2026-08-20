@@ -55,7 +55,7 @@ No pick, or `unsupported`, means do not `--build`, `--run`, or repair. Compose s
 
 Do not infer the builder from the tree. Do not take build argv from the model.
 
-The source of truth is `src/builder/catalog.rs`: name, build argv, run argv, install hint. `set_builder` is those names plus `unsupported`. `unsupported` is not a catalog row.
+The source of truth is `src/builder/catalog.rs`: name, build argv, run argv, install hint, manifest, project paths. `set_builder` is those names plus `unsupported`. `unsupported` is not a catalog row.
 
 - [x] Closed builder list in Dream (`src/builder/catalog.rs`)
 - [x] Historical: follow-up `set_builder` turn after compose settles. Phase 7 asks first.
