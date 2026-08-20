@@ -2,7 +2,7 @@
 
 Executable pseudocode. A programmer writes foocode in `.foo` files. Dream interprets that notation.
 
-The product contract is the Dream vault: `MVP.md` and `Core Rules.md`. Implementation progress is [docs/plan.md](docs/plan.md).
+The product contract is the [Dream vault](https://github.com/Spencer1O1/DreamVault): `MVP.md` and `Core Rules.md`. Implementation progress is [docs/plan.md](docs/plan.md).
 
 ```bash
 cp .env.example .env
