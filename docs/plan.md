@@ -17,7 +17,7 @@ dream [--lucid] [--strict] <file.foo>
 - [x] `stdout` / `stdin`
 - [x] Chat text discarded
 - [x] `--strict` as a prompt flag
-- [x] `DreamError` subtypes (see [errors.md](errors.md))
+- [x] `DreamError` subtypes (`src/error`)
 - [x] Live: `examples/hello/hello.foo`, `examples/hey-you/hey-you.foo`
 
 ## Phase 2 — Multi-file

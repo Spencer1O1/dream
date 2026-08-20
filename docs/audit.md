@@ -1,44 +1,30 @@
 # Audit
 
-Auditor pass. Verdict was **fix-first**. Check off as we go.
+Second auditor pass (`-Wpedanticpedanticpedantic`). Verdict: **fix-first**. Previous punch list is closed; this is a new list.
 
-Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as-flags were judged sound. Do not grow a new subsystem while working these.
+Effect ownership, `Mode` isolation, in-place provenance, `--lucid` isolation, and locks-as-flags were judged sound. Do not grow a new subsystem while working these. Do not add source-hash skip, `inspect`, `dream.toml`, Gimbal, a version resolver, lock CLI extra args, or repair-remove persistence.
 
 ## Must-fix
 
-- [x] **DepGraph cycle** — Stop treating last-read as the composer. A re-read of the entry must not abort. Record reads as a set; `reached` is entry-or-read. (`src/source/graph.rs`)
+- [ ] **Lock nested unit** — `dream lock users/active.foo` re-roots at that file’s parent, so the store key is `active.foo` while compose recorded `users/active.foo`. Match the file to an existing store key. Test a subdirectory unit. (`src/composer/mod.rs`, `src/source/project.rs`, `src/provenance/lock.rs`)
+- [ ] **Repair remove** — Repair catalog offers `remove_output_file`. `authorize_remove` with `unit: None` always fails; repair does not settle. Vault is overwrite-only. Drop remove from `Registry::repair()`. Do not teach remove to update the map.
 
 ## Architecture
 
-- [x] **tools ↔ composer cycle** — Provenance and dest I/O live at the crate root. `ToolCtx` is project + deps + a `Mode` (Lucid / Pick / Compose / Repair), not an option bag. Tools do not import `composer`.
-- [x] **One authorize** — Write / remove / `set_dependencies` go through `authorize` (reached + lock). `--fresh` drops the store at open; it is not a write-time lock bypass.
-- [x] **write / remove duplication** — One `mutate_output` helper. Repair registry omits `unit` (owner is the map) and `set_dependencies`.
-- [x] **Pick Session** — `ask_builder` is a function. It owns `Registry::builder()`. Compose `Session` is only for compose / repair.
-- [x] **reserved / staging** — One `reserved()` in `provenance/store.rs`. Dest I/O params are `dest`.
-- [x] **Source list skip** — `list_source_files` returns every project-relative `.foo`. No skip of `target/` or `.`*.
-
-
+- [ ] **Go stub versions** — `apply` writes `require {name} v0.0.0`. `go build` fails; repair cannot touch the manifest. Do not add a resolver. Omit stubs and let `go build` fill the graph, or put `go mod tidy` in the catalog argv.
+- [ ] **Python `--run`** — Catalog `run` is `["python"]`. That starts a REPL, not the composed program. Pick a real argv or treat python run as unsupported. Do not take argv from the model.
 
 ## Prompting
 
-- [x] **Parallel catalog sentence** — Keep the batch instruction. Dropped “Anything else is invalid.” Sequential still works. The listed tools are the interface.
-- [x] **Lucid tool text** — Lucid list/read are path/source only. Compose list/read describe `locked` and stored artifacts. Mutation tools still say they fail if the unit is locked.
-- [x] **Flags on the wrong turn** — `--no-warn` is build-step only; it is not in prompts. `--strict` is on interpret / compose / repair (`dream_error`). The pick turn has neither.
-- [x] **Write/remove description** — Compose write/remove say source (code) under the output root. Fails if that unit is locked. Not “unit owns,” “dest,” or “Dream-owned.” No Cargo.toml filename. Manifest writes are still refused.
-- [x] **Warning tool name** — Project-owned write/remove say Dream owns the manifest. They do not name `set_dependencies` (absent on repair / unsupported) or invent “the project dependency tool.” The catalog already names that tool when it exists.
-
-
+- [ ] **Repair preamble** — Repair calls `prompt::compose` (“write a complete project”). New paths are then refused. One repair-only preamble: overwrite existing output files to fix the build. No tool names.
 
 ## Taxonomy
 
-- [x] **Lock-staleness error type** — Drifted lock is `ComposerError` on `dream lock` and compose `check`. Same class as a missing locked artifact. Usage stays for “this command does not apply.”
-- [x] **Missing remove** — Missing / directory remove is a tool warning. Escape and I/O stay `DreamError`.
-- [x] **dream_error name** — `dream_error` and the lucid turn cap are `InterpreterError`. The compose turn cap is `ComposerError`. See `docs/errors.md`.
-
-
+- [ ] **Missing locked `.foo`** — Hash mismatch is `ComposerError`. A deleted locked source is `RuntimeError` from `read_source_file`. Map the missing locked unit in `hash_unit` / `check` / `lock`. Do not change tool reads.
+- [ ] **Authorize wording** — Shared reached-check says `cannot write for`; `set_dependencies` uses it. Say “read that unit first.” Do not split authorize.
 
 ## Leftovers
 
-- [x] **plan.md Phase 3–7** — replace-`-o` and builder-last are marked historical. Phase 8 is the contract break.
-- [x] **tempfile** — `[dev-dependencies]` only.
-- [x] **Go features twice** — Tool warning only. `apply` `debug_assert`s; not a second process error.
+- [ ] **README contract** — Still says implemented contract is `MVP.md` and Artifact Ownership is next. The crate is Artifact Ownership through Phase 10. Update that sentence.
+- [ ] **`interpreter::prompt::compose`** — Lucid instructions are built by a function named `compose`. Rename to `lucid` / `interpret`.
+- [ ] **plan.md audit pointer** — Line 3 still points at the closed first punch list as current work.
