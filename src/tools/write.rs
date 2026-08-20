@@ -2,7 +2,7 @@ use serde_json::Value;
 
 use crate::error::DreamError;
 
-use super::composer::{mutate_output, OutputOp};
+use super::composer::{mutate_output, with_unit, OutputOp};
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
 pub(super) struct WriteOutputFile {
@@ -21,33 +21,25 @@ impl WriteOutputFile {
 
 impl Tool for WriteOutputFile {
     fn spec(&self) -> ToolSpec {
-        if self.repair {
-            ToolSpec {
-                name: "write_output_file",
-                family: Family::Composer,
-                description: "Write one dest-relative file. Path is relative to the output root. Overwrites if the file exists.",
-                parameters: object_params(
-                    &[
-                        ("path", string_arg("Output-relative file path")),
-                        ("contents", string_arg("Exact file contents")),
-                    ],
-                    &["path", "contents"],
-                ),
-            }
-        } else {
-            ToolSpec {
-                name: "write_output_file",
-                family: Family::Composer,
-                description: "Write one source (code) file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists. Fails if that unit is locked.",
-                parameters: object_params(
-                    &[
-                        ("unit", string_arg("Project-relative .foo that owns this file")),
-                        ("path", string_arg("Output-relative file path")),
-                        ("contents", string_arg("Exact file contents")),
-                    ],
-                    &["unit", "path", "contents"],
-                ),
-            }
+        ToolSpec {
+            name: "write_output_file",
+            family: Family::Composer,
+            description: if self.repair {
+                "Write one source (code) file under the output root. Path is relative to the output root. Overwrites if the file exists."
+            } else {
+                "Write one source (code) file under the output root. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists. Fails if that unit is locked."
+            },
+            parameters: {
+                let fields = [
+                    ("path", string_arg("Output-relative file path")),
+                    ("contents", string_arg("Exact file contents")),
+                ];
+                if self.repair {
+                    object_params(&fields, &["path", "contents"])
+                } else {
+                    with_unit(&fields, &["path", "contents"])
+                }
+            },
         }
     }
 
@@ -191,6 +183,17 @@ mod tests {
         let required = spec.parameters["required"].as_array().unwrap();
         assert!(!required.iter().any(|value| value == "unit"));
         assert!(spec.parameters["properties"].get("unit").is_none());
+    }
+
+    #[test]
+    fn compose_describes_a_dest_file() {
+        let description = WriteOutputFile::compose().spec().description;
+        assert!(description.contains("source (code) file"));
+        assert!(description.contains("locked"));
+        assert!(!description.contains("Dream-owned"));
+        assert!(!description.contains("this .foo unit owns"));
+        assert!(!description.contains("dest"));
+        assert!(!description.contains("Cargo.toml"));
     }
 
     #[test]

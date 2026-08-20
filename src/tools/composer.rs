@@ -12,7 +12,7 @@ use crate::tools::{Compose, Mode};
 use super::remove::RemoveOutputFile;
 use super::reply;
 use super::write::WriteOutputFile;
-use super::{arg_str, Tool, ToolCtx};
+use super::{arg_str, object_params, string_arg, Tool, ToolCtx};
 
 pub fn tools() -> Vec<Box<dyn Tool>> {
     vec![
@@ -26,6 +26,17 @@ pub fn repair_tools() -> Vec<Box<dyn Tool>> {
         Box::new(WriteOutputFile::repair()),
         Box::new(RemoveOutputFile::repair()),
     ]
+}
+
+pub(super) fn with_unit(fields: &[(&str, Value)], required: &[&str]) -> Value {
+    let mut all = vec![(
+        "unit",
+        string_arg("Project-relative .foo that owns this file"),
+    )];
+    all.extend(fields.iter().cloned());
+    let mut names = vec!["unit"];
+    names.extend(required.iter().copied());
+    object_params(&all, &names)
 }
 
 pub(super) fn authorize(ctx: &ToolCtx<'_>, requested: &str) -> Result<String, DreamError> {

@@ -72,6 +72,11 @@ mod tests {
         assert!(catalog.contains("stored artifacts"));
         assert!(catalog.contains("- write_output_file:"));
         assert!(catalog.contains("- remove_output_file:"));
+        assert!(catalog.contains("source (code) file"));
+        assert!(!catalog.contains("Dream-owned"));
+        assert!(!catalog.contains("this .foo unit owns"));
+        assert!(!catalog.contains("dest-relative"));
+        assert!(!catalog.contains("Cargo.toml"));
         assert!(!catalog.contains("set_dependencies"));
         assert!(!catalog.contains("set_builder"));
         assert!(!catalog.contains("Runtime"));
