@@ -20,7 +20,13 @@ impl Session<'_> {
         run_program: bool,
     ) -> Result<(), DreamError> {
         for attempt in 0..=self.repair_cap {
-            match crate::builder::after_compose(builder, &state.dest, run_program, self.no_warn)? {
+            match crate::builder::after_compose(
+                builder,
+                &state.dest,
+                self.entry_rel,
+                run_program,
+                self.no_warn,
+            )? {
                 Outcome::Ok => return Ok(()),
                 Outcome::Failed { step, diagnostics }
                     if should_repair(attempt, step, self.repair_cap) =>

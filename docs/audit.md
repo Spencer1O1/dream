@@ -12,7 +12,7 @@ Effect ownership, `Mode` isolation, in-place provenance, `--lucid` isolation, an
 ## Architecture
 
 - [x] **Go stub versions** — Optional `version` on `set_dependencies`. No version → omit `require`. Do not write `v0.0.0`. No crates.io/proxy resolver.
-- [x] **Python `--run`** — Catalog `run` is `["python", "main.py"]`. Static argv; not a REPL; not from the model.
+- [x] **Python `--run`** — `python {entry-stem}.py` in `-o`. Same stem as the package name. No `main.py` convention. No rename.
 
 ## Prompting
 

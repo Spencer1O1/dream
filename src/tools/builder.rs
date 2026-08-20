@@ -40,8 +40,27 @@ impl Tool for SetBuilder {
         };
         let builder = Builder::parse(arg_str(args, "builder"))?;
         *pick.builder = Some(builder);
-        Ok(json!({ "ok": true, "builder": builder.as_str() }).to_string())
+        Ok(declared(builder, ctx.deps.entry())?.to_string())
     }
+}
+
+fn declared(builder: Builder, entry_rel: &str) -> Result<Value, DreamError> {
+    let Some(spec) = builder.spec() else {
+        return Ok(json!({ "ok": true, "builder": builder.as_str() }));
+    };
+    let stem = crate::project::from_entry(entry_rel)?;
+    let mut reply = json!({
+        "ok": true,
+        "builder": spec.name,
+        "run": { "argv": spec.run_argv(&stem) },
+    });
+    if !spec.build.is_empty() {
+        reply["build"] = json!({ "argv": spec.build });
+    }
+    if let Some(entry) = spec.owned_entry(&stem) {
+        reply["entry"] = Value::String(entry);
+    }
+    Ok(reply)
 }
 
 #[cfg(test)]
@@ -71,10 +90,32 @@ mod tests {
         SetBuilder
             .call(&mut ctx, &json!({ "builder": "python" }))
             .unwrap();
-        SetBuilder
+        let cargo = SetBuilder
             .call(&mut ctx, &json!({ "builder": "cargo" }))
             .unwrap();
         assert_eq!(builder.unwrap().as_str(), "cargo");
+        let cargo: Value = serde_json::from_str(&cargo).unwrap();
+        assert_eq!(cargo["build"], json!({ "argv": ["cargo", "build"] }));
+        assert_eq!(cargo["run"], json!({ "argv": ["cargo", "run"] }));
+        assert!(cargo.get("entry").is_none());
+    }
+
+    #[test]
+    fn python_reply_names_the_entry_script() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("hey-you.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("hey-you.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let mut builder = None;
+        let mut ctx = builder_ctx(&project, &mut deps, &mut builder);
+        let out = SetBuilder
+            .call(&mut ctx, &json!({ "builder": "python" }))
+            .unwrap();
+        let out: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(out["builder"], "python");
+        assert!(out.get("build").is_none());
+        assert_eq!(out["run"], json!({ "argv": ["python", "hey-you.py"] }));
+        assert_eq!(out["entry"], "hey-you.py");
     }
 
     #[test]

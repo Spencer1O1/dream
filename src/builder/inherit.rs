@@ -10,7 +10,7 @@ use super::BuilderSpec;
 pub(super) fn inherit_step(
     step: &'static str,
     spec: &BuilderSpec,
-    argv: &[&str],
+    argv: &[String],
     dir: &Path,
 ) -> Result<Outcome, DreamError> {
     let Some((program, args)) = argv.split_first() else {

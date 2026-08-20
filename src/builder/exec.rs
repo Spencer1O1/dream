@@ -10,18 +10,20 @@ use super::{Builder, BuilderSpec};
 pub fn after_compose(
     builder: Option<Builder>,
     dir: &Path,
+    entry_rel: &str,
     run_program: bool,
     no_warn: bool,
 ) -> Result<Outcome, DreamError> {
     let Some(spec) = builder.and_then(Builder::spec) else {
         return Ok(Outcome::NoBuilder);
     };
-    invoke(spec, dir, run_program, no_warn)
+    invoke(spec, dir, entry_rel, run_program, no_warn)
 }
 
 fn invoke(
     spec: &BuilderSpec,
     dir: &Path,
+    entry_rel: &str,
     run_program: bool,
     no_warn: bool,
 ) -> Result<Outcome, DreamError> {
@@ -30,7 +32,8 @@ fn invoke(
         other => return Ok(other),
     }
     if run_program {
-        return inherit_step("run", spec, spec.run, dir);
+        let stem = crate::project::from_entry(entry_rel)?;
+        return inherit_step("run", spec, &spec.run_argv(&stem), dir);
     }
     Ok(Outcome::Ok)
 }
@@ -38,9 +41,12 @@ fn invoke(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::builder::catalog::Run;
     use crate::builder::BuilderSpec;
 
-    fn spec(build: &'static [&'static str], run: &'static [&'static str]) -> BuilderSpec {
+    const ENTRY: &str = "demo.foo";
+
+    fn spec(build: &'static [&'static str], run: Run) -> BuilderSpec {
         BuilderSpec {
             name: "test",
             build,
@@ -54,12 +60,12 @@ mod tests {
     #[test]
     fn unsupported_does_not_run() {
         let dir = tempfile::tempdir().unwrap();
-        let err = after_compose(Some(Builder::Unsupported), dir.path(), false, false)
+        let err = after_compose(Some(Builder::Unsupported), dir.path(), ENTRY, false, false)
             .unwrap()
             .into_error()
             .unwrap_err();
         assert!(err.to_string().contains("does not know how to build"));
-        let err = after_compose(None, dir.path(), true, false)
+        let err = after_compose(None, dir.path(), ENTRY, true, false)
             .unwrap()
             .into_error()
             .unwrap_err();
@@ -69,8 +75,8 @@ mod tests {
     #[test]
     fn missing_toolchain_uses_install_hint() {
         let dir = tempfile::tempdir().unwrap();
-        let spec = spec(&["dream-no-such-toolchain-7f3a"], &["true"]);
-        match invoke(&spec, dir.path(), false, false).unwrap() {
+        let spec = spec(&["dream-no-such-toolchain-7f3a"], Run::Argv(&["true"]));
+        match invoke(&spec, dir.path(), ENTRY, false, false).unwrap() {
             Outcome::MissingToolchain(hint) => {
                 assert!(hint.contains("Install the test toolchain"));
             }
@@ -79,11 +85,31 @@ mod tests {
     }
 
     #[test]
+    fn python_run_is_the_entry_script() {
+        let spec = Builder::parse("python").unwrap().spec().unwrap();
+        assert_eq!(
+            spec.run_argv("my"),
+            vec!["python".to_string(), "my.py".to_string()]
+        );
+        let dir = tempfile::tempdir().unwrap();
+        after_compose(
+            Some(Builder::parse("python").unwrap()),
+            dir.path(),
+            "my.foo",
+            false,
+            false,
+        )
+        .unwrap()
+        .into_error()
+        .unwrap();
+    }
+
+    #[test]
     fn empty_build_is_skipped() {
         let dir = tempfile::tempdir().unwrap();
-        let spec = spec(&[], &["true"]);
+        let spec = spec(&[], Run::Argv(&["true"]));
         assert!(matches!(
-            invoke(&spec, dir.path(), false, false).unwrap(),
+            invoke(&spec, dir.path(), ENTRY, false, false).unwrap(),
             Outcome::Ok
         ));
     }
@@ -91,12 +117,12 @@ mod tests {
     #[test]
     fn failed_step_is_an_error() {
         let dir = tempfile::tempdir().unwrap();
-        let spec = spec(&["false"], &["true"]);
-        match invoke(&spec, dir.path(), false, false).unwrap() {
+        let spec = spec(&["false"], Run::Argv(&["true"]));
+        match invoke(&spec, dir.path(), ENTRY, false, false).unwrap() {
             Outcome::Failed { step, .. } => assert_eq!(step, "build"),
             other => panic!("expected build failure, got {other:?}"),
         }
-        let err = invoke(&spec, dir.path(), false, false)
+        let err = invoke(&spec, dir.path(), ENTRY, false, false)
             .unwrap()
             .into_error()
             .unwrap_err();
@@ -106,8 +132,8 @@ mod tests {
     #[test]
     fn run_failure_is_not_a_build_failure() {
         let dir = tempfile::tempdir().unwrap();
-        let spec = spec(&[], &["false"]);
-        match invoke(&spec, dir.path(), true, false).unwrap() {
+        let spec = spec(&[], Run::Argv(&["false"]));
+        match invoke(&spec, dir.path(), ENTRY, true, false).unwrap() {
             Outcome::Failed { step, .. } => assert_eq!(step, "run"),
             other => panic!("expected run failure, got {other:?}"),
         }
@@ -116,12 +142,12 @@ mod tests {
     #[test]
     fn no_warn_treats_warnings_as_a_failed_build() {
         let dir = tempfile::tempdir().unwrap();
-        let spec = spec(&["sh", "-c", "echo warning: unused"], &[]);
+        let spec = spec(&["sh", "-c", "echo warning: unused"], Run::Argv(&[]));
         assert!(matches!(
-            invoke(&spec, dir.path(), false, false).unwrap(),
+            invoke(&spec, dir.path(), ENTRY, false, false).unwrap(),
             Outcome::Ok
         ));
-        match invoke(&spec, dir.path(), false, true).unwrap() {
+        match invoke(&spec, dir.path(), ENTRY, false, true).unwrap() {
             Outcome::Failed { step, diagnostics } => {
                 assert_eq!(step, "build");
                 assert!(diagnostics.to_ascii_lowercase().contains("warning:"));

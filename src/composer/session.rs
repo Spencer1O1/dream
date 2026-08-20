@@ -33,6 +33,7 @@ pub(crate) struct Session<'a> {
     pub turn_cap: usize,
     pub repair_cap: usize,
     pub no_warn: bool,
+    pub entry_rel: &'a str,
 }
 
 impl Session<'_> {

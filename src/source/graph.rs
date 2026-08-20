@@ -4,14 +4,21 @@ use std::collections::HashSet;
 /// Session-only. Not a request stack. Re-reading the entry is fine.
 #[derive(Debug)]
 pub struct DepGraph {
+    entry: String,
     read: HashSet<String>,
 }
 
 impl DepGraph {
     pub fn new(entry: impl Into<String>) -> Self {
+        let entry = entry.into();
         Self {
-            read: HashSet::from([entry.into()]),
+            read: HashSet::from([entry.clone()]),
+            entry,
         }
+    }
+
+    pub fn entry(&self) -> &str {
+        &self.entry
     }
 
     pub fn reached(&self, unit: &str) -> bool {
@@ -30,6 +37,7 @@ mod tests {
     #[test]
     fn reread_of_the_entry_after_other_units_is_ok() {
         let mut graph = DepGraph::new("main.foo");
+        assert_eq!(graph.entry(), "main.foo");
         graph.record_read("utils.foo");
         graph.record_read("main.foo");
         assert!(graph.reached("main.foo"));

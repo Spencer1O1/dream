@@ -74,6 +74,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         turn_cap: config.turn_cap,
         repair_cap: config.repair_cap,
         no_warn: opts.no_warn,
+        entry_rel: &unit.rel,
     };
 
     if let Some(spec) = builder.and_then(crate::builder::Builder::spec) {
