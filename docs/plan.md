@@ -73,16 +73,32 @@ If the declared builder’s toolchain is not on the machine, Dream errors and sa
 - [x] Forward standard process IO
 - [x] Missing toolchain → error + install hint (do not auto-install)
 
-## Phase 6 — Semantic cache foundations
+## Phase 6 — Bounded repair
+
+Needs Phase 5. Build failures only (not run, not missing toolchain, not `unsupported`). Compose has already replaced `-o`. Repair writes stay in `-o`. Same builder; do not ask again. Warnings are not repair unless `--no-warn`.
+
+```text
+build
+↓
+diagnostics
+↓
+composer repair (same write tools)
+↓
+build
+```
+
+Cap is `DREAM_REPAIR_CAP` (default 3, `0` means no repair).
+
+- [x] Build diagnostics back into the composer
+- [x] Explicit repair attempt cap
+- [x] Do not repair run / missing toolchain / `unsupported`
+- [x] `--no-warn` treats toolchain warnings as a failed build
+
+## Phase 7 — Semantic cache foundations
 
 File-level only. No formal IR.
 
 - [ ] Canonical path, source hash, semantic status
-
-## Phase 7 — Bounded repair
-
-- [ ] Build diagnostics back into the composer
-- [ ] Explicit repair attempt cap
 
 ## Later
 

@@ -17,6 +17,7 @@ pub enum Command {
         build: bool,
         run: bool,
         strict: bool,
+        no_warn: bool,
     },
 }
 
@@ -47,6 +48,10 @@ struct Raw {
     #[arg(long)]
     run: bool,
 
+    /// Treat toolchain warnings as a failed build.
+    #[arg(long = "no-warn")]
+    no_warn: bool,
+
     /// `now` plus a .foo file, or a .foo file for compose.
     #[arg(required = true)]
     rest: Vec<String>,
@@ -63,6 +68,7 @@ fn command_from_raw(
         output,
         build,
         run,
+        no_warn,
         rest,
     }: Raw,
 ) -> Result<Command, DreamError> {
@@ -70,9 +76,9 @@ fn command_from_raw(
         [] => Err(DreamError::usage("expected a .foo file")),
         [cmd] if cmd == "now" => Err(DreamError::usage("expected a .foo file")),
         [cmd, file] if cmd == "now" => {
-            if target.is_some() || output.is_some() || build || run {
+            if target.is_some() || output.is_some() || build || run || no_warn {
                 return Err(DreamError::usage(
-                    "`dream now` interprets immediately; do not pass -t, -o, --build, or --run",
+                    "`dream now` interprets immediately; do not pass -t, -o, --build, --run, or --no-warn",
                 ));
             }
             Ok(Command::Now {
@@ -100,6 +106,7 @@ fn command_from_raw(
                 build: build || run,
                 run,
                 strict,
+                no_warn,
             })
         }
     }
@@ -146,6 +153,28 @@ mod tests {
     }
 
     #[test]
+    fn compose_no_warn() {
+        let cmd = parse_args(&[
+            "dream",
+            "main.foo",
+            "-t",
+            "rust",
+            "-o",
+            "./out",
+            "--no-warn",
+        ])
+        .unwrap();
+        assert!(matches!(
+            cmd,
+            Command::Compose {
+                no_warn: true,
+                build: false,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn compose_run_implies_build() {
         let cmd = parse_args(&["dream", "main.foo", "-t", "rust", "-o", "./out", "--run"]).unwrap();
         assert!(matches!(
@@ -162,5 +191,7 @@ mod tests {
     fn now_rejects_compose_flags() {
         let err = parse_args(&["dream", "now", "main.foo", "-t", "rust"]).unwrap_err();
         assert!(err.to_string().contains("dream now"));
+        let err = parse_args(&["dream", "now", "--no-warn", "main.foo"]).unwrap_err();
+        assert!(err.to_string().contains("--no-warn"));
     }
 }

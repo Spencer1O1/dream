@@ -16,7 +16,7 @@ pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), Drea
     let mut deps = DepGraph::new(&unit.rel);
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
     let registry = Registry::interpreter();
-    let flags = ActiveFlags::new(strict);
+    let flags = ActiveFlags::new(strict, false);
     let instructions = prompt::compose(&registry, &flags);
     let schemas = registry.schemas();
 

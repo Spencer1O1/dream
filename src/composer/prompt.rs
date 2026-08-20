@@ -36,7 +36,7 @@ mod tests {
     #[test]
     fn includes_tools_and_only_active_flags() {
         let registry = Registry::composer();
-        let instructions = compose(&registry, &ActiveFlags::new(false));
+        let instructions = compose(&registry, &ActiveFlags::new(false, false));
         assert!(instructions.contains(&preamble()));
         assert!(instructions.contains(FOOCODE));
         assert!(instructions.contains(ENTRY));
@@ -50,13 +50,15 @@ mod tests {
         assert!(!instructions.contains("set_builder"));
         assert!(!instructions.contains("stdout"));
         assert!(!instructions.contains("--strict"));
-        assert!(compose(&registry, &ActiveFlags::new(true)).contains("--strict:"));
+        assert!(!instructions.contains("--no-warn"));
+        assert!(compose(&registry, &ActiveFlags::new(true, false)).contains("--strict:"));
+        assert!(compose(&registry, &ActiveFlags::new(false, true)).contains("--no-warn:"));
     }
 
     #[test]
     fn builder_prompt_is_the_pick_turn() {
         let registry = Registry::builder();
-        let instructions = builder(&registry, &ActiveFlags::new(false));
+        let instructions = builder(&registry, &ActiveFlags::new(false, false));
         assert!(instructions.contains(BUILDER_PREAMBLE));
         assert!(instructions.contains("set_builder"));
         assert!(!instructions.contains("write_output_file"));

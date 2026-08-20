@@ -21,13 +21,14 @@ mod tests {
     #[test]
     fn includes_tools_and_only_active_flags() {
         let registry = Registry::interpreter();
-        let instructions = compose(&registry, &ActiveFlags::new(false));
+        let instructions = compose(&registry, &ActiveFlags::new(false, false));
         assert!(instructions.contains(&preamble()));
         assert!(instructions.contains(FOOCODE));
         assert!(instructions.contains(ENTRY));
         assert!(instructions.contains(NO_CHAT));
         assert!(instructions.contains(&registry.prompt_catalog()));
         assert!(!instructions.contains("--strict"));
-        assert!(compose(&registry, &ActiveFlags::new(true)).contains("--strict:"));
+        assert!(!instructions.contains("--no-warn"));
+        assert!(compose(&registry, &ActiveFlags::new(true, false)).contains("--strict:"));
     }
 }

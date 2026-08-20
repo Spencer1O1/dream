@@ -34,9 +34,22 @@ async fn run() -> Result<(), DreamError> {
             build,
             run,
             strict,
+            no_warn,
         } => {
             let config = config::load()?;
-            composer::run(&config, &file, &target, &output, strict, build, run).await
+            composer::run(
+                &config,
+                composer::RunOpts {
+                    entry: &file,
+                    target: &target,
+                    output: &output,
+                    strict,
+                    no_warn,
+                    build,
+                    run_program: run,
+                },
+            )
+            .await
         }
     }
 }

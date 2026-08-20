@@ -2,7 +2,7 @@ mod catalog;
 mod exec;
 
 pub use catalog::{BuilderSpec, CATALOG};
-pub use exec::after_compose;
+pub use exec::{after_compose, Outcome};
 
 use crate::error::DreamError;
 

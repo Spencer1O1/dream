@@ -17,7 +17,7 @@ cargo run -- --strict examples/hey-you.foo -t rust -o ./out --run
 
 `-o` replaces the whole folder after a successful compose. A failed compose leaves the destination alone.
 
-`--build` / `--run` exec the declared catalog toolchain in `-o`. If the builder is `unsupported` or missing on the machine, the project is still there; Dream errors with an install hint and does not install tools.
+`--build` / `--run` exec the declared catalog toolchain in `-o`. A failed **build** may go back to the composer a bounded number of times. `--no-warn` treats toolchain warnings as a failed build (and thus repairable). A failed run, a missing toolchain, or `unsupported` does not repair. Dream does not install tools.
 
 ## Config
 
@@ -25,13 +25,14 @@ cargo run -- --strict examples/hey-you.foo -t rust -o ./out --run
 OPENAI_API_KEY=...
 DREAM_MODEL=gpt-4.1
 DREAM_TURN_CAP=10
+DREAM_REPAIR_CAP=3
 ```
 
 ## CLI
 
 ```bash
 dream now [--strict] <file.foo>
-dream [--strict] <file.foo> -t <target> -o <dir>
-dream [--strict] <file.foo> -t <target> -o <dir> --build
-dream [--strict] <file.foo> -t <target> -o <dir> --run
+dream [--strict] [--no-warn] <file.foo> -t <target> -o <dir>
+dream [--strict] [--no-warn] <file.foo> -t <target> -o <dir> --build
+dream [--strict] [--no-warn] <file.foo> -t <target> -o <dir> --run
 ```
