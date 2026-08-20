@@ -74,11 +74,6 @@ impl Project {
 fn collect_foo_files(root: &Path, dir: &Path, out: &mut Vec<String>) -> Result<(), DreamError> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
-        let name = entry.file_name();
-        let name = name.to_string_lossy();
-        if name.starts_with('.') || name == "target" {
-            continue;
-        }
         let path = entry.path();
         if path.is_dir() {
             collect_foo_files(root, &path, out)?;
@@ -111,11 +106,18 @@ mod tests {
         write_foo(tmp.path(), "main.foo", "entry");
         write_foo(tmp.path(), "users/active.foo", "active");
         write_foo(tmp.path(), "readme.md", "no");
+        write_foo(tmp.path(), ".hidden/secret.foo", "dot");
+        write_foo(tmp.path(), "target/gen.foo", "gen");
         let (project, unit) = Project::from_entry(&tmp.path().join("main.foo")).unwrap();
         assert_eq!(unit.rel, "main.foo");
         assert_eq!(
             project.list_source_files().unwrap(),
-            vec!["main.foo".to_string(), "users/active.foo".to_string()]
+            vec![
+                ".hidden/secret.foo".to_string(),
+                "main.foo".to_string(),
+                "target/gen.foo".to_string(),
+                "users/active.foo".to_string()
+            ]
         );
     }
 

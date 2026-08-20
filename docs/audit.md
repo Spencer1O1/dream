@@ -14,8 +14,8 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 - [x] **One authorize** — Write / remove / `set_dependencies` go through `authorize` (reached + lock). `--fresh` drops the store at open; it is not a write-time lock bypass.
 - [x] **write / remove duplication** — One `mutate_output` helper. Repair registry omits `unit` (owner is the map) and `set_dependencies`.
 - [x] **Pick Session** — `ask_builder` is a function. It owns `Registry::builder()`. Compose `Session` is only for compose / repair.
-- [ ] **reserved / staging** — One `reserved()` for `.dream`. Rename `files.rs` `staging` params to `dest`.
-- [ ] **Source list skip** — Stop silently skipping `target/` and `.*`, or document it as an explicit source-root rule.
+- [x] **reserved / staging** — One `reserved()` in `provenance/store.rs`. Dest I/O params are `dest`.
+- [x] **Source list skip** — `list_source_files` returns every project-relative `.foo`. No skip of `target/` or `.*`.
 
 ## Prompting
 

@@ -3,6 +3,8 @@ use std::path::{Component, Path};
 
 use crate::error::DreamError;
 
+use super::store::reserved;
+
 pub fn has_user_files(dest: &Path) -> Result<bool, DreamError> {
     if !dest.exists() {
         return Ok(false);
@@ -29,10 +31,6 @@ fn walk_user_files(root: &Path, dir: &Path) -> Result<bool, DreamError> {
         }
     }
     Ok(false)
-}
-
-fn reserved(rel: &str) -> bool {
-    rel == ".dream" || rel.starts_with(".dream/")
 }
 
 fn output_rel(root: &Path, path: &Path) -> String {
