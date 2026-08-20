@@ -47,7 +47,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     }
     let mut deps = DepGraph::new(&unit.rel);
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
-    let flags = ActiveFlags::new(opts.strict, opts.no_warn);
+    let flags = ActiveFlags::new(opts.strict);
 
     let mut input = vec![json!({
         "role": "user",
@@ -57,7 +57,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         )
     })];
 
-    let builder = pick::ask_builder(&openai, &project, &flags, &mut deps, &mut input).await?;
+    let builder = pick::ask_builder(&openai, &project, &mut deps, &mut input).await?;
 
     let registry = Registry::composer_for(builder);
     let instructions = prompt::compose(&registry, &flags);

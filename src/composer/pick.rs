@@ -2,7 +2,6 @@ use serde_json::json;
 
 use crate::builder::Builder;
 use crate::error::DreamError;
-use crate::flags::ActiveFlags;
 use crate::llm::OpenAi;
 use crate::source::{DepGraph, Project};
 use crate::tools::{Registry, ToolCtx};
@@ -13,12 +12,11 @@ use super::prompt;
 pub(crate) async fn ask_builder(
     openai: &OpenAi,
     project: &Project,
-    flags: &ActiveFlags,
     deps: &mut DepGraph,
     input: &mut Vec<serde_json::Value>,
 ) -> Result<Option<Builder>, DreamError> {
     let registry = Registry::builder();
-    let instructions = prompt::builder(&registry, flags);
+    let instructions = prompt::builder(&registry);
     input.push(json!({
         "role": "user",
         "content": "Declare the toolchain before writing files."

@@ -25,12 +25,8 @@ pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
     registry.instructions(&preamble(), flags)
 }
 
-pub fn builder(registry: &Registry, flags: &ActiveFlags) -> String {
-    let tools = registry.tool_list();
-    match flags.prompt_catalog() {
-        Some(catalog) => format!("{BUILDER_PREAMBLE}\n\n{tools}\n{catalog}"),
-        None => format!("{BUILDER_PREAMBLE}\n\n{tools}"),
-    }
+pub fn builder(registry: &Registry) -> String {
+    format!("{BUILDER_PREAMBLE}\n\n{}", registry.tool_list())
 }
 
 #[cfg(test)]
@@ -40,7 +36,7 @@ mod tests {
     #[test]
     fn includes_tools_and_only_active_flags() {
         let registry = Registry::composer();
-        let instructions = compose(&registry, &ActiveFlags::new(false, false));
+        let instructions = compose(&registry, &ActiveFlags::new(false));
         assert!(instructions.contains(&preamble()));
         assert!(instructions.contains(FOOCODE));
         assert!(instructions.contains(ENTRY));
@@ -55,14 +51,14 @@ mod tests {
         assert!(!instructions.contains("stdout"));
         assert!(!instructions.contains("--strict"));
         assert!(!instructions.contains("--no-warn"));
-        assert!(compose(&registry, &ActiveFlags::new(true, false)).contains("--strict:"));
-        assert!(compose(&registry, &ActiveFlags::new(false, true)).contains("--no-warn:"));
+        assert!(compose(&registry, &ActiveFlags::new(true)).contains("--strict:"));
+        assert!(!compose(&registry, &ActiveFlags::new(true)).contains("--no-warn"));
     }
 
     #[test]
     fn builder_prompt_is_the_pick_turn() {
         let registry = Registry::builder();
-        let instructions = builder(&registry, &ActiveFlags::new(false, false));
+        let instructions = builder(&registry);
         assert!(instructions.contains(BUILDER_PREAMBLE));
         assert!(instructions.contains("about to write"));
         assert!(!instructions.contains("just wrote"));
@@ -70,5 +66,8 @@ mod tests {
         assert!(!instructions.contains("write_output_file"));
         assert!(!instructions.contains("dream_error"));
         assert!(!instructions.contains("entire interface"));
+        assert!(!instructions.contains("--strict"));
+        assert!(!instructions.contains("--no-warn"));
+        assert!(!instructions.contains("Running with flags"));
     }
 }
