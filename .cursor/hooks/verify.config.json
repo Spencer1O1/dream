@@ -1,0 +1,26 @@
+{
+  "package_manager": "cargo",
+  "buckets": {
+    "rust": {
+      "path_prefixes": ["src/"],
+      "path_suffixes": [".rs"],
+      "extra_names": [
+        "Cargo.toml",
+        "Cargo.lock",
+        "rustfmt.toml",
+        "clippy.toml"
+      ],
+      "checks": ["format", "lint", "typecheck"]
+    }
+  },
+  "commands": {
+    "format_write": ["rustfmt"],
+    "format_check": ["cargo", "fmt", "--", "--check"],
+    "lint": ["cargo", "clippy", "--all-targets", "--", "-D", "warnings"],
+    "typecheck": ["cargo", "check"]
+  },
+  "auto_format": {
+    "enabled": true,
+    "prettier_suffixes": [".rs"]
+  }
+}

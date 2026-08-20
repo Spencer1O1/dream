@@ -1,3 +1,7 @@
 .code-workspace
-.cursor/
 .vscode/
+.cursor/hooks/state/
+target/
+.env
+.env.local
+__pycache__/
