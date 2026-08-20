@@ -148,11 +148,20 @@ fn apply(
             if let Err(err) = provenance::authorize_remove(store, &rel, unit, this_job) {
                 return Ok(reply::refused(err));
             }
-            let path = output::remove_file(dest, &rel)?;
-            if let (Some(unit), Some(artifacts)) = (unit, artifacts) {
-                artifacts.entry(unit.to_string()).or_default().remove(&path);
+            match output::remove_file(dest, &rel)? {
+                output::Removed::Ok(path) => {
+                    if let (Some(unit), Some(artifacts)) = (unit, artifacts) {
+                        artifacts.entry(unit.to_string()).or_default().remove(&path);
+                    }
+                    Ok(json!({ "ok": true, "path": path }).to_string())
+                }
+                output::Removed::Missing(path) => Ok(reply::warning(format!(
+                    "output file `{path}` does not exist"
+                ))),
+                output::Removed::Directory(path) => Ok(reply::warning(format!(
+                    "output path `{path}` is a directory"
+                ))),
             }
-            Ok(json!({ "ok": true, "path": path }).to_string())
         }
     }
 }

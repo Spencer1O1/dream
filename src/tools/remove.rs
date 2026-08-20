@@ -98,6 +98,103 @@ mod tests {
     }
 
     #[test]
+    fn missing_owned_file_is_a_warning() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let dest = tempfile::tempdir().unwrap();
+        let mut store = Store::new("rust");
+        store.set_artifacts(
+            &unit.rel,
+            std::collections::HashSet::from(["src/gone.rs".into()]),
+        );
+        let mut artifacts = HashMap::new();
+        let mut claims = HashMap::new();
+        let mut ctx = ToolCtx::compose(
+            &project,
+            &mut deps,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                toolchain: None,
+            },
+        );
+        let out = RemoveOutputFile::compose()
+            .call(
+                &mut ctx,
+                &json!({ "unit": unit.rel, "path": "src/gone.rs" }),
+            )
+            .unwrap();
+        assert_eq!(
+            crate::tools::reply::warning_of(&out).as_deref(),
+            Some("output file `src/gone.rs` does not exist")
+        );
+    }
+
+    #[test]
+    fn directory_is_a_warning() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let dest = tempfile::tempdir().unwrap();
+        std::fs::create_dir(dest.path().join("lib")).unwrap();
+        let mut store = Store::new("rust");
+        store.set_artifacts(&unit.rel, std::collections::HashSet::from(["lib".into()]));
+        let mut artifacts = HashMap::new();
+        let mut claims = HashMap::new();
+        let mut ctx = ToolCtx::compose(
+            &project,
+            &mut deps,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                toolchain: None,
+            },
+        );
+        let out = RemoveOutputFile::compose()
+            .call(&mut ctx, &json!({ "unit": unit.rel, "path": "lib" }))
+            .unwrap();
+        assert_eq!(
+            crate::tools::reply::warning_of(&out).as_deref(),
+            Some("output path `lib` is a directory")
+        );
+        assert!(dest.path().join("lib").is_dir());
+    }
+
+    #[test]
+    fn escape_is_still_a_process_error() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let dest = tempfile::tempdir().unwrap();
+        let store = Store::new("rust");
+        let mut artifacts = HashMap::new();
+        let mut claims = HashMap::new();
+        let mut ctx = ToolCtx::compose(
+            &project,
+            &mut deps,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                toolchain: None,
+            },
+        );
+        let err = RemoveOutputFile::compose()
+            .call(&mut ctx, &json!({ "unit": unit.rel, "path": "../secret" }))
+            .unwrap_err();
+        assert!(err.to_string().contains("output write escapes -o"));
+    }
+
+    #[test]
     fn compose_describes_a_dest_file() {
         let description = RemoveOutputFile::compose().spec().description;
         assert!(description.contains("source (code) file"));

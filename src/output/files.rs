@@ -13,21 +13,25 @@ pub fn write_file(dest: &Path, path: &str, contents: &str) -> Result<String, Dre
     rel_output(dest, &abs)
 }
 
-pub fn remove_file(dest: &Path, path: &str) -> Result<String, DreamError> {
+#[derive(Debug)]
+pub enum Removed {
+    Ok(String),
+    Missing(String),
+    Directory(String),
+}
+
+pub fn remove_file(dest: &Path, path: &str) -> Result<Removed, DreamError> {
     let abs = resolve_output(dest, path)?;
+    let rel = rel_output(dest, &abs)?;
     if abs.is_dir() {
-        return Err(DreamError::composer(format!(
-            "output path `{path}` is a directory"
-        )));
+        return Ok(Removed::Directory(rel));
     }
     if !abs.exists() {
-        return Err(DreamError::composer(format!(
-            "output file `{path}` does not exist"
-        )));
+        return Ok(Removed::Missing(rel));
     }
     fs::remove_file(&abs)?;
     prune_empty_parents(dest, abs.parent())?;
-    rel_output(dest, &abs)
+    Ok(Removed::Ok(rel))
 }
 
 fn prune_empty_parents(root: &Path, mut dir: Option<&Path>) -> Result<(), DreamError> {
@@ -72,8 +76,10 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         write_file(dest.path(), "src/oops.rs", "nope").unwrap();
         write_file(dest.path(), "keep.txt", "keep").unwrap();
-        let rel = remove_file(dest.path(), "src/oops.rs").unwrap();
-        assert_eq!(rel, "src/oops.rs");
+        assert!(matches!(
+            remove_file(dest.path(), "src/oops.rs").unwrap(),
+            Removed::Ok(rel) if rel == "src/oops.rs"
+        ));
         assert!(!dest.path().join("src/oops.rs").exists());
         assert!(!dest.path().join("src").exists());
         assert_eq!(
@@ -83,16 +89,20 @@ mod tests {
     }
 
     #[test]
-    fn remove_file_rejects_missing_directory_and_escape() {
+    fn remove_file_missing_directory_and_escape() {
         let dest = tempfile::tempdir().unwrap();
         write_file(dest.path(), "keep.txt", "keep").unwrap();
         fs::create_dir(dest.path().join("lib")).unwrap();
 
-        let missing = remove_file(dest.path(), "gone.rs").unwrap_err();
-        assert!(missing.to_string().contains("does not exist"));
+        assert!(matches!(
+            remove_file(dest.path(), "gone.rs").unwrap(),
+            Removed::Missing(rel) if rel == "gone.rs"
+        ));
 
-        let dir = remove_file(dest.path(), "lib").unwrap_err();
-        assert!(dir.to_string().contains("is a directory"));
+        assert!(matches!(
+            remove_file(dest.path(), "lib").unwrap(),
+            Removed::Directory(rel) if rel == "lib"
+        ));
         assert!(dest.path().join("lib").is_dir());
 
         let escape = remove_file(dest.path(), "../secret").unwrap_err();

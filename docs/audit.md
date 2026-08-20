@@ -32,7 +32,7 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 ## Taxonomy
 
 - [x] **Lock-staleness error type** — Drifted lock is `ComposerError` on `dream lock` and compose `check`. Same class as a missing locked artifact. Usage stays for “this command does not apply.”
-- [ ] **Missing remove** — Missing / non-file remove is a tool warning, not a process error. Keep escape / I/O as `DreamError`.
+- [x] **Missing remove** — Missing / directory remove is a tool warning. Escape and I/O stay `DreamError`.
 - [x] **dream_error name** — `dream_error` and the lucid turn cap are `InterpreterError`. The compose turn cap is `ComposerError`. See `docs/errors.md`.
 
 
