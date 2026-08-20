@@ -4,7 +4,7 @@ Executable pseudocode. A programmer writes foocode in `.foo` files. Dream interp
 
 The product contract is the Dream vault: `MVP.md` and `Core Rules.md`.
 
-## Phase 1
+## Phase 1–3
 
 ```bash
 cp .env.example .env
@@ -12,7 +12,12 @@ cp .env.example .env
 
 cargo run -- now examples/hey-you.foo
 cargo run -- now --strict examples/hey-you.foo
+
+cargo run -- examples/hello.foo -t rust -o ./out
+cargo run -- --strict examples/hello.foo -t rust -o ./out
 ```
+
+`-o` replaces the whole folder after a successful compose. A failed compose leaves the destination alone. `--build` and `--run` are not implemented yet.
 
 ## Config
 
@@ -26,6 +31,5 @@ DREAM_TURN_CAP=10
 
 ```bash
 dream now [--strict] <file.foo>
+dream [--strict] <file.foo> -t <target> -o <dir>
 ```
-
-Composition (`-t` / `-o`) is not implemented yet.

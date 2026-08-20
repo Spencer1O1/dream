@@ -114,14 +114,23 @@ mod tests {
     }
 
     #[test]
-    fn composer_registry_has_source_not_runtime() {
+    fn composer_registry_has_source_and_write_not_runtime() {
         let registry = Registry::composer();
-        let names = registry.names();
-        assert!(names.contains(&"list_source_files"));
-        assert!(names.contains(&"read_source_file"));
-        assert!(names.contains(&"dream_error"));
-        assert!(!names.contains(&"stdout"));
-        assert!(!names.contains(&"stdin"));
-        assert!(!registry.prompt_catalog().contains("Runtime"));
+        let catalog = registry.prompt_catalog();
+        assert_eq!(
+            registry.names(),
+            vec![
+                "list_source_files",
+                "read_source_file",
+                "write_output_file",
+                "remove_output_file",
+                "dream_error"
+            ]
+        );
+        assert!(catalog.contains("Composer"));
+        assert!(catalog.contains("- write_output_file:"));
+        assert!(catalog.contains("- remove_output_file:"));
+        assert!(!catalog.contains("Runtime"));
+        assert!(!catalog.contains("stdout"));
     }
 }

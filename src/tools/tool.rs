@@ -1,4 +1,5 @@
 use std::fmt;
+use std::path::Path;
 
 use serde_json::{json, Value};
 
@@ -51,6 +52,7 @@ impl ToolSpec {
 pub struct ToolCtx<'a> {
     pub project: &'a Project,
     pub deps: &'a mut DepGraph,
+    pub staging: Option<&'a Path>,
 }
 
 pub trait Tool: Send + Sync {

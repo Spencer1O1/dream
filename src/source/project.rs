@@ -38,6 +38,10 @@ impl Project {
         Ok((Self { root }, Unit { rel, source }))
     }
 
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
     pub fn list_source_files(&self) -> Result<Vec<String>, DreamError> {
         let mut files = Vec::new();
         collect_foo_files(&self.root, &self.root, &mut files)?;

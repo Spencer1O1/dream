@@ -1,5 +1,5 @@
 mod graph;
-mod paths;
+pub(crate) mod paths;
 mod project;
 
 pub use graph::DepGraph;

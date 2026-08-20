@@ -25,6 +25,16 @@ async fn run() -> Result<(), DreamError> {
             let config = config::load()?;
             interpreter::run(&config, &file, strict).await
         }
-        Command::Compose { .. } => composer::run(),
+        Command::Compose {
+            file,
+            target,
+            output,
+            build,
+            run,
+            strict,
+        } => {
+            let config = config::load()?;
+            composer::run(&config, &file, &target, &output, strict, build, run).await
+        }
     }
 }

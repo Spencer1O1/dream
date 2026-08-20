@@ -65,6 +65,10 @@ fn dispatch(
             DreamError::runtime(format!("invalid arguments for tool `{}`", call.name))
         })?
     };
-    let mut ctx = ToolCtx { project, deps };
+    let mut ctx = ToolCtx {
+        project,
+        deps,
+        staging: None,
+    };
     registry.call(&call.name, &mut ctx, &args)
 }
