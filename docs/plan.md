@@ -18,7 +18,7 @@ dream [--lucid] [--strict] <file.foo>
 - [x] Chat text discarded
 - [x] `--strict` as a prompt flag
 - [x] `DreamError` subtypes (Interpreter / Runtime / Config / Usage)
-- [x] Live: `examples/hello.foo`, `examples/hey-you.foo`
+- [x] Live: `examples/hello/hello.foo`, `examples/hey-you/hey-you.foo`
 
 ## Phase 2 — Multi-file
 
@@ -26,7 +26,7 @@ dream [--lucid] [--strict] <file.foo>
 - [x] Sandboxed list/read
 - [x] Request-loop cycle detection
 - [x] Recorded dependency set for the run
-- [x] Live: `examples/multifile.foo` + `examples/utils.foo`
+- [x] Live: `examples/multifile/multifile.foo` + `examples/multifile/utils.foo`
 
 ## Phase 3 — Compose
 
@@ -39,7 +39,7 @@ dream [--strict] <file.foo> -t <target> -o <dir>
 - [x] `remove_output_file`
 - [x] Stage, then replace `-o` (failed compose leaves the destination)
 - [x] Open-ended `-t`
-- [x] Live: `hey-you.foo -t rust -o ./out` then `cargo run`
+- [x] Live: `hey-you/hey-you.foo -t rust -o ./out` then `cargo run`
 
 ## Phase 4 — Known builders
 

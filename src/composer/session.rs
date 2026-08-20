@@ -58,7 +58,7 @@ impl Session<'_> {
             input.extend(turn.output);
 
             for call in turn.function_calls {
-                let tool_output = tool_output(dispatch(
+                let output = dispatch(
                     self.registry,
                     self.project,
                     deps,
@@ -78,11 +78,11 @@ impl Session<'_> {
                         toolchain,
                     },
                     &call,
-                ))?;
+                )?;
                 input.push(json!({
                     "type": "function_call_output",
                     "call_id": call.call_id,
-                    "output": tool_output,
+                    "output": output,
                 }));
             }
         }
@@ -91,32 +91,5 @@ impl Session<'_> {
             "turn limit reached before composition settled ({})",
             self.turn_cap
         )))
-    }
-}
-
-/// `dream_error` still aborts. Other tool failures go back to the model.
-fn tool_output(result: Result<String, DreamError>) -> Result<String, DreamError> {
-    match result {
-        Ok(output) => Ok(output),
-        Err(DreamError::Interpreter(err)) => Err(err.into()),
-        Err(err) => {
-            eprintln!("{err}");
-            Ok(err.to_string())
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn runtime_tool_errors_return_to_the_model() {
-        let output = tool_output(Err(DreamError::runtime(
-            "cannot write `Cargo.toml`; Dream owns the manifest. Use set_dependencies.",
-        )))
-        .unwrap();
-        assert!(output.contains("set_dependencies"));
-        assert!(tool_output(Err(DreamError::interpreter("gave up"))).is_err());
     }
 }

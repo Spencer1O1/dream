@@ -8,12 +8,12 @@ The implemented v0 contract is the Dream vault: `MVP.md` and `Core Rules.md`. Ne
 cp .env.example .env
 # or put secrets in .env.local (overrides .env)
 
-cargo run -- --lucid examples/hey-you.foo
-cargo run -- --lucid --strict examples/hey-you.foo
+cargo run -- --lucid examples/hey-you/hey-you.foo
+cargo run -- --lucid --strict examples/hey-you/hey-you.foo
 
-cargo run -- examples/hey-you.foo -t rust -o ./out
-cargo run -- --strict examples/hey-you.foo -t rust -o ./out --run
-cargo run -- examples/hey-you.foo -t rust -o ./out --fresh
+cargo run -- examples/hey-you/hey-you.foo -t rust -o ./out
+cargo run -- --strict examples/hey-you/hey-you.foo -t rust -o ./out --run
+cargo run -- examples/hey-you/hey-you.foo -t rust -o ./out --fresh
 ```
 
 Compose writes **in place** under `-o`. Dream records which `.foo` unit owns which output files. Unknown files stay. If `-o` already has files and no provenance, pass `--fresh` or use an empty directory. `--fresh` drops Dream-owned files and recomposes; unmanaged files stay. Compose prints each tool call on stderr (name and path, not file contents).

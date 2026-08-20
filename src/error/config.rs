@@ -13,6 +13,10 @@ impl ConfigError {
             error: error.into(),
         }
     }
+
+    pub fn detail(&self) -> &str {
+        &self.error
+    }
 }
 
 #[cfg(test)]

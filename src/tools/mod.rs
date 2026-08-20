@@ -8,6 +8,7 @@ mod list;
 mod read;
 mod registry;
 mod remove;
+pub(crate) mod reply;
 mod runtime;
 mod source;
 mod tool;

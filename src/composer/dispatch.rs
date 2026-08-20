@@ -3,6 +3,7 @@ use std::path::Path;
 use crate::error::DreamError;
 use crate::llm::FunctionCall;
 use crate::source::{DepGraph, Project};
+use crate::tools::reply;
 use crate::tools::{Registry, ToolCtx, WriteSlot};
 
 use super::progress;
@@ -24,7 +25,6 @@ pub(crate) fn dispatch(
     call: &FunctionCall,
 ) -> Result<String, DreamError> {
     let args = call.parsed_args()?;
-    progress::tool(&call.name, &args);
     let mut ctx = ToolCtx {
         project,
         deps,
@@ -34,5 +34,13 @@ pub(crate) fn dispatch(
         builder: io.builder,
         toolchain: io.toolchain,
     };
-    registry.dispatch(&mut ctx, call)
+    let result = registry.dispatch(&mut ctx, call);
+    match &result {
+        Ok(output) => match reply::warning_of(output) {
+            Some(message) => progress::warning(&call.name, &args, &message),
+            None => progress::tool(&call.name, &args),
+        },
+        Err(err) => progress::rejected(&call.name, &args, err),
+    }
+    result
 }

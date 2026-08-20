@@ -4,6 +4,7 @@ use crate::error::DreamError;
 use crate::project;
 
 use super::composer::claim_unit;
+use super::reply;
 use super::{
     arg_str, object_array_arg, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec,
     WriteSlot,
@@ -20,7 +21,7 @@ impl Tool for SetDependencies {
         ToolSpec {
             name: "set_dependencies",
             family: Family::Project,
-            description: "Replace this unit's dependencies in the selected toolchain's manifest. Dream owns the manifest and chooses versions. Each entry is a package name plus optional features.",
+            description: "Replace this unit's dependencies in the selected toolchain's manifest. Dream owns the manifest and chooses versions. Each entry is a package name plus optional features. Fails if that unit is locked.",
             parameters: object_params(
                 &[
                     ("unit", string_arg("Project-relative .foo these packages belong to")),
@@ -50,27 +51,33 @@ impl Tool for SetDependencies {
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
         if !matches!(ctx.write, Some(WriteSlot::Compose { .. })) {
-            return Err(DreamError::runtime(
+            return Ok(reply::warning(
                 "set_dependencies is not available during repair",
             ));
         }
         if ctx.toolchain.and_then(|builder| builder.spec()).is_none() {
-            return Err(DreamError::runtime(
+            return Ok(reply::warning(
                 "set_dependencies is only available for a known builder",
             ));
         }
-        let unit = claim_unit(ctx, arg_str(args, "unit"))?;
+        let unit = match claim_unit(ctx, arg_str(args, "unit")) {
+            Ok(unit) => unit,
+            Err(err) => return Ok(reply::refused(err)),
+        };
         if ctx.store.is_some_and(|store| store.is_locked(&unit)) {
-            return Err(DreamError::runtime(format!("`{unit}` is locked")));
+            return Ok(reply::warning(format!("`{unit}` is locked")));
         }
-        let parsed = project::dependencies(args)?;
+        let parsed = match project::dependencies(args) {
+            Ok(parsed) => parsed,
+            Err(err) => return Ok(reply::refused(err)),
+        };
         if ctx
             .toolchain
             .and_then(|builder| builder.spec())
             .is_some_and(|spec| spec.name == "go")
             && parsed.iter().any(|dep| !dep.features.is_empty())
         {
-            return Err(DreamError::runtime("go dependencies do not take features"));
+            return Ok(reply::warning("go dependencies do not take features"));
         }
         let count = parsed.len();
         let Some(WriteSlot::Compose { dependencies, .. }) = &mut ctx.write else {
@@ -153,10 +160,11 @@ mod tests {
             false,
         );
         ctx.toolchain = Some(Builder::parse("cargo").unwrap());
-        let err = SetDependencies
-            .call(&mut ctx, &args(&unit.rel))
-            .unwrap_err();
-        assert!(err.to_string().contains("locked"));
+        let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
+        assert_eq!(
+            reply::warning_of(&out).as_deref(),
+            Some("`main.foo` is locked")
+        );
     }
 
     #[test]
@@ -176,9 +184,9 @@ mod tests {
             builder: None,
             toolchain: Some(Builder::parse("cargo").unwrap()),
         };
-        let err = SetDependencies
-            .call(&mut ctx, &args(&unit.rel))
-            .unwrap_err();
-        assert!(err.to_string().contains("not available during repair"));
+        let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
+        assert!(reply::warning_of(&out)
+            .unwrap()
+            .contains("not available during repair"));
     }
 }

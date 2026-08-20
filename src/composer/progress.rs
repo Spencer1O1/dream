@@ -1,7 +1,17 @@
 use serde_json::Value;
 
+use crate::error::DreamError;
+
 pub fn tool(name: &str, args: &Value) {
     eprintln!("{}", line(name, args));
+}
+
+pub fn rejected(name: &str, args: &Value, err: &DreamError) {
+    eprintln!("{}: {}", line(name, args), err.detail());
+}
+
+pub fn warning(name: &str, args: &Value, message: &str) {
+    eprintln!("warning: {}: {message}", line(name, args));
 }
 
 pub fn repair() {
@@ -44,6 +54,27 @@ mod tests {
         assert_eq!(
             line("dream_error", &json!({"error": "nope"})),
             "dream_error"
+        );
+    }
+
+    #[test]
+    fn rejected_uses_the_detail_not_the_subtype_prefix() {
+        let err = DreamError::runtime("`utils.foo` is locked");
+        assert_eq!(
+            format!(
+                "{}: {}",
+                line("write_output_file", &json!({"path": "src/utils.rs"})),
+                err.detail()
+            ),
+            "write_output_file src/utils.rs: `utils.foo` is locked"
+        );
+        assert_eq!(
+            format!(
+                "warning: {}: {}",
+                line("write_output_file", &json!({"path": "src/utils.rs"})),
+                "`utils.foo` is locked"
+            ),
+            "warning: write_output_file src/utils.rs: `utils.foo` is locked"
         );
     }
 }

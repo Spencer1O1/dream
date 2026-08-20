@@ -11,7 +11,8 @@ impl Tool for ReadSourceFile {
         ToolSpec {
             name: "read_source_file",
             family: Family::Source,
-            description: "Read one .foo source unit inside the project. Do not invent source that is not in the project.",
+            description:
+                "Read one relevant .foo source unit inside the project. Do not invent files.",
             parameters: object_params(
                 &[("path", string_arg("Project-relative .foo path"))],
                 &["path"],

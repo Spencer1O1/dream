@@ -41,6 +41,15 @@ impl DreamError {
     pub fn usage(error: impl Into<String>) -> Self {
         UsageError::new(error).into()
     }
+
+    pub fn detail(&self) -> &str {
+        match self {
+            Self::Interpreter(err) => err.detail(),
+            Self::Runtime(err) => err.detail(),
+            Self::Config(err) => err.detail(),
+            Self::Usage(err) => err.detail(),
+        }
+    }
 }
 
 impl From<io::Error> for DreamError {
