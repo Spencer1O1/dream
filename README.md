@@ -2,7 +2,7 @@
 
 Executable pseudocode. A programmer writes foocode in `.foo` files. Dream interprets that notation.
 
-The implemented v0 contract is the Dream vault: `MVP.md` and `Core Rules.md`. Next contract: `Artifact Ownership.md`. Implementation progress is [docs/plan.md](docs/plan.md).
+The implemented v0 contract is the [Dream vault](https://github.com/Spencer1O1/DreamVault): `MVP.md` and `Core Rules.md`. Next contract: `Artifact Ownership.md`. Implementation progress is [docs/plan.md](docs/plan.md).
 
 ```bash
 cp .env.example .env
@@ -24,7 +24,7 @@ Compose writes **in place** under `-o`. Dream records which `.foo` unit owns whi
 
 ```env
 OPENAI_API_KEY=...
-DREAM_MODEL=gpt-4.1
+DREAM_MODEL=gpt-5.6-luna
 DREAM_TURN_CAP=10
 DREAM_REPAIR_CAP=3
 ```
