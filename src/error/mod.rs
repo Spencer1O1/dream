@@ -56,7 +56,7 @@ mod tests {
     #[test]
     fn delegates_display_to_subtype() {
         assert_eq!(
-            err.to_string(),
+            DreamError::interpreter(r#"Cannot assign input "2.5" to int x."#).to_string(),
             r#"InterpreterError: Cannot assign input "2.5" to int x."#
         );
         assert_eq!(

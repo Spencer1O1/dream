@@ -17,12 +17,9 @@ impl Tool for Stdout {
         ToolSpec {
             name: "stdout",
             family: Family::Runtime,
-            description: "Write observable program output immediately. Multiple calls are the print stream, in order. Writes exactly the text you send, including newlines. If the program's meaning is to produce a result, send that result through this tool.",
+            description: "Write observable program output immediately. Multiple calls are the print stream, in order. Writes exactly the text you send. If the program's meaning is to produce a result, send that result through this tool.",
             parameters: object_params(
-                &[(
-                    "text",
-                    string_arg("Exact text to write to stdout, including any newlines"),
-                )],
+                &[("text", string_arg("Exact text (bytes) to write"))],
                 &["text"],
             ),
         }
@@ -44,7 +41,7 @@ impl Tool for Stdin {
         ToolSpec {
             name: "stdin",
             family: Family::Runtime,
-            description: "Read from real stdin. May block. EOF is fine in non-interactive use.",
+            description: "Read from real stdin. Blocks until input is available. EOF is fine in non-interactive use.",
             parameters: object_params(&[], &[]),
         }
     }
