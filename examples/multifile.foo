@@ -1,0 +1,6 @@
+import * from utils
+
+print timesThreePlusTwo(5)
+print timesThreePlusTwo(10)
+print timesThreePlusTwo(-2)
+print timesThreePlusTwo(2.5)

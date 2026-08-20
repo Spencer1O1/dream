@@ -120,6 +120,7 @@ impl OpenAi {
                 "instructions": instructions,
                 "input": input,
                 "tools": tools,
+                "parallel_tool_calls": true,
             }))
             .send()
             .await
