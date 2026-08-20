@@ -48,7 +48,7 @@ fn invoke(
     run_program: bool,
     no_warn: bool,
 ) -> Result<Outcome, DreamError> {
-    match run_step("build", spec, spec.build, dir, no_warn)? {
+    match capture_step("build", spec, spec.build, dir, no_warn)? {
         Outcome::Ok => {}
         other => return Ok(other),
     }
@@ -58,7 +58,7 @@ fn invoke(
     Ok(Outcome::Ok)
 }
 
-fn run_step(
+fn capture_step(
     step: &'static str,
     spec: &BuilderSpec,
     argv: &[&str],
