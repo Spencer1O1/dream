@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::builder::BuilderSpec;
-use crate::composer::provenance::Dependency;
 use crate::error::DreamError;
+use crate::provenance::Dependency;
 
 use super::{cargo, go, python};
 

@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::builder::BuilderSpec;
-use crate::composer::provenance::Store;
 use crate::error::DreamError;
+use crate::provenance::Store;
 
 use super::manifest;
 
@@ -17,8 +17,8 @@ pub fn reconcile(dest: &Path, spec: &BuilderSpec, store: &mut Store) -> Result<(
 mod tests {
     use super::*;
     use crate::builder::Builder;
-    use crate::composer::provenance::Dependency;
     use crate::project::init;
+    use crate::provenance::Dependency;
     use std::fs;
 
     #[test]

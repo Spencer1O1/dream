@@ -1,12 +1,13 @@
 use serde_json::{json, Value};
 
-use crate::composer::output;
-use crate::composer::provenance;
 use crate::error::DreamError;
+use crate::output;
+use crate::provenance;
+use crate::tools::{Compose, Mode};
 
 use super::composer::{claim_unit, dest_rel};
 use super::reply;
-use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec, WriteSlot};
+use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
 pub(super) struct RemoveOutputFile;
 
@@ -27,7 +28,7 @@ impl Tool for RemoveOutputFile {
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let claimed = if matches!(ctx.write, Some(WriteSlot::Compose { .. })) {
+        let claimed = if matches!(ctx.mode, Mode::Compose(_)) {
             match claim_unit(ctx, arg_str(args, "unit")) {
                 Ok(unit) => Some(unit),
                 Err(err) => return Ok(reply::refused(err)),
@@ -35,11 +36,16 @@ impl Tool for RemoveOutputFile {
         } else {
             None
         };
-        let (dest, store, rel) = dest_rel(ctx, arg_str(args, "path"))?;
-        match &mut ctx.write {
-            Some(WriteSlot::Compose { artifacts, .. }) => {
+        match &mut ctx.mode {
+            Mode::Compose(Compose {
+                dest,
+                store,
+                artifacts,
+                ..
+            }) => {
                 let unit = claimed
                     .ok_or_else(|| DreamError::runtime("remove_output_file requires unit"))?;
+                let rel = dest_rel(dest, arg_str(args, "path"))?;
                 if let Err(err) =
                     provenance::authorize_remove(store, &rel, Some(&unit), artifacts.get(&unit))
                 {
@@ -49,14 +55,17 @@ impl Tool for RemoveOutputFile {
                 artifacts.entry(unit).or_default().remove(&path);
                 Ok(json!({ "ok": true, "path": path }).to_string())
             }
-            Some(WriteSlot::Repair) => {
+            Mode::Repair(repair) => {
+                let dest = repair.dest;
+                let store = repair.store;
+                let rel = dest_rel(dest, arg_str(args, "path"))?;
                 if let Err(err) = provenance::authorize_remove(store, &rel, None, None) {
                     return Ok(reply::refused(err));
                 }
                 let path = output::remove_file(dest, &rel)?;
                 Ok(json!({ "ok": true, "path": path }).to_string())
             }
-            None => Err(DreamError::runtime(
+            Mode::Lucid | Mode::Pick(_) => Err(DreamError::runtime(
                 "remove_output_file is only available while composing",
             )),
         }
@@ -66,9 +75,9 @@ impl Tool for RemoveOutputFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::composer::provenance::Store;
+    use crate::provenance::Store;
     use crate::source::{DepGraph, Project};
-    use crate::tools::composer::compose_ctx;
+    use crate::tools::{Compose, ToolCtx};
     use serde_json::json;
     use std::collections::HashMap;
 
@@ -82,14 +91,17 @@ mod tests {
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
         let mut claims = HashMap::new();
-        let mut ctx = compose_ctx(
+        let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
-            dest.path(),
-            &store,
-            &mut artifacts,
-            &mut claims,
-            false,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                fresh: false,
+                toolchain: None,
+            },
         );
         crate::tools::write::WriteOutputFile
             .call(

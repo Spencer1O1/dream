@@ -1,12 +1,13 @@
 use serde_json::{json, Value};
 
-use crate::composer::output;
-use crate::composer::provenance;
 use crate::error::DreamError;
+use crate::output;
+use crate::provenance;
+use crate::tools::{Compose, Mode};
 
 use super::composer::{claim_unit, dest_rel};
 use super::reply;
-use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec, WriteSlot};
+use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
 pub(super) struct WriteOutputFile;
 
@@ -28,7 +29,7 @@ impl Tool for WriteOutputFile {
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let claimed = if matches!(ctx.write, Some(WriteSlot::Compose { .. })) {
+        let claimed = if matches!(ctx.mode, Mode::Compose(_)) {
             match claim_unit(ctx, arg_str(args, "unit")) {
                 Ok(unit) => Some(unit),
                 Err(err) => return Ok(reply::refused(err)),
@@ -36,13 +37,17 @@ impl Tool for WriteOutputFile {
         } else {
             None
         };
-        let (dest, store, rel) = dest_rel(ctx, arg_str(args, "path"))?;
-        match &mut ctx.write {
-            Some(WriteSlot::Compose {
-                artifacts, fresh, ..
+        match &mut ctx.mode {
+            Mode::Compose(Compose {
+                dest,
+                store,
+                artifacts,
+                fresh,
+                ..
             }) => {
                 let unit = claimed
                     .ok_or_else(|| DreamError::runtime("write_output_file requires unit"))?;
+                let rel = dest_rel(dest, arg_str(args, "path"))?;
                 if let Err(err) = provenance::authorize_write(
                     store,
                     dest,
@@ -57,7 +62,10 @@ impl Tool for WriteOutputFile {
                 artifacts.entry(unit).or_default().insert(path.clone());
                 Ok(json!({ "ok": true, "path": path }).to_string())
             }
-            Some(WriteSlot::Repair) => {
+            Mode::Repair(repair) => {
+                let dest = repair.dest;
+                let store = repair.store;
+                let rel = dest_rel(dest, arg_str(args, "path"))?;
                 if let Err(err) = provenance::authorize_write(store, dest, &rel, None, false, None)
                 {
                     return Ok(reply::refused(err));
@@ -65,7 +73,7 @@ impl Tool for WriteOutputFile {
                 let path = output::write_file(dest, &rel, arg_str(args, "contents"))?;
                 Ok(json!({ "ok": true, "path": path }).to_string())
             }
-            None => Err(DreamError::runtime(
+            Mode::Lucid | Mode::Pick(_) => Err(DreamError::runtime(
                 "write_output_file is only available while composing",
             )),
         }
@@ -75,9 +83,8 @@ impl Tool for WriteOutputFile {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::composer::provenance::Store;
+    use crate::provenance::Store;
     use crate::source::{DepGraph, Project};
-    use crate::tools::composer::compose_ctx;
     use crate::tools::ToolCtx;
     use serde_json::json;
     use std::collections::HashMap;
@@ -96,14 +103,17 @@ mod tests {
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
         let mut claims = HashMap::new();
-        let mut ctx = compose_ctx(
+        let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
-            dest.path(),
-            &store,
-            &mut artifacts,
-            &mut claims,
-            false,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                fresh: false,
+                toolchain: None,
+            },
         );
         let out = WriteOutputFile
             .call(&mut ctx, &write_args(&unit.rel, "hello.txt", "hello"))
@@ -127,14 +137,17 @@ mod tests {
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
         let mut claims = HashMap::new();
-        let mut ctx = compose_ctx(
+        let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
-            dest.path(),
-            &store,
-            &mut artifacts,
-            &mut claims,
-            false,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                fresh: false,
+                toolchain: None,
+            },
         );
         let out = WriteOutputFile
             .call(&mut ctx, &write_args("utils.foo", "src/lib.rs", "no"))
@@ -156,14 +169,17 @@ mod tests {
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
         let mut claims = HashMap::new();
-        let mut ctx = compose_ctx(
+        let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
-            dest.path(),
-            &store,
-            &mut artifacts,
-            &mut claims,
-            false,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                fresh: false,
+                toolchain: None,
+            },
         );
         let err = WriteOutputFile
             .call(&mut ctx, &write_args(&unit.rel, "../secret", "no"))
@@ -179,15 +195,7 @@ mod tests {
         let mut deps = DepGraph::new(&unit.rel);
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
-        let mut ctx = ToolCtx {
-            project: &project,
-            deps: &mut deps,
-            dest: Some(dest.path()),
-            store: Some(&store),
-            write: Some(WriteSlot::Repair),
-            builder: None,
-            toolchain: None,
-        };
+        let mut ctx = ToolCtx::repair(&project, &mut deps, dest.path(), &store);
         let out = WriteOutputFile
             .call(&mut ctx, &write_args(&unit.rel, "src/new.rs", "no"))
             .unwrap();
@@ -213,14 +221,17 @@ mod tests {
         store.set_lock(&unit.rel, "abc".into());
         let mut artifacts = HashMap::new();
         let mut claims = HashMap::new();
-        let mut ctx = compose_ctx(
+        let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
-            dest.path(),
-            &store,
-            &mut artifacts,
-            &mut claims,
-            false,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut claims,
+                fresh: false,
+                toolchain: None,
+            },
         );
         let out = WriteOutputFile
             .call(&mut ctx, &write_args(&unit.rel, "src/main.rs", "new"))

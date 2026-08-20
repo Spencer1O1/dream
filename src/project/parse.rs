@@ -2,8 +2,8 @@ use std::collections::HashSet;
 
 use serde_json::Value;
 
-use crate::composer::provenance::Dependency;
 use crate::error::DreamError;
+use crate::provenance::Dependency;
 
 pub fn dependencies(args: &Value) -> Result<Vec<Dependency>, DreamError> {
     let Some(items) = args["dependencies"].as_array() else {

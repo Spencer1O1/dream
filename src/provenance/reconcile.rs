@@ -3,8 +3,8 @@ use std::path::Path;
 
 use crate::error::DreamError;
 
-use super::super::output;
 use super::store::Store;
+use crate::output;
 
 pub fn reconcile(
     store: &mut Store,

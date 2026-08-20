@@ -2,6 +2,8 @@ use serde_json::{json, Value};
 
 use crate::error::DreamError;
 
+use crate::tools::Mode;
+
 use super::{object_params, Family, Tool, ToolCtx, ToolSpec};
 
 pub(super) struct ListSourceFiles;
@@ -18,7 +20,12 @@ impl Tool for ListSourceFiles {
 
     fn call(&self, ctx: &mut ToolCtx<'_>, _args: &Value) -> Result<String, DreamError> {
         let files = ctx.project.list_source_files()?;
-        if let Some(store) = ctx.store {
+        let store = match &ctx.mode {
+            Mode::Compose(compose) => Some(compose.store),
+            Mode::Repair(repair) => Some(repair.store),
+            Mode::Lucid | Mode::Pick(_) => None,
+        };
+        if let Some(store) = store {
             let files: Vec<Value> = files
                 .into_iter()
                 .map(|path| {
@@ -37,8 +44,9 @@ impl Tool for ListSourceFiles {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::composer::provenance::Store;
+    use crate::provenance::Store;
     use crate::source::{DepGraph, Project};
+    use crate::tools::{Compose, ToolCtx};
     use serde_json::json;
     use std::collections::HashSet;
     use std::fs;
@@ -49,15 +57,7 @@ mod tests {
         fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
-        let mut ctx = ToolCtx {
-            project: &project,
-            deps: &mut deps,
-            dest: None,
-            store: None,
-            write: None,
-            builder: None,
-            toolchain: None,
-        };
+        let mut ctx = ToolCtx::lucid(&project, &mut deps);
         let out = ListSourceFiles.call(&mut ctx, &json!({})).unwrap();
         assert!(out.contains("main.foo"));
         assert!(!out.contains("locked"));
@@ -74,15 +74,20 @@ mod tests {
         let mut store = Store::new("rust");
         store.set_artifacts("utils.foo", HashSet::from(["src/utils.rs".into()]));
         store.set_lock("utils.foo", "abc".into());
-        let mut ctx = ToolCtx {
-            project: &project,
-            deps: &mut deps,
-            dest: Some(dest.path()),
-            store: Some(&store),
-            write: None,
-            builder: None,
-            toolchain: None,
-        };
+        let mut artifacts = std::collections::HashMap::new();
+        let mut dependencies = std::collections::HashMap::new();
+        let mut ctx = ToolCtx::compose(
+            &project,
+            &mut deps,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut dependencies,
+                fresh: false,
+                toolchain: None,
+            },
+        );
         let out: Value =
             serde_json::from_str(&ListSourceFiles.call(&mut ctx, &json!({})).unwrap()).unwrap();
         let files = out["files"].as_array().unwrap();

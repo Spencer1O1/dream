@@ -1,13 +1,10 @@
-use std::collections::{HashMap, HashSet};
 use std::fmt;
-use std::path::Path;
 
 use serde_json::{json, Value};
 
-use crate::builder::Builder;
-use crate::composer::provenance::{Dependency, Store};
 use crate::error::DreamError;
-use crate::source::{DepGraph, Project};
+
+use super::ctx::ToolCtx;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Family {
@@ -57,25 +54,6 @@ impl ToolSpec {
             "strict": true
         })
     }
-}
-
-pub enum WriteSlot<'a> {
-    Compose {
-        artifacts: &'a mut HashMap<String, HashSet<String>>,
-        dependencies: &'a mut HashMap<String, Vec<Dependency>>,
-        fresh: bool,
-    },
-    Repair,
-}
-
-pub struct ToolCtx<'a> {
-    pub project: &'a Project,
-    pub deps: &'a mut DepGraph,
-    pub dest: Option<&'a Path>,
-    pub store: Option<&'a Store>,
-    pub write: Option<WriteSlot<'a>>,
-    pub builder: Option<&'a mut Option<Builder>>,
-    pub toolchain: Option<Builder>,
 }
 
 pub trait Tool: Send + Sync {

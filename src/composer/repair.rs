@@ -2,10 +2,10 @@ use serde_json::json;
 
 use crate::builder::{Builder, Outcome};
 use crate::error::DreamError;
+use crate::provenance;
 use crate::source::DepGraph;
 
 use super::progress;
-use super::provenance;
 use super::session::Session;
 use super::state::ComposeState;
 

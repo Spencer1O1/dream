@@ -2,8 +2,8 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 
-use crate::composer::provenance::Dependency;
 use crate::error::DreamError;
+use crate::provenance::Dependency;
 
 pub fn create_if_missing(dest: &Path, package: &str) -> Result<(), DreamError> {
     let path = dest.join("go.mod");

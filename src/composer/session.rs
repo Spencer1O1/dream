@@ -3,14 +3,14 @@ use std::collections::{HashMap, HashSet};
 use serde_json::{json, Value};
 
 use crate::builder::Builder;
-use crate::composer::provenance::Dependency;
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
 use crate::llm::OpenAi;
+use crate::provenance::Dependency;
 use crate::source::{DepGraph, Project};
-use crate::tools::{Registry, WriteSlot};
+use crate::tools::{Compose, Registry, ToolCtx};
 
-use super::dispatch::{dispatch, ToolIo};
+use super::dispatch::dispatch;
 use super::state::ComposeState;
 
 pub(crate) struct WriteLoop<'a> {
@@ -58,27 +58,23 @@ impl Session<'_> {
             input.extend(turn.output);
 
             for call in turn.function_calls {
-                let output = dispatch(
-                    self.registry,
-                    self.project,
-                    deps,
-                    ToolIo {
-                        dest: Some(&state.dest),
-                        store: Some(&state.store),
-                        write: if repair {
-                            Some(WriteSlot::Repair)
-                        } else {
-                            Some(WriteSlot::Compose {
-                                artifacts,
-                                dependencies,
-                                fresh: state.fresh,
-                            })
+                let mut ctx = if repair {
+                    ToolCtx::repair(self.project, deps, &state.dest, &state.store)
+                } else {
+                    ToolCtx::compose(
+                        self.project,
+                        deps,
+                        Compose {
+                            dest: &state.dest,
+                            store: &state.store,
+                            artifacts,
+                            dependencies,
+                            fresh: state.fresh,
+                            toolchain,
                         },
-                        builder: None,
-                        toolchain,
-                    },
-                    &call,
-                )?;
+                    )
+                };
+                let output = dispatch(self.registry, &mut ctx, &call)?;
                 input.push(json!({
                     "type": "function_call_output",
                     "call_id": call.call_id,

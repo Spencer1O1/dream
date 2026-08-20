@@ -3,11 +3,12 @@ use serde_json::{json, Value};
 use crate::error::DreamError;
 use crate::project;
 
+use crate::tools::Mode;
+
 use super::composer::claim_unit;
 use super::reply;
 use super::{
     arg_str, object_array_arg, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec,
-    WriteSlot,
 };
 
 pub fn tools() -> Vec<Box<dyn Tool>> {
@@ -50,12 +51,15 @@ impl Tool for SetDependencies {
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        if !matches!(ctx.write, Some(WriteSlot::Compose { .. })) {
-            return Ok(reply::warning(
-                "set_dependencies is not available during repair",
-            ));
-        }
-        if ctx.toolchain.and_then(|builder| builder.spec()).is_none() {
+        let toolchain = match &ctx.mode {
+            Mode::Compose(compose) => compose.toolchain,
+            _ => {
+                return Ok(reply::warning(
+                    "set_dependencies is not available during repair",
+                ));
+            }
+        };
+        if toolchain.and_then(|builder| builder.spec()).is_none() {
             return Ok(reply::warning(
                 "set_dependencies is only available for a known builder",
             ));
@@ -64,15 +68,16 @@ impl Tool for SetDependencies {
             Ok(unit) => unit,
             Err(err) => return Ok(reply::refused(err)),
         };
-        if ctx.store.is_some_and(|store| store.is_locked(&unit)) {
-            return Ok(reply::warning(format!("`{unit}` is locked")));
+        if let Mode::Compose(compose) = &ctx.mode {
+            if compose.store.is_locked(&unit) {
+                return Ok(reply::warning(format!("`{unit}` is locked")));
+            }
         }
         let parsed = match project::dependencies(args) {
             Ok(parsed) => parsed,
             Err(err) => return Ok(reply::refused(err)),
         };
-        if ctx
-            .toolchain
+        if toolchain
             .and_then(|builder| builder.spec())
             .is_some_and(|spec| spec.name == "go")
             && parsed.iter().any(|dep| !dep.features.is_empty())
@@ -80,12 +85,12 @@ impl Tool for SetDependencies {
             return Ok(reply::warning("go dependencies do not take features"));
         }
         let count = parsed.len();
-        let Some(WriteSlot::Compose { dependencies, .. }) = &mut ctx.write else {
+        let Mode::Compose(compose) = &mut ctx.mode else {
             return Err(DreamError::runtime(
                 "set_dependencies is not available during repair",
             ));
         };
-        dependencies.insert(unit.clone(), parsed);
+        compose.dependencies.insert(unit.clone(), parsed);
         Ok(json!({ "ok": true, "unit": unit, "count": count }).to_string())
     }
 }
@@ -94,10 +99,9 @@ impl Tool for SetDependencies {
 mod tests {
     use super::*;
     use crate::builder::Builder;
-    use crate::composer::provenance::Store;
+    use crate::provenance::Store;
     use crate::source::{DepGraph, Project};
-    use crate::tools::composer::compose_ctx;
-    use crate::tools::WriteSlot;
+    use crate::tools::{Compose, ToolCtx};
     use serde_json::json;
     use std::collections::HashMap;
 
@@ -120,16 +124,18 @@ mod tests {
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
         let mut dependencies = HashMap::new();
-        let mut ctx = compose_ctx(
+        let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
-            dest.path(),
-            &store,
-            &mut artifacts,
-            &mut dependencies,
-            false,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut dependencies,
+                fresh: false,
+                toolchain: Some(Builder::parse("cargo").unwrap()),
+            },
         );
-        ctx.toolchain = Some(Builder::parse("cargo").unwrap());
         let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
         assert!(out.contains("serde") || out.contains("\"count\":1"));
         assert_eq!(dependencies[&unit.rel][0].name, "serde");
@@ -150,16 +156,18 @@ mod tests {
         store.set_lock(&unit.rel, "abc".into());
         let mut artifacts = HashMap::new();
         let mut dependencies = HashMap::new();
-        let mut ctx = compose_ctx(
+        let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
-            dest.path(),
-            &store,
-            &mut artifacts,
-            &mut dependencies,
-            false,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut dependencies,
+                fresh: false,
+                toolchain: Some(Builder::parse("cargo").unwrap()),
+            },
         );
-        ctx.toolchain = Some(Builder::parse("cargo").unwrap());
         let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
         assert_eq!(
             reply::warning_of(&out).as_deref(),
@@ -175,15 +183,7 @@ mod tests {
         let mut deps = DepGraph::new(&unit.rel);
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
-        let mut ctx = crate::tools::ToolCtx {
-            project: &project,
-            deps: &mut deps,
-            dest: Some(dest.path()),
-            store: Some(&store),
-            write: Some(WriteSlot::Repair),
-            builder: None,
-            toolchain: Some(Builder::parse("cargo").unwrap()),
-        };
+        let mut ctx = ToolCtx::repair(&project, &mut deps, dest.path(), &store);
         let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
         assert!(reply::warning_of(&out)
             .unwrap()

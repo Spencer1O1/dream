@@ -1,9 +1,7 @@
 mod dispatch;
-pub(crate) mod output;
 mod pick;
 mod progress;
 mod prompt;
-pub(crate) mod provenance;
 mod repair;
 mod session;
 mod state;
@@ -16,6 +14,8 @@ use crate::config::Config;
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
 use crate::llm::OpenAi;
+use crate::output;
+use crate::provenance;
 use crate::source::DepGraph;
 use crate::source::Project;
 use crate::tools::Registry;

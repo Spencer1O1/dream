@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::DreamError;
 
-use super::super::output;
+use crate::output;
 
 pub const STORE_REL: &str = ".dream/provenance.json";
 

@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use crate::builder::BuilderSpec;
-use crate::composer::provenance::Store;
 use crate::error::DreamError;
+use crate::provenance::Store;
 
 use super::manifest;
 
@@ -40,7 +40,7 @@ mod tests {
         assert_eq!(store.project, vec!["Cargo.toml"]);
         assert_eq!(
             store.owner("Cargo.toml"),
-            crate::composer::provenance::store::Owner::Project
+            crate::provenance::store::Owner::Project
         );
     }
 
@@ -64,7 +64,7 @@ mod tests {
         assert_eq!(store.units["main.foo"].artifacts, vec!["src/main.rs"]);
         assert_eq!(
             store.owner("Cargo.toml"),
-            crate::composer::provenance::store::Owner::Project
+            crate::provenance::store::Owner::Project
         );
     }
 }

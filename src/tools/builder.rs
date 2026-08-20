@@ -3,6 +3,8 @@ use serde_json::{json, Value};
 use crate::builder::Builder;
 use crate::error::DreamError;
 
+use crate::tools::Mode;
+
 use super::{arg_str, enum_arg, object_params, Family, Tool, ToolCtx, ToolSpec};
 
 pub fn tools() -> Vec<Box<dyn Tool>> {
@@ -31,11 +33,13 @@ impl Tool for SetBuilder {
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let slot = ctx.builder.as_deref_mut().ok_or_else(|| {
-            DreamError::runtime("set_builder is only available when declaring a builder")
-        })?;
+        let Mode::Pick(pick) = &mut ctx.mode else {
+            return Err(DreamError::runtime(
+                "set_builder is only available when declaring a builder",
+            ));
+        };
         let builder = Builder::parse(arg_str(args, "builder"))?;
-        *slot = Some(builder);
+        *pick.builder = Some(builder);
         Ok(json!({ "ok": true, "builder": builder.as_str() }).to_string())
     }
 }
@@ -53,15 +57,7 @@ mod tests {
         deps: &'a mut DepGraph,
         builder: &'a mut Option<Builder>,
     ) -> ToolCtx<'a> {
-        ToolCtx {
-            project,
-            deps,
-            dest: None,
-            store: None,
-            write: None,
-            builder: Some(builder),
-            toolchain: None,
-        }
+        ToolCtx::pick(project, deps, builder)
     }
 
     #[test]

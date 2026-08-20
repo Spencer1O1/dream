@@ -52,14 +52,6 @@ fn dispatch(
     deps: &mut DepGraph,
     call: &FunctionCall,
 ) -> Result<String, DreamError> {
-    let mut ctx = ToolCtx {
-        project,
-        deps,
-        dest: None,
-        store: None,
-        write: None,
-        builder: None,
-        toolchain: None,
-    };
+    let mut ctx = ToolCtx::lucid(project, deps);
     registry.dispatch(&mut ctx, call)
 }

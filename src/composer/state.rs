@@ -3,13 +3,11 @@ use std::path::Path;
 
 use serde_json::Value;
 
-use crate::builder::Builder;
-use crate::composer::provenance::Dependency;
-use crate::error::DreamError;
-use crate::source::DepGraph;
-
-use super::provenance::{self, Store};
 use super::session::Session;
+use crate::builder::Builder;
+use crate::error::DreamError;
+use crate::provenance::{self, Dependency, Store};
+use crate::source::DepGraph;
 
 pub(crate) struct ComposeState {
     pub dest: std::path::PathBuf,
