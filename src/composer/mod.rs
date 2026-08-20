@@ -22,7 +22,6 @@ pub async fn run(
     build: bool,
     run_program: bool,
 ) -> Result<(), DreamError> {
-    refuse_unimplemented_build(build, run_program)?;
     if target.trim().is_empty() {
         return Err(DreamError::usage("compose requires -t <target>"));
     }
@@ -48,10 +47,14 @@ pub async fn run(
     for _ in 0..config.turn_cap {
         let turn = openai.respond(&instructions, &input, &schemas).await?;
         if turn.function_calls.is_empty() {
-            return finish(
+            let builder = finish(
                 &openai, &project, &mut deps, staging, &mut input, &flags, &output,
             )
-            .await;
+            .await?;
+            if build || run_program {
+                crate::builder::after_compose(builder, &output, run_program)?;
+            }
+            return Ok(());
         }
 
         input.extend(turn.output);
@@ -87,12 +90,12 @@ async fn finish(
     input: &mut Vec<Value>,
     flags: &ActiveFlags,
     output: &Path,
-) -> Result<(), DreamError> {
+) -> Result<Option<Builder>, DreamError> {
     require_files(staging.path())?;
-    let _builder = ask_builder(openai, project, deps, input, flags).await?;
+    let builder = ask_builder(openai, project, deps, input, flags).await?;
     output::replace_output(output, staging.path())?;
     let _ = staging.keep();
-    Ok(())
+    Ok(builder)
 }
 
 async fn ask_builder(
@@ -129,15 +132,6 @@ fn require_files(staging: &Path) -> Result<(), DreamError> {
     Ok(())
 }
 
-fn refuse_unimplemented_build(build: bool, run_program: bool) -> Result<(), DreamError> {
-    if build || run_program {
-        return Err(DreamError::usage(
-            "composition does not build yet; omit --build and --run",
-        ));
-    }
-    Ok(())
-}
-
 fn dispatch(
     registry: &Registry,
     project: &Project,
@@ -158,13 +152,6 @@ fn dispatch(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn build_and_run_are_not_implemented() {
-        let err = refuse_unimplemented_build(true, false).unwrap_err();
-        assert!(err.to_string().contains("omit --build"));
-        assert!(refuse_unimplemented_build(false, false).is_ok());
-    }
 
     #[test]
     fn no_files_is_an_error() {

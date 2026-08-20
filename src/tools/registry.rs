@@ -78,7 +78,7 @@ impl Registry {
         }
         out.push('\n');
         out.push_str(
-            "These tools are the entire interface. Prefer multiple tool calls in one turn when later calls do not need earlier results. Anything else is invalid.\n",
+            "These tools are the entire interface. Must use multiple tool calls in one turn for the next contiguous calls that can run without waiting on a result. Anything else is invalid.\n",
         );
         out
     }
@@ -113,7 +113,7 @@ mod tests {
         assert!(catalog.contains("- list_source_files:"));
         assert!(catalog.contains("- stdout:"));
         assert!(catalog.contains("- dream_error:"));
-        assert!(catalog.contains("Prefer multiple tool calls in one turn"));
+        assert!(catalog.contains("next contiguous calls that can already run"));
         assert!(!catalog.contains("--strict"));
         assert_eq!(
             registry.names(),

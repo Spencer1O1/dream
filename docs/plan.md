@@ -64,14 +64,14 @@ dream <file.foo> -t <target> -o <dir> --build
 dream <file.foo> -t <target> -o <dir> --run
 ```
 
-Needs Phase 4. Worth doing for **repair** (Phase 7), not as a `cargo` wrapper. Until then, the user builds the folder themselves. CLI flags already parse and error.
+Needs Phase 4. Compose still replaces `-o` first. Then Dream execs the catalog argv in that folder and inherits stdin/stdout/stderr.
 
-If the declared builder’s toolchain is not on the machine, Dream errors and says how to install it. Dream does not install it. That is different from `unsupported` (Dream has no builder). Compose has already replaced `-o`.
+If the declared builder’s toolchain is not on the machine, Dream errors and says how to install it. Dream does not install it. That is different from `unsupported` (Dream has no builder).
 
-- [ ] `--build` after a settled compose, only if a known builder was declared
-- [ ] `--run` implies build
-- [ ] Forward standard process IO
-- [ ] Missing toolchain → error + install hint (do not auto-install)
+- [x] `--build` after a settled compose, only if a known builder was declared
+- [x] `--run` implies build
+- [x] Forward standard process IO
+- [x] Missing toolchain → error + install hint (do not auto-install)
 
 ## Phase 6 — Semantic cache foundations
 

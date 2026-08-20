@@ -1,6 +1,8 @@
 mod catalog;
+mod exec;
 
 pub use catalog::{BuilderSpec, CATALOG};
+pub use exec::after_compose;
 
 use crate::error::DreamError;
 
@@ -21,6 +23,13 @@ impl Builder {
         catalog::spec(name)
             .map(Self::Known)
             .ok_or_else(|| DreamError::runtime(format!("unknown builder `{name}`")))
+    }
+
+    pub fn spec(self) -> Option<&'static BuilderSpec> {
+        match self {
+            Self::Known(spec) => Some(spec),
+            Self::Unsupported => None,
+        }
     }
 
     pub fn as_str(self) -> &'static str {

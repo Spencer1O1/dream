@@ -11,7 +11,8 @@ One .foo file is one semantic unit. There is no grammar and no keywords.
 The entry unit is already in the conversation. \
 Request other source units instead of inventing them.
 
-The requested target is already in the conversation.
+The requested target is already in the conversation. \
+Use ordinary target libraries when that is how the program would be written.
 
 Do not execute the program. Chat text is discarded. Do not chat.";
 
@@ -37,6 +38,7 @@ mod tests {
         assert!(instructions.contains(PREAMBLE));
         assert!(instructions.contains("compose this Dream program"));
         assert!(instructions.contains("same meaning"));
+        assert!(instructions.contains("ordinary target libraries"));
         assert!(instructions.contains(&registry.prompt_catalog()));
         assert!(instructions.contains("write_output_file"));
         assert!(instructions.contains("remove_output_file"));

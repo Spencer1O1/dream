@@ -2,14 +2,9 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BuilderSpec {
     pub name: &'static str,
-    /// Empty means no build step. Used in Phase 5.
-    #[allow(dead_code)]
+    /// Empty means no build step.
     pub build: &'static [&'static str],
-    /// Used in Phase 5.
-    #[allow(dead_code)]
     pub run: &'static [&'static str],
-    /// Used in Phase 5 when the toolchain is missing.
-    #[allow(dead_code)]
     pub install_hint: &'static str,
 }
 

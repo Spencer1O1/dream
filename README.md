@@ -12,10 +12,12 @@ cargo run -- now examples/hey-you.foo
 cargo run -- now --strict examples/hey-you.foo
 
 cargo run -- examples/hey-you.foo -t rust -o ./out
-cargo run -- --strict examples/hey-you.foo -t rust -o ./out
+cargo run -- --strict examples/hey-you.foo -t rust -o ./out --run
 ```
 
-`-o` replaces the whole folder after a successful compose. A failed compose leaves the destination alone. `--build` and `--run` are not implemented yet.
+`-o` replaces the whole folder after a successful compose. A failed compose leaves the destination alone.
+
+`--build` / `--run` exec the declared catalog toolchain in `-o`. If the builder is `unsupported` or missing on the machine, the project is still there; Dream errors with an install hint and does not install tools.
 
 ## Config
 
@@ -30,4 +32,6 @@ DREAM_TURN_CAP=10
 ```bash
 dream now [--strict] <file.foo>
 dream [--strict] <file.foo> -t <target> -o <dir>
+dream [--strict] <file.foo> -t <target> -o <dir> --build
+dream [--strict] <file.foo> -t <target> -o <dir> --run
 ```
