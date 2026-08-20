@@ -1,0 +1,14 @@
+
+const m = [1,2,3,4,5,4,3,2,1]
+
+for num in m {
+    if num is even {
+        remove num from m
+    } else {
+        println num
+    }
+}
+
+map m -> m^2
+
+println m
