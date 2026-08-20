@@ -5,11 +5,11 @@ use std::process::{Command, Stdio};
 use crate::error::DreamError;
 
 use super::outcome::Outcome;
-use super::BuilderSpec;
+use super::ToolchainSpec;
 
 pub(super) fn inherit_step(
     step: &'static str,
-    spec: &BuilderSpec,
+    spec: &ToolchainSpec,
     argv: &[String],
     dir: &Path,
 ) -> Result<Outcome, DreamError> {

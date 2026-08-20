@@ -4,7 +4,7 @@ mod exec;
 mod inherit;
 mod outcome;
 
-pub use catalog::{BuilderSpec, CATALOG};
+pub use catalog::{ToolchainSpec, CATALOG};
 pub use exec::after_compose;
 pub use outcome::Outcome;
 
@@ -14,22 +14,22 @@ const UNSUPPORTED: &str = "unsupported";
 
 /// A catalog toolchain, or `unsupported`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Builder {
-    Known(&'static BuilderSpec),
+pub enum Toolchain {
+    Known(&'static ToolchainSpec),
     Unsupported,
 }
 
-impl Builder {
+impl Toolchain {
     pub fn parse(name: &str) -> Result<Self, DreamError> {
         if name == UNSUPPORTED {
             return Ok(Self::Unsupported);
         }
         catalog::spec(name)
             .map(Self::Known)
-            .ok_or_else(|| DreamError::composer(format!("unknown builder `{name}`")))
+            .ok_or_else(|| DreamError::composer(format!("unknown toolchain `{name}`")))
     }
 
-    pub fn spec(self) -> Option<&'static BuilderSpec> {
+    pub fn spec(self) -> Option<&'static ToolchainSpec> {
         match self {
             Self::Known(spec) => Some(spec),
             Self::Unsupported => None,
@@ -57,18 +57,21 @@ mod tests {
     #[test]
     fn parse_round_trips_catalog_and_unsupported() {
         for spec in CATALOG {
-            let parsed = Builder::parse(spec.name).unwrap();
+            let parsed = Toolchain::parse(spec.name).unwrap();
             assert_eq!(parsed.as_str(), spec.name);
-            assert_eq!(parsed, Builder::Known(spec));
+            assert_eq!(parsed, Toolchain::Known(spec));
         }
-        assert_eq!(Builder::parse(UNSUPPORTED).unwrap(), Builder::Unsupported);
-        let err = Builder::parse("rust").unwrap_err();
-        assert!(err.to_string().contains("unknown builder `rust`"));
+        assert_eq!(
+            Toolchain::parse(UNSUPPORTED).unwrap(),
+            Toolchain::Unsupported
+        );
+        let err = Toolchain::parse("rust").unwrap_err();
+        assert!(err.to_string().contains("unknown toolchain `rust`"));
     }
 
     #[test]
     fn schema_names_are_catalog_plus_unsupported() {
-        let names = Builder::schema_names();
+        let names = Toolchain::schema_names();
         assert_eq!(names.last().copied(), Some(UNSUPPORTED));
         assert_eq!(
             &names[..names.len() - 1],

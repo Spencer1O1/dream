@@ -1,4 +1,3 @@
-mod builder;
 mod cli;
 mod composer;
 mod config;
@@ -11,6 +10,7 @@ mod project;
 mod prompt;
 mod provenance;
 mod source;
+mod toolchain;
 mod tools;
 
 use cli::Command;

@@ -59,9 +59,9 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         )
     })];
 
-    let builder = pick::ask_builder(&openai, &project, &mut deps, &mut input).await?;
+    let toolchain = pick::ask_toolchain(&openai, &project, &mut deps, &mut input).await?;
 
-    let registry = Registry::composer_for(builder);
+    let registry = Registry::composer_for(toolchain);
     let instructions = prompt::compose(&registry, &flags);
     let schemas = registry.schemas();
     let session = Session {
@@ -77,7 +77,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         entry_rel: &unit.rel,
     };
 
-    if let Some(spec) = builder.and_then(crate::builder::Builder::spec) {
+    if let Some(spec) = toolchain.and_then(crate::toolchain::Toolchain::spec) {
         crate::project::init(
             &state.dest,
             spec,
@@ -86,11 +86,17 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         )?;
     }
     state
-        .compose(&session, &mut deps, &mut input, builder)
+        .compose(&session, &mut deps, &mut input, toolchain)
         .await?;
     if opts.build || opts.run_program {
         session
-            .build_and_repair(builder, &mut state, &mut input, &mut deps, opts.run_program)
+            .build_and_repair(
+                toolchain,
+                &mut state,
+                &mut input,
+                &mut deps,
+                opts.run_program,
+            )
             .await?;
     }
     Ok(())

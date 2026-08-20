@@ -67,11 +67,11 @@ mod tests {
         assert!(catalog.contains("- write_output_file:"));
         assert!(catalog.contains("- remove_output_file:"));
         assert!(!catalog.contains("set_dependencies"));
-        assert!(!catalog.contains("set_builder"));
+        assert!(!catalog.contains("set_toolchain"));
         assert!(!catalog.contains("Runtime"));
         assert!(!catalog.contains("stdout"));
         let with_project =
-            Registry::composer_for(Some(crate::builder::Builder::parse("cargo").unwrap()))
+            Registry::composer_for(Some(crate::toolchain::Toolchain::parse("cargo").unwrap()))
                 .prompt_catalog();
         assert!(with_project.contains("Project"));
         assert!(with_project.contains("- set_dependencies:"));
@@ -95,9 +95,9 @@ mod tests {
     }
 
     #[test]
-    fn builder_is_set_builder_only() {
-        let catalog = Registry::builder().prompt_catalog();
-        assert!(catalog.contains("- set_builder:"));
+    fn toolchain_is_set_toolchain_only() {
+        let catalog = Registry::toolchain().prompt_catalog();
+        assert!(catalog.contains("- set_toolchain:"));
         assert!(!catalog.contains("write_output_file"));
         assert!(!catalog.contains("dream_error"));
     }

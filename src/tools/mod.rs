@@ -1,5 +1,4 @@
 mod args;
-mod builder;
 mod catalog;
 mod composer;
 mod control;
@@ -13,6 +12,7 @@ pub(crate) mod reply;
 mod runtime;
 mod source;
 mod tool;
+mod toolchain;
 mod write;
 
 pub use ctx::{Compose, Mode, ToolCtx};

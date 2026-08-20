@@ -25,8 +25,8 @@ impl Registry {
         Self::composer_for(None)
     }
 
-    pub fn composer_for(builder: Option<crate::builder::Builder>) -> Self {
-        if builder.and_then(|known| known.spec()).is_some() {
+    pub fn composer_for(toolchain: Option<crate::toolchain::Toolchain>) -> Self {
+        if toolchain.and_then(|known| known.spec()).is_some() {
             Self::gather(&[
                 super::source::compose_tools,
                 super::composer::tools,
@@ -42,8 +42,8 @@ impl Registry {
         }
     }
 
-    pub fn builder() -> Self {
-        Self::gather(&[super::builder::tools])
+    pub fn toolchain() -> Self {
+        Self::gather(&[super::toolchain::tools])
     }
 
     pub fn repair() -> Self {
@@ -119,7 +119,8 @@ mod tests {
             ]
         );
         assert_eq!(
-            Registry::composer_for(Some(crate::builder::Builder::parse("cargo").unwrap())).names(),
+            Registry::composer_for(Some(crate::toolchain::Toolchain::parse("cargo").unwrap()))
+                .names(),
             vec![
                 "list_source_files",
                 "read_source_file",
@@ -132,18 +133,18 @@ mod tests {
     }
 
     #[test]
-    fn builder_names() {
-        assert_eq!(Registry::builder().names(), vec!["set_builder"]);
+    fn toolchain_names() {
+        assert_eq!(Registry::toolchain().names(), vec!["set_toolchain"]);
     }
 
     #[test]
     fn openai_strict_lists_every_property() {
-        let cargo = crate::builder::Builder::parse("cargo").unwrap();
+        let cargo = crate::toolchain::Toolchain::parse("cargo").unwrap();
         for registry in [
             Registry::interpreter(),
             Registry::composer(),
             Registry::composer_for(Some(cargo)),
-            Registry::builder(),
+            Registry::toolchain(),
             Registry::repair(),
         ] {
             for tool in registry.tools() {

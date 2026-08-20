@@ -30,7 +30,7 @@ dream [--lucid] [--strict] <file.foo>
 
 ## Phase 3–7 — Historical
 
-These phases shipped **replace-`-o`** and, until Phase 7, **builder-last**. Phase 8 is the contract break: compose writes in place. Do not restore replace-`-o` or a post-write `set_builder` turn.
+These phases shipped **replace-`-o`** and, until Phase 7, **toolchain last**. Phase 8 is the contract break: compose writes in place. Do not restore replace-`-o` or a post-write `set_toolchain` turn.
 
 ## Phase 3 — Compose
 
@@ -45,20 +45,20 @@ dream [--strict] <file.foo> -t <target> -o <dir>
 - [x] Open-ended `-t`
 - [x] Live: `hey-you/hey-you.foo -t rust -o ./out` then `cargo run`
 
-## Phase 4 — Known builders
+## Phase 4 — Known toolchains
 
-Declare the toolchain before Dream can build. `-t` stays an open-ended compose hint. A **builder** is a toolchain Dream will exec.
+Declare the toolchain before Dream can `--build` or `--run`. `-t` stays an open-ended compose hint. A **toolchain** is a catalog row Dream will exec (`cargo`, `go`, `python`), not a language vibe.
 
 Historical: asked after the write loop. Phase 7 asks **before** writes.
 
 No pick, or `unsupported`, means do not `--build`, `--run`, or repair. Compose still succeeds.
 
-Do not infer the builder from the tree. Do not take build argv from the model.
+Do not infer the toolchain from the tree. Do not take build or run argv from the model.
 
-The source of truth is `src/builder/catalog.rs`: name, build argv, run argv, install hint, manifest, project paths. `set_builder` is those names plus `unsupported`. `unsupported` is not a catalog row.
+The source of truth is `src/toolchain/catalog.rs`: name, optional build argv, run argv, install hint, manifest, project paths. `set_toolchain` is those names plus `unsupported`. `unsupported` is not a catalog row.
 
-- [x] Closed builder list in Dream (`src/builder/catalog.rs`)
-- [x] Historical: follow-up `set_builder` turn after compose settles. Phase 7 asks first.
+- [x] Closed toolchain catalog in Dream (`src/toolchain/catalog.rs`)
+- [x] Historical: follow-up `set_toolchain` turn after compose settles. Phase 7 asks first.
 - [x] Missing / `unsupported` → compose only
 
 ## Phase 5 — Build and run
@@ -70,16 +70,16 @@ dream <file.foo> -t <target> -o <dir> --run
 
 Needs Phase 4. Historical: replaced `-o` first, then exec. Phase 8 builds in the in-place dest. Build captures streams (repair / `--no-warn`). Run inherits the terminal.
 
-If the declared builder’s toolchain is not on the machine, Dream errors and says how to install it. Dream does not install it. That is different from `unsupported` (Dream has no builder).
+If the declared toolchain is not on the machine, Dream errors and says how to install it. Dream does not install it. That is different from `unsupported` (Dream has no catalog row).
 
-- [x] `--build` after a settled compose, only if a known builder was declared
+- [x] `--build` after a settled compose, only if a known toolchain was declared
 - [x] `--run` implies build
 - [x] Capture build IO; inherit run IO
 - [x] Missing toolchain → error + install hint (do not auto-install)
 
 ## Phase 6 — Bounded repair
 
-Needs Phase 5. Build failures only (not run, not missing toolchain, not `unsupported`). Historical: compose had already replaced `-o`. Repair writes stay in `-o`. Same builder; do not ask again. Warnings are not repair unless `--no-warn`.
+Needs Phase 5. Build failures only (not run, not missing toolchain, not `unsupported`). Historical: compose had already replaced `-o`. Repair writes stay in `-o`. Same toolchain; do not ask again. Warnings are not repair unless `--no-warn`.
 
 Cap is `DREAM_REPAIR_CAP` (default 3, `0` means no repair).
 
@@ -88,15 +88,15 @@ Cap is `DREAM_REPAIR_CAP` (default 3, `0` means no repair).
 - [x] Do not repair run / missing toolchain / `unsupported`
 - [x] `--no-warn` treats toolchain warnings as a failed build
 
-## Phase 7 — Builder first
+## Phase 7 — Toolchain first
 
 Needs Phase 6. Historical: still used replace-`-o`. Phase 8 is the contract break.
 
-Ask `set_builder` **once, before any output writes**. That turn has only `set_builder` (no `dream_error`, no write tools). Then the write loop runs with a known builder (or `unsupported`).
+Ask `set_toolchain` **once, before any output writes**. That turn has only `set_toolchain` (no `dream_error`, no write tools). Then the write loop runs with a known toolchain (or `unsupported`).
 
-Do not infer the builder from `-t` or from the tree. Do not put `set_builder` in the write-loop catalog.
+Do not infer the toolchain from `-t` or from the tree. Do not put `set_toolchain` in the write-loop catalog.
 
-- [x] `set_builder` before `write_output_file`
+- [x] `set_toolchain` before `write_output_file`
 - [x] `unsupported` / no pick → compose only, as today
 
 ## Phase 8 — Provenance and in-place reconcile
@@ -128,11 +128,11 @@ Do not invent lock CLI, project tools, or a formal IR in this phase. Do not requ
 
 ## Phase 9 — Project layer
 
-Needs Phase 8. Known builders only.
+Needs Phase 8. Known toolchains only.
 
 Dream owns manifests. One tool: `set_dependencies(unit, …)` — package names plus optional version and features. Package name = entry stem on init only; do not overwrite later. Dream does not generate target-language wiring (`mod` / `import` / …). `unsupported`: first writer owns manifest-shaped files.
 
-- [x] Dream-owned manifest mutation for catalog builders
+- [x] Dream-owned manifest mutation for catalog toolchains
 - [x] Composer writes of those paths rejected
 - [x] `set_dependencies` replaces that unit’s dependencies (name + optional version and features)
 - [x] Init package name from entry stem; leave existing names alone

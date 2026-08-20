@@ -8,7 +8,7 @@ pub enum Run {
 
 /// One toolchain Dream will exec. `unsupported` is not a row.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct BuilderSpec {
+pub struct ToolchainSpec {
     pub name: &'static str,
     /// Empty means no build step.
     pub build: &'static [&'static str],
@@ -20,7 +20,7 @@ pub struct BuilderSpec {
     pub project: &'static [&'static str],
 }
 
-impl BuilderSpec {
+impl ToolchainSpec {
     pub fn run_argv(&self, entry_stem: &str) -> Vec<String> {
         match self.run {
             Run::Argv(argv) => argv.iter().map(|part| (*part).to_string()).collect(),
@@ -36,8 +36,8 @@ impl BuilderSpec {
     }
 }
 
-pub const CATALOG: &[BuilderSpec] = &[
-    BuilderSpec {
+pub const CATALOG: &[ToolchainSpec] = &[
+    ToolchainSpec {
         name: "cargo",
         build: &["cargo", "build"],
         run: Run::Argv(&["cargo", "run"]),
@@ -45,7 +45,7 @@ pub const CATALOG: &[BuilderSpec] = &[
         manifest: "Cargo.toml",
         project: &["Cargo.lock", "target"],
     },
-    BuilderSpec {
+    ToolchainSpec {
         name: "go",
         build: &["go", "build"],
         run: Run::Argv(&["go", "run", "."]),
@@ -53,7 +53,7 @@ pub const CATALOG: &[BuilderSpec] = &[
         manifest: "go.mod",
         project: &["go.sum"],
     },
-    BuilderSpec {
+    ToolchainSpec {
         name: "python",
         build: &[],
         run: Run::PythonEntry,
@@ -63,7 +63,7 @@ pub const CATALOG: &[BuilderSpec] = &[
     },
 ];
 
-pub fn spec(name: &str) -> Option<&'static BuilderSpec> {
+pub fn spec(name: &str) -> Option<&'static ToolchainSpec> {
     CATALOG.iter().find(|spec| spec.name == name)
 }
 
@@ -77,7 +77,11 @@ mod tests {
         let mut seen = HashSet::new();
         for spec in CATALOG {
             assert!(!spec.name.is_empty());
-            assert!(seen.insert(spec.name), "duplicate builder `{}`", spec.name);
+            assert!(
+                seen.insert(spec.name),
+                "duplicate toolchain `{}`",
+                spec.name
+            );
             assert!(!spec.install_hint.is_empty());
             assert!(!spec.manifest.is_empty());
             for path in spec.project {

@@ -4,10 +4,10 @@ use std::path::Path;
 use serde_json::Value;
 
 use super::session::Session;
-use crate::builder::Builder;
 use crate::error::DreamError;
 use crate::provenance::{self, Dependency, Store};
 use crate::source::DepGraph;
+use crate::toolchain::Toolchain;
 
 pub(crate) struct ComposeState {
     pub dest: std::path::PathBuf,
@@ -30,7 +30,7 @@ impl ComposeState {
         session: &Session<'_>,
         deps: &mut DepGraph,
         input: &mut Vec<Value>,
-        builder: Option<Builder>,
+        toolchain: Option<Toolchain>,
     ) -> Result<(), DreamError> {
         let mut artifacts = HashMap::new();
         let mut dependencies = HashMap::new();
@@ -43,7 +43,7 @@ impl ComposeState {
                     artifacts: &mut artifacts,
                     dependencies: &mut dependencies,
                     repair: false,
-                    toolchain: builder,
+                    toolchain,
                     registry: session.registry,
                     instructions: session.instructions,
                     schemas: session.schemas,
@@ -51,14 +51,14 @@ impl ComposeState {
             )
             .await?;
         provenance::require_composed(&artifacts)?;
-        self.settle(artifacts, dependencies, builder)
+        self.settle(artifacts, dependencies, toolchain)
     }
 
     fn settle(
         &mut self,
         artifacts: HashMap<String, HashSet<String>>,
         dependencies: HashMap<String, Vec<Dependency>>,
-        builder: Option<Builder>,
+        toolchain: Option<Toolchain>,
     ) -> Result<(), DreamError> {
         for (unit, paths) in artifacts {
             provenance::reconcile(&mut self.store, &self.dest, &unit, paths)?;
@@ -66,7 +66,7 @@ impl ComposeState {
         for (unit, deps) in dependencies {
             self.store.set_dependencies(&unit, deps);
         }
-        if let Some(spec) = builder.and_then(Builder::spec) {
+        if let Some(spec) = toolchain.and_then(Toolchain::spec) {
             crate::project::reconcile(&self.dest, spec, &mut self.store)?;
         } else {
             self.store.save(&self.dest)?;

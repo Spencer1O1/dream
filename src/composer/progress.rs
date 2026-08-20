@@ -19,7 +19,7 @@ pub fn repair() {
 }
 
 fn line(name: &str, args: &Value) -> String {
-    for key in ["path", "builder", "unit"] {
+    for key in ["path", "toolchain", "unit"] {
         if let Some(value) = args
             .get(key)
             .and_then(Value::as_str)
@@ -37,14 +37,14 @@ mod tests {
     use serde_json::json;
 
     #[test]
-    fn line_is_name_and_path_or_builder() {
+    fn line_is_name_and_path_or_toolchain() {
         assert_eq!(
             line("write_output_file", &json!({"path": "src/main.rs"})),
             "write_output_file src/main.rs"
         );
         assert_eq!(
-            line("set_builder", &json!({"builder": "cargo"})),
-            "set_builder cargo"
+            line("set_toolchain", &json!({"toolchain": "cargo"})),
+            "set_toolchain cargo"
         );
         assert_eq!(
             line("set_dependencies", &json!({"unit": "main.foo"})),

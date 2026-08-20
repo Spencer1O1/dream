@@ -5,23 +5,23 @@ use crate::error::DreamError;
 use super::capture::capture_step;
 use super::inherit::inherit_step;
 use super::outcome::Outcome;
-use super::{Builder, BuilderSpec};
+use super::{Toolchain, ToolchainSpec};
 
 pub fn after_compose(
-    builder: Option<Builder>,
+    toolchain: Option<Toolchain>,
     dir: &Path,
     entry_rel: &str,
     run_program: bool,
     no_warn: bool,
 ) -> Result<Outcome, DreamError> {
-    let Some(spec) = builder.and_then(Builder::spec) else {
-        return Ok(Outcome::NoBuilder);
+    let Some(spec) = toolchain.and_then(Toolchain::spec) else {
+        return Ok(Outcome::NoToolchain);
     };
     invoke(spec, dir, entry_rel, run_program, no_warn)
 }
 
 fn invoke(
-    spec: &BuilderSpec,
+    spec: &ToolchainSpec,
     dir: &Path,
     entry_rel: &str,
     run_program: bool,
@@ -41,13 +41,13 @@ fn invoke(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builder::catalog::Run;
-    use crate::builder::BuilderSpec;
+    use crate::toolchain::catalog::Run;
+    use crate::toolchain::ToolchainSpec;
 
     const ENTRY: &str = "demo.foo";
 
-    fn spec(build: &'static [&'static str], run: Run) -> BuilderSpec {
-        BuilderSpec {
+    fn spec(build: &'static [&'static str], run: Run) -> ToolchainSpec {
+        ToolchainSpec {
             name: "test",
             build,
             run,
@@ -60,10 +60,16 @@ mod tests {
     #[test]
     fn unsupported_does_not_run() {
         let dir = tempfile::tempdir().unwrap();
-        let err = after_compose(Some(Builder::Unsupported), dir.path(), ENTRY, false, false)
-            .unwrap()
-            .into_error()
-            .unwrap_err();
+        let err = after_compose(
+            Some(Toolchain::Unsupported),
+            dir.path(),
+            ENTRY,
+            false,
+            false,
+        )
+        .unwrap()
+        .into_error()
+        .unwrap_err();
         assert!(err.to_string().contains("does not know how to build"));
         let err = after_compose(None, dir.path(), ENTRY, true, false)
             .unwrap()
@@ -86,14 +92,14 @@ mod tests {
 
     #[test]
     fn python_run_is_the_entry_script() {
-        let spec = Builder::parse("python").unwrap().spec().unwrap();
+        let spec = Toolchain::parse("python").unwrap().spec().unwrap();
         assert_eq!(
             spec.run_argv("my"),
             vec!["python".to_string(), "my.py".to_string()]
         );
         let dir = tempfile::tempdir().unwrap();
         after_compose(
-            Some(Builder::parse("python").unwrap()),
+            Some(Toolchain::parse("python").unwrap()),
             dir.path(),
             "my.foo",
             false,

@@ -1,8 +1,8 @@
 use serde_json::json;
 
-use crate::builder::{Builder, Outcome};
 use crate::error::DreamError;
 use crate::source::DepGraph;
+use crate::toolchain::{Outcome, Toolchain};
 use crate::tools::Registry;
 
 use super::progress;
@@ -13,15 +13,15 @@ use super::state::ComposeState;
 impl Session<'_> {
     pub async fn build_and_repair(
         &self,
-        builder: Option<Builder>,
+        toolchain: Option<Toolchain>,
         state: &mut ComposeState,
         input: &mut Vec<serde_json::Value>,
         deps: &mut DepGraph,
         run_program: bool,
     ) -> Result<(), DreamError> {
         for attempt in 0..=self.repair_cap {
-            match crate::builder::after_compose(
-                builder,
+            match crate::toolchain::after_compose(
+                toolchain,
                 &state.dest,
                 self.entry_rel,
                 run_program,
@@ -49,7 +49,7 @@ impl Session<'_> {
                             artifacts: &mut artifacts,
                             dependencies: &mut dependencies,
                             repair: true,
-                            toolchain: builder,
+                            toolchain,
                             registry: &registry,
                             instructions: &instructions,
                             schemas: &schemas,

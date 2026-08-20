@@ -1,14 +1,14 @@
 use std::path::Path;
 
-use crate::builder::BuilderSpec;
 use crate::error::DreamError;
 use crate::provenance::Store;
+use crate::toolchain::ToolchainSpec;
 
 use super::manifest;
 
 pub fn init(
     dest: &Path,
-    spec: &BuilderSpec,
+    spec: &ToolchainSpec,
     package: &str,
     store: &mut Store,
 ) -> Result<(), DreamError> {
@@ -22,12 +22,12 @@ pub fn init(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builder::Builder;
+    use crate::toolchain::Toolchain;
     use std::collections::HashSet;
     use std::fs;
 
-    fn cargo() -> &'static BuilderSpec {
-        Builder::parse("cargo").unwrap().spec().unwrap()
+    fn cargo() -> &'static ToolchainSpec {
+        Toolchain::parse("cargo").unwrap().spec().unwrap()
     }
 
     #[test]

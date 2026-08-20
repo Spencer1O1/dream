@@ -5,11 +5,11 @@ use std::process::{Command, Output, Stdio};
 use crate::error::DreamError;
 
 use super::outcome::Outcome;
-use super::BuilderSpec;
+use super::ToolchainSpec;
 
 pub(super) fn capture_step(
     step: &'static str,
-    spec: &BuilderSpec,
+    spec: &ToolchainSpec,
     argv: &[&str],
     dir: &Path,
     no_warn: bool,

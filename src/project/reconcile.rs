@@ -1,12 +1,12 @@
 use std::path::Path;
 
-use crate::builder::BuilderSpec;
 use crate::error::DreamError;
 use crate::provenance::Store;
+use crate::toolchain::ToolchainSpec;
 
 use super::manifest;
 
-pub fn reconcile(dest: &Path, spec: &BuilderSpec, store: &mut Store) -> Result<(), DreamError> {
+pub fn reconcile(dest: &Path, spec: &ToolchainSpec, store: &mut Store) -> Result<(), DreamError> {
     let wanted = store.union_dependencies()?;
     manifest::apply(dest, spec, &wanted, &mut store.installed)?;
     store.save(dest)?;
@@ -16,15 +16,15 @@ pub fn reconcile(dest: &Path, spec: &BuilderSpec, store: &mut Store) -> Result<(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builder::Builder;
     use crate::project::init;
     use crate::provenance::Dependency;
+    use crate::toolchain::Toolchain;
     use std::fs;
 
     #[test]
     fn union_of_unit_dependencies_becomes_the_manifest() {
         let dest = tempfile::tempdir().unwrap();
-        let spec = Builder::parse("cargo").unwrap().spec().unwrap();
+        let spec = Toolchain::parse("cargo").unwrap().spec().unwrap();
         let mut store = Store::new("rust");
         init(dest.path(), spec, "demo", &mut store).unwrap();
         store.set_dependencies(

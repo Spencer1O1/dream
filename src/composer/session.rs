@@ -2,12 +2,12 @@ use std::collections::{HashMap, HashSet};
 
 use serde_json::{json, Value};
 
-use crate::builder::Builder;
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
 use crate::llm::OpenAi;
 use crate::provenance::Dependency;
 use crate::source::{DepGraph, Project};
+use crate::toolchain::Toolchain;
 use crate::tools::{Compose, Registry, ToolCtx};
 
 use super::dispatch::dispatch;
@@ -17,7 +17,7 @@ pub(crate) struct WriteLoop<'a> {
     pub artifacts: &'a mut HashMap<String, HashSet<String>>,
     pub dependencies: &'a mut HashMap<String, Vec<Dependency>>,
     pub repair: bool,
-    pub toolchain: Option<Builder>,
+    pub toolchain: Option<Toolchain>,
     pub registry: &'a Registry,
     pub instructions: &'a str,
     pub schemas: &'a [Value],

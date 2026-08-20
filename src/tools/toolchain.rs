@@ -1,32 +1,32 @@
 use serde_json::{json, Value};
 
-use crate::builder::Builder;
 use crate::error::DreamError;
+use crate::toolchain::Toolchain;
 
 use crate::tools::Mode;
 
 use super::{arg_str, enum_arg, object_params, Family, Tool, ToolCtx, ToolSpec};
 
 pub fn tools() -> Vec<Box<dyn Tool>> {
-    vec![Box::new(SetBuilder)]
+    vec![Box::new(SetToolchain)]
 }
 
-struct SetBuilder;
+struct SetToolchain;
 
-impl Tool for SetBuilder {
+impl Tool for SetToolchain {
     fn spec(&self) -> ToolSpec {
         ToolSpec {
-            name: "set_builder",
+            name: "set_toolchain",
             family: Family::Composer,
             description: "Declare the toolchain for this project.",
             parameters: {
-                let names = Builder::schema_names();
+                let names = Toolchain::schema_names();
                 object_params(
                     &[(
-                        "builder",
+                        "toolchain",
                         enum_arg("Toolchain, or unsupported if none apply", &names),
                     )],
-                    &["builder"],
+                    &["toolchain"],
                 )
             },
         }
@@ -35,23 +35,23 @@ impl Tool for SetBuilder {
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
         let Mode::Pick(pick) = &mut ctx.mode else {
             return Err(DreamError::composer(
-                "set_builder is only available when declaring a builder",
+                "set_toolchain is only available when declaring a toolchain",
             ));
         };
-        let builder = Builder::parse(arg_str(args, "builder"))?;
-        *pick.builder = Some(builder);
-        Ok(declared(builder, ctx.deps.entry())?.to_string())
+        let toolchain = Toolchain::parse(arg_str(args, "toolchain"))?;
+        *pick.toolchain = Some(toolchain);
+        Ok(declared(toolchain, ctx.deps.entry())?.to_string())
     }
 }
 
-fn declared(builder: Builder, entry_rel: &str) -> Result<Value, DreamError> {
-    let Some(spec) = builder.spec() else {
-        return Ok(json!({ "ok": true, "builder": builder.as_str() }));
+fn declared(toolchain: Toolchain, entry_rel: &str) -> Result<Value, DreamError> {
+    let Some(spec) = toolchain.spec() else {
+        return Ok(json!({ "ok": true, "toolchain": toolchain.as_str() }));
     };
     let stem = crate::project::from_entry(entry_rel)?;
     let mut reply = json!({
         "ok": true,
-        "builder": spec.name,
+        "toolchain": spec.name,
         "run": { "argv": spec.run_argv(&stem) },
     });
     if !spec.build.is_empty() {
@@ -66,17 +66,17 @@ fn declared(builder: Builder, entry_rel: &str) -> Result<Value, DreamError> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builder::Builder;
     use crate::source::{DepGraph, Project};
+    use crate::toolchain::Toolchain;
     use crate::tools::ToolCtx;
     use serde_json::json;
 
-    fn builder_ctx<'a>(
+    fn toolchain_ctx<'a>(
         project: &'a Project,
         deps: &'a mut DepGraph,
-        builder: &'a mut Option<Builder>,
+        toolchain: &'a mut Option<Toolchain>,
     ) -> ToolCtx<'a> {
-        ToolCtx::pick(project, deps, builder)
+        ToolCtx::pick(project, deps, toolchain)
     }
 
     #[test]
@@ -85,15 +85,15 @@ mod tests {
         std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(unit.rel);
-        let mut builder = None;
-        let mut ctx = builder_ctx(&project, &mut deps, &mut builder);
-        SetBuilder
-            .call(&mut ctx, &json!({ "builder": "python" }))
+        let mut toolchain = None;
+        let mut ctx = toolchain_ctx(&project, &mut deps, &mut toolchain);
+        SetToolchain
+            .call(&mut ctx, &json!({ "toolchain": "python" }))
             .unwrap();
-        let cargo = SetBuilder
-            .call(&mut ctx, &json!({ "builder": "cargo" }))
+        let cargo = SetToolchain
+            .call(&mut ctx, &json!({ "toolchain": "cargo" }))
             .unwrap();
-        assert_eq!(builder.unwrap().as_str(), "cargo");
+        assert_eq!(toolchain.unwrap().as_str(), "cargo");
         let cargo: Value = serde_json::from_str(&cargo).unwrap();
         assert_eq!(cargo["build"], json!({ "argv": ["cargo", "build"] }));
         assert_eq!(cargo["run"], json!({ "argv": ["cargo", "run"] }));
@@ -106,13 +106,13 @@ mod tests {
         std::fs::write(project_dir.path().join("hey-you.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("hey-you.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
-        let mut builder = None;
-        let mut ctx = builder_ctx(&project, &mut deps, &mut builder);
-        let out = SetBuilder
-            .call(&mut ctx, &json!({ "builder": "python" }))
+        let mut toolchain = None;
+        let mut ctx = toolchain_ctx(&project, &mut deps, &mut toolchain);
+        let out = SetToolchain
+            .call(&mut ctx, &json!({ "toolchain": "python" }))
             .unwrap();
         let out: Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(out["builder"], "python");
+        assert_eq!(out["toolchain"], "python");
         assert!(out.get("build").is_none());
         assert_eq!(out["run"], json!({ "argv": ["python", "hey-you.py"] }));
         assert_eq!(out["entry"], "hey-you.py");
@@ -124,12 +124,12 @@ mod tests {
         std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(unit.rel);
-        let mut builder = None;
-        let mut ctx = builder_ctx(&project, &mut deps, &mut builder);
-        let err = SetBuilder
-            .call(&mut ctx, &json!({ "builder": "rust" }))
+        let mut toolchain = None;
+        let mut ctx = toolchain_ctx(&project, &mut deps, &mut toolchain);
+        let err = SetToolchain
+            .call(&mut ctx, &json!({ "toolchain": "rust" }))
             .unwrap_err();
-        assert!(err.to_string().contains("unknown builder `rust`"));
-        assert_eq!(builder, None);
+        assert!(err.to_string().contains("unknown toolchain `rust`"));
+        assert_eq!(toolchain, None);
     }
 }

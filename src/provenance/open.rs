@@ -1,9 +1,9 @@
 use std::fs;
 use std::path::Path;
 
-use crate::builder::CATALOG;
 use crate::error::DreamError;
 use crate::output;
+use crate::toolchain::CATALOG;
 
 use super::scan::has_user_files;
 use super::store::Store;

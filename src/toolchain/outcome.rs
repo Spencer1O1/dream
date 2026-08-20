@@ -3,7 +3,7 @@ use crate::error::DreamError;
 #[derive(Debug)]
 pub enum Outcome {
     Ok,
-    NoBuilder,
+    NoToolchain,
     MissingToolchain(&'static str),
     Failed {
         step: &'static str,
@@ -15,7 +15,7 @@ impl Outcome {
     pub fn into_error(self) -> Result<(), DreamError> {
         match self {
             Self::Ok => Ok(()),
-            Self::NoBuilder => Err(DreamError::composer(
+            Self::NoToolchain => Err(DreamError::composer(
                 "Dream does not know how to build this target",
             )),
             Self::MissingToolchain(hint) => Err(DreamError::composer(hint)),

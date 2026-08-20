@@ -66,9 +66,9 @@ impl Tool for SetDependencies {
                 ));
             }
         };
-        if toolchain.and_then(|builder| builder.spec()).is_none() {
+        if toolchain.and_then(|known| known.spec()).is_none() {
             return Ok(reply::warning(
-                "set_dependencies is only available for a known builder",
+                "set_dependencies is only available for a known toolchain",
             ));
         }
         let unit = match authorize(ctx, arg_str(args, "unit")) {
@@ -80,7 +80,7 @@ impl Tool for SetDependencies {
             Err(err) => return Ok(reply::refused(err)),
         };
         if toolchain
-            .and_then(|builder| builder.spec())
+            .and_then(|known| known.spec())
             .is_some_and(|spec| spec.name == "go")
             && parsed.iter().any(|dep| !dep.features.is_empty())
         {
@@ -100,9 +100,9 @@ impl Tool for SetDependencies {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::builder::Builder;
     use crate::provenance::Store;
     use crate::source::{DepGraph, Project};
+    use crate::toolchain::Toolchain;
     use crate::tools::{Compose, ToolCtx};
     use serde_json::json;
     use std::collections::HashMap;
@@ -134,7 +134,7 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut dependencies,
-                toolchain: Some(Builder::parse("cargo").unwrap()),
+                toolchain: Some(Toolchain::parse("cargo").unwrap()),
             },
         );
         let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
@@ -165,7 +165,7 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut dependencies,
-                toolchain: Some(Builder::parse("cargo").unwrap()),
+                toolchain: Some(Toolchain::parse("cargo").unwrap()),
             },
         );
         let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
@@ -193,7 +193,7 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut dependencies,
-                toolchain: Some(Builder::parse("go").unwrap()),
+                toolchain: Some(Toolchain::parse("go").unwrap()),
             },
         );
         let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();

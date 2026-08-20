@@ -21,7 +21,7 @@ fn repair_preamble() -> String {
     paragraphs(&[REPAIR, FOOCODE, ENTRY, TARGET, NO_CHAT])
 }
 
-pub const BUILDER_PREAMBLE: &str = "\
+pub const TOOLCHAIN_PREAMBLE: &str = "\
 Declare the toolchain for the project you are about to write.";
 
 pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
@@ -32,8 +32,8 @@ pub fn repair(registry: &Registry, flags: &ActiveFlags) -> String {
     registry.instructions(&repair_preamble(), flags)
 }
 
-pub fn builder(registry: &Registry) -> String {
-    format!("{BUILDER_PREAMBLE}\n\n{}", registry.tool_list())
+pub fn toolchain(registry: &Registry) -> String {
+    format!("{TOOLCHAIN_PREAMBLE}\n\n{}", registry.tool_list())
 }
 
 #[cfg(test)]
@@ -48,7 +48,7 @@ mod tests {
         assert!(instructions.contains(&registry.prompt_catalog()));
         assert!(instructions.contains("write_output_file"));
         assert!(instructions.contains("remove_output_file"));
-        assert!(!instructions.contains("set_builder"));
+        assert!(!instructions.contains("set_toolchain"));
         assert!(!instructions.contains("stdout"));
         assert!(!instructions.contains("--strict"));
         assert!(!instructions.contains("--no-warn"));
@@ -57,11 +57,11 @@ mod tests {
     }
 
     #[test]
-    fn builder_prompt_is_the_pick_turn() {
-        let registry = Registry::builder();
-        let instructions = builder(&registry);
-        assert!(instructions.contains(BUILDER_PREAMBLE));
-        assert!(instructions.contains("set_builder"));
+    fn toolchain_prompt_is_the_pick_turn() {
+        let registry = Registry::toolchain();
+        let instructions = toolchain(&registry);
+        assert!(instructions.contains(TOOLCHAIN_PREAMBLE));
+        assert!(instructions.contains("set_toolchain"));
         assert!(!instructions.contains("write_output_file"));
         assert!(!instructions.contains("dream_error"));
         assert!(!instructions.contains("entire interface"));
@@ -79,7 +79,7 @@ mod tests {
         assert!(instructions.contains("write_output_file"));
         assert!(!instructions.contains("remove_output_file"));
         assert!(!instructions.contains("set_dependencies"));
-        assert!(!instructions.contains("set_builder"));
+        assert!(!instructions.contains("set_toolchain"));
         assert!(!instructions.contains("stdout"));
         assert!(!instructions.contains("--strict"));
         assert!(!instructions.contains("--no-warn"));
