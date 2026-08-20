@@ -2,6 +2,6 @@ print("What is your name? ")
 string name = read input
 print("Hey, %s\n", name)
 
-print("What's your favorite number? ")
+print("What's your favorite integer? ")
 int x = read input
 print("Really? %d squared is %d\n", x, x*x)
