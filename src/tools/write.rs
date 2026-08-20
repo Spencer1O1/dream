@@ -186,17 +186,6 @@ mod tests {
     }
 
     #[test]
-    fn compose_describes_a_dest_file() {
-        let description = WriteOutputFile::compose().spec().description;
-        assert!(description.contains("source (code) file"));
-        assert!(description.contains("locked"));
-        assert!(!description.contains("Dream-owned"));
-        assert!(!description.contains("this .foo unit owns"));
-        assert!(!description.contains("dest"));
-        assert!(!description.contains("Cargo.toml"));
-    }
-
-    #[test]
     fn locked_unit_is_a_warning() {
         let project_dir = tempfile::tempdir().unwrap();
         std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();

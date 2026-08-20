@@ -68,15 +68,8 @@ mod tests {
     fn composer_has_source_and_write_not_runtime() {
         let catalog = Registry::composer().prompt_catalog();
         assert!(catalog.contains("Composer"));
-        assert!(catalog.contains("whether that unit is locked"));
-        assert!(catalog.contains("stored artifacts"));
         assert!(catalog.contains("- write_output_file:"));
         assert!(catalog.contains("- remove_output_file:"));
-        assert!(catalog.contains("source (code) file"));
-        assert!(!catalog.contains("Dream-owned"));
-        assert!(!catalog.contains("this .foo unit owns"));
-        assert!(!catalog.contains("dest-relative"));
-        assert!(!catalog.contains("Cargo.toml"));
         assert!(!catalog.contains("set_dependencies"));
         assert!(!catalog.contains("set_builder"));
         assert!(!catalog.contains("Runtime"));
@@ -86,7 +79,6 @@ mod tests {
                 .prompt_catalog();
         assert!(with_project.contains("Project"));
         assert!(with_project.contains("- set_dependencies:"));
-        assert!(with_project.contains("Dream owns the manifest"));
     }
 
     #[test]

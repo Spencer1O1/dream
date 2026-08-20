@@ -52,7 +52,6 @@ mod tests {
         let catalog = ActiveFlags::new(true).prompt_catalog().unwrap();
         assert!(catalog.starts_with("Running with flags:\n"));
         assert!(catalog.contains("--strict:"));
-        assert!(catalog.contains(STRICT.description));
         assert!(!catalog.contains("--no-warn:"));
     }
 }

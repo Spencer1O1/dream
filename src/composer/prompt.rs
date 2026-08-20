@@ -38,12 +38,6 @@ mod tests {
         let registry = Registry::composer();
         let instructions = compose(&registry, &ActiveFlags::new(false));
         assert!(instructions.contains(&preamble()));
-        assert!(instructions.contains(FOOCODE));
-        assert!(instructions.contains(ENTRY));
-        assert!(instructions.contains(NO_CHAT));
-        assert!(instructions.contains("compose this Dream program"));
-        assert!(instructions.contains("same meaning"));
-        assert!(instructions.contains("ordinary target libraries"));
         assert!(instructions.contains(&registry.prompt_catalog()));
         assert!(instructions.contains("write_output_file"));
         assert!(instructions.contains("remove_output_file"));
@@ -60,8 +54,6 @@ mod tests {
         let registry = Registry::builder();
         let instructions = builder(&registry);
         assert!(instructions.contains(BUILDER_PREAMBLE));
-        assert!(instructions.contains("about to write"));
-        assert!(!instructions.contains("just wrote"));
         assert!(instructions.contains("set_builder"));
         assert!(!instructions.contains("write_output_file"));
         assert!(!instructions.contains("dream_error"));

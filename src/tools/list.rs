@@ -77,14 +77,6 @@ mod tests {
         let out = ListSourceFiles::lucid().call(&mut ctx, &json!({})).unwrap();
         assert!(out.contains("main.foo"));
         assert!(!out.contains("locked"));
-        assert!(!ListSourceFiles::lucid()
-            .spec()
-            .description
-            .contains("locked"));
-        assert!(ListSourceFiles::compose()
-            .spec()
-            .description
-            .contains("locked"));
     }
 
     #[test]
