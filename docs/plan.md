@@ -41,23 +41,32 @@ dream [--strict] <file.foo> -t <target> -o <dir>
 - [x] Open-ended `-t`
 - [x] Live: `hey-you.foo -t rust -o ./out` then `cargo run`
 
-## Phase 4 — Build and run
+## Phase 4 — Known builders
+
+Declare the toolchain before Dream can build. `-t` stays an open-ended compose hint. A **builder** is a toolchain Dream will exec.
+
+The composer declares one with `set_builder` (anytime, last call wins). Never called, or `unsupported`, means do not `--build`, `--run`, or repair. Compose still succeeds.
+
+Do not infer the builder from the tree. Do not take build argv from the model. Do not add a `finish` tool; settle stays “no more tool calls.”
+
+Enum values are toolchains Dream owns (`cargo`, `go`, …), not language vibes (`cpp`, `embedded`). Vague `-t` (Arduino Nano, COBOL, …) should be `unsupported` until that builder exists.
+
+- [ ] Closed builder list in Dream
+- [ ] Composer tool `set_builder`
+- [ ] Missing / `unsupported` → compose only
+
+## Phase 5 — Build and run
 
 ```bash
 dream <file.foo> -t <target> -o <dir> --build
 dream <file.foo> -t <target> -o <dir> --run
 ```
 
-- [ ] `--build` after a settled compose
+Needs Phase 4. Worth doing for **repair** (Phase 7), not as a `cargo` wrapper. Until then, the user builds the folder themselves. CLI flags already parse and error.
+
+- [ ] `--build` after a settled compose, only if a known builder was declared
 - [ ] `--run` implies build
 - [ ] Forward standard process IO
-
-CLI already accepts the flags and errors: composition does not build yet.
-
-## Phase 5 — Known builders
-
-- [ ] Toolchains for common targets (Rust, Go, …)
-- [ ] Unknown `-t` still composes; build may fail if Dream has no builder
 
 ## Phase 6 — Semantic cache foundations
 
