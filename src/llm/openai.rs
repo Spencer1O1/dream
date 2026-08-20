@@ -47,7 +47,7 @@ impl OpenAi {
         let client = reqwest::Client::builder()
             .user_agent("dream/0.1")
             .build()
-            .map_err(|err| DreamError::new(err.to_string()))?;
+            .map_err(|err| DreamError::runtime(err.to_string()))?;
         Ok(Self {
             client,
             api_key,
@@ -74,13 +74,13 @@ impl OpenAi {
             }))
             .send()
             .await
-            .map_err(|err| DreamError::new(format!("OpenAI request failed: {err}")))?;
+            .map_err(|err| DreamError::runtime(format!("OpenAI request failed: {err}")))?;
 
         let status = response.status();
         let text = response
             .text()
             .await
-            .map_err(|err| DreamError::new(format!("OpenAI response failed: {err}")))?;
+            .map_err(|err| DreamError::runtime(format!("OpenAI response failed: {err}")))?;
 
         if !status.is_success() {
             let detail = serde_json::from_str::<ApiErrorBody>(&text)
@@ -88,13 +88,13 @@ impl OpenAi {
                 .and_then(|body| body.error)
                 .and_then(|error| error.message)
                 .unwrap_or(text);
-            return Err(DreamError::new(format!(
+            return Err(DreamError::runtime(format!(
                 "OpenAI request failed ({status}): {detail}"
             )));
         }
 
         let parsed: ResponsesBody = serde_json::from_str(&text).map_err(|err| {
-            DreamError::new(format!("OpenAI returned an unexpected response: {err}"))
+            DreamError::runtime(format!("OpenAI returned an unexpected response: {err}"))
         })?;
 
         if let Some(message) = parsed
@@ -102,12 +102,14 @@ impl OpenAi {
             .and_then(|error| error.message)
             .filter(|message| !message.is_empty())
         {
-            return Err(DreamError::new(format!("OpenAI request failed: {message}")));
+            return Err(DreamError::runtime(format!(
+                "OpenAI request failed: {message}"
+            )));
         }
 
         if let Some(status) = parsed.status.as_deref() {
             if status == "failed" || status == "cancelled" {
-                return Err(DreamError::new(format!(
+                return Err(DreamError::runtime(format!(
                     "OpenAI response {status} before the program settled"
                 )));
             }
@@ -130,10 +132,10 @@ impl OpenAi {
 fn parse_function_call(item: &Value) -> Result<FunctionCall, DreamError> {
     let call_id = item["call_id"]
         .as_str()
-        .ok_or_else(|| DreamError::new("OpenAI function call is missing call_id"))?;
+        .ok_or_else(|| DreamError::runtime("OpenAI function call is missing call_id"))?;
     let name = item["name"]
         .as_str()
-        .ok_or_else(|| DreamError::new("OpenAI function call is missing name"))?;
+        .ok_or_else(|| DreamError::runtime("OpenAI function call is missing name"))?;
     let arguments = match &item["arguments"] {
         Value::String(value) => value.clone(),
         Value::Null => String::new(),

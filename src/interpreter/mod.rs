@@ -56,7 +56,7 @@ pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), Drea
         }
     }
 
-    Err(DreamError::new(format!(
+    Err(DreamError::interpreter(format!(
         "turn limit reached before the program settled ({})",
         config.turn_cap
     )))
@@ -83,8 +83,9 @@ fn dispatch(
     let args: Value = if call.arguments.trim().is_empty() {
         json!({})
     } else {
-        serde_json::from_str(&call.arguments)
-            .map_err(|_| DreamError::new(format!("invalid arguments for tool `{}`", call.name)))?
+        serde_json::from_str(&call.arguments).map_err(|_| {
+            DreamError::runtime(format!("invalid arguments for tool `{}`", call.name))
+        })?
     };
     let mut ctx = ToolCtx { project, deps };
     registry.call(&call.name, &mut ctx, &args)

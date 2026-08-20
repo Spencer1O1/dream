@@ -17,10 +17,10 @@ pub struct Project {
 impl Project {
     pub fn from_entry(entry: &Path) -> Result<(Self, Unit), DreamError> {
         if entry.extension().and_then(|ext| ext.to_str()) != Some("foo") {
-            return Err(DreamError::new("expected a .foo file"));
+            return Err(DreamError::runtime("expected a .foo file"));
         }
         if !entry.exists() {
-            return Err(DreamError::new(format!(
+            return Err(DreamError::runtime(format!(
                 "entry file `{}` does not exist",
                 entry.display()
             )));
@@ -29,7 +29,7 @@ impl Project {
         let entry_canon = entry.canonicalize()?;
         let root = entry_canon
             .parent()
-            .ok_or_else(|| DreamError::new("entry file has no project root"))?
+            .ok_or_else(|| DreamError::runtime("entry file has no project root"))?
             .to_path_buf();
         let rel = rel_path(&root, &entry_canon)?;
         let source = fs::read_to_string(&entry_canon)?;
@@ -46,18 +46,18 @@ impl Project {
     pub fn read_source_file(&self, requested: &str) -> Result<Unit, DreamError> {
         let resolved = resolve_inside(&self.root, requested)?;
         if !resolved.exists() {
-            return Err(DreamError::new(format!(
+            return Err(DreamError::runtime(format!(
                 "requested source `{requested}` does not exist"
             )));
         }
         if resolved.extension().and_then(|ext| ext.to_str()) != Some("foo") {
-            return Err(DreamError::new(format!(
+            return Err(DreamError::runtime(format!(
                 "requested source `{requested}` is not a .foo file"
             )));
         }
         let canon = resolved.canonicalize()?;
         if !canon.starts_with(&self.root) {
-            return Err(DreamError::new("source request escapes project root"));
+            return Err(DreamError::runtime("source request escapes project root"));
         }
         let rel = rel_path(&self.root, &canon)?;
         let source = fs::read_to_string(&canon)?;
@@ -88,7 +88,7 @@ fn collect_foo_files(root: &Path, dir: &Path, out: &mut Vec<String>) -> Result<(
 
 fn resolve_inside(root: &Path, requested: &str) -> Result<PathBuf, DreamError> {
     if requested.trim().is_empty() {
-        return Err(DreamError::new("source request is empty"));
+        return Err(DreamError::runtime("source request is empty"));
     }
     let requested_path = Path::new(requested);
     let joined = if requested_path.is_absolute() {
@@ -98,7 +98,7 @@ fn resolve_inside(root: &Path, requested: &str) -> Result<PathBuf, DreamError> {
     };
     let normalized = normalize_lexically(&joined);
     if !normalized.starts_with(root) {
-        return Err(DreamError::new("source request escapes project root"));
+        return Err(DreamError::runtime("source request escapes project root"));
     }
     Ok(normalized)
 }
@@ -120,7 +120,7 @@ fn normalize_lexically(path: &Path) -> PathBuf {
 fn rel_path(root: &Path, path: &Path) -> Result<String, DreamError> {
     let rel = path
         .strip_prefix(root)
-        .map_err(|_| DreamError::new("source request escapes project root"))?;
+        .map_err(|_| DreamError::runtime("source request escapes project root"))?;
     Ok(rel.to_string_lossy().replace('\\', "/"))
 }
 

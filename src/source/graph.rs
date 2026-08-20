@@ -24,7 +24,7 @@ impl DepGraph {
             let mut chain = path_between(&self.edges, path, &self.current).unwrap_or_default();
             chain.push(self.current.clone());
             chain.push(path.to_string());
-            return Err(DreamError::new(format!(
+            return Err(DreamError::runtime(format!(
                 "cycle in source requests: {}",
                 chain.join(" -> ")
             )));
@@ -82,7 +82,7 @@ mod tests {
         let err = graph.record_read("main.foo").unwrap_err();
         assert_eq!(
             err.to_string(),
-            "DreamError: cycle in source requests: main.foo -> users/a.foo -> users/b.foo -> main.foo"
+            "RuntimeError: cycle in source requests: main.foo -> users/a.foo -> users/b.foo -> main.foo"
         );
     }
 

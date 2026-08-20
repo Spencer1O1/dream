@@ -129,7 +129,7 @@ impl Registry {
             .tools
             .iter()
             .find(|tool| tool.spec().name == name)
-            .ok_or_else(|| DreamError::new(format!("unknown tool `{name}`")))?;
+            .ok_or_else(|| DreamError::runtime(format!("unknown tool `{name}`")))?;
         tool.call(ctx, args)
     }
 }

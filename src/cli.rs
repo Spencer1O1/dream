@@ -78,18 +78,20 @@ fn command_from_parts(
     rest: Vec<String>,
 ) -> Result<Command, DreamError> {
     if rest.is_empty() {
-        return Err(DreamError::new("expected a .foo file"));
+        return Err(DreamError::runtime("expected a .foo file"));
     }
 
     if rest[0] == "now" {
         if rest.len() < 2 {
-            return Err(DreamError::new("expected a .foo file"));
+            return Err(DreamError::runtime("expected a .foo file"));
         }
         if rest.len() > 2 {
-            return Err(DreamError::new("unexpected arguments after the entry file"));
+            return Err(DreamError::runtime(
+                "unexpected arguments after the entry file",
+            ));
         }
         if target.is_some() || output.is_some() || build || run {
-            return Err(DreamError::new(
+            return Err(DreamError::runtime(
                 "`dream now` interprets immediately; do not pass -t, -o, --build, or --run",
             ));
         }
@@ -100,14 +102,16 @@ fn command_from_parts(
     }
 
     if rest.len() != 1 {
-        return Err(DreamError::new("unexpected arguments after the entry file"));
+        return Err(DreamError::runtime(
+            "unexpected arguments after the entry file",
+        ));
     }
 
     let Some(target) = target else {
-        return Err(DreamError::new("compose requires -t <target>"));
+        return Err(DreamError::runtime("compose requires -t <target>"));
     };
     let Some(output) = output else {
-        return Err(DreamError::new("compose requires -o <dir>"));
+        return Err(DreamError::runtime("compose requires -o <dir>"));
     };
 
     Ok(Command::Compose {

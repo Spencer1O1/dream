@@ -27,6 +27,6 @@ impl Tool for DreamErrorTool {
         } else {
             error
         };
-        Err(DreamError::new(error))
+        Err(DreamError::interpreter(error))
     }
 }
