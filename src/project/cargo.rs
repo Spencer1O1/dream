@@ -44,7 +44,7 @@ pub fn apply(
     for dep in wanted {
         if existing.contains(&dep.name) {
             if installed_set.contains(&dep.name) {
-                set_features(deps, dep);
+                deps[&dep.name] = dep_item(dep);
             }
             continue;
         }
@@ -67,47 +67,11 @@ pub fn apply(
 }
 
 fn dep_item(dep: &Dependency) -> Item {
+    let version = dep.version.as_deref().unwrap_or("*");
     if dep.features.is_empty() {
-        return value("*");
+        return value(version);
     }
-    Item::Value(Value::InlineTable(feature_table("*", &dep.features)))
-}
-
-fn set_features(deps: &mut Table, dep: &Dependency) {
-    match deps.get(&dep.name) {
-        Some(Item::Value(Value::String(version))) => {
-            let version = version.value().to_string();
-            if dep.features.is_empty() {
-                return;
-            }
-            deps[&dep.name] =
-                Item::Value(Value::InlineTable(feature_table(&version, &dep.features)));
-        }
-        Some(Item::Value(Value::InlineTable(_))) | Some(Item::Table(_)) => {
-            write_features(deps, &dep.name, &dep.features);
-        }
-        _ => {}
-    }
-}
-
-fn write_features(deps: &mut Table, name: &str, features: &[String]) {
-    match deps.get_mut(name) {
-        Some(Item::Value(Value::InlineTable(table))) => {
-            if features.is_empty() {
-                table.remove("features");
-            } else {
-                table.insert("features", Value::Array(feature_array(features)));
-            }
-        }
-        Some(Item::Table(table)) => {
-            if features.is_empty() {
-                table.remove("features");
-            } else {
-                table["features"] = Item::Value(Value::Array(feature_array(features)));
-            }
-        }
-        _ => {}
-    }
+    Item::Value(Value::InlineTable(feature_table(version, &dep.features)))
 }
 
 fn feature_table(version: &str, features: &[String]) -> InlineTable {
@@ -133,6 +97,7 @@ mod tests {
     fn dep(name: &str, features: &[&str]) -> Dependency {
         Dependency {
             name: name.into(),
+            version: None,
             features: features
                 .iter()
                 .map(|feature| (*feature).to_string())
@@ -176,5 +141,25 @@ mod tests {
         let text = fs::read_to_string(dest.path().join("Cargo.toml")).unwrap();
         assert!(!text.contains("serde"));
         assert!(text.contains("clap"));
+    }
+
+    #[test]
+    fn writes_optional_version() {
+        let dest = tempfile::tempdir().unwrap();
+        create_if_missing(dest.path(), "demo").unwrap();
+        let mut installed = Vec::new();
+        apply(
+            dest.path(),
+            &[Dependency {
+                name: "serde".into(),
+                version: Some("1.0".into()),
+                features: vec!["derive".into()],
+            }],
+            &mut installed,
+        )
+        .unwrap();
+        let text = fs::read_to_string(dest.path().join("Cargo.toml")).unwrap();
+        assert!(text.contains("1.0"));
+        assert!(text.contains("derive"));
     }
 }

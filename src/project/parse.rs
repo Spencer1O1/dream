@@ -39,8 +39,28 @@ pub fn dependencies(args: &Value) -> Result<Vec<Dependency>, DreamError> {
                 "features for `{name}` must be nonempty"
             )));
         }
+        let version = match item.get("version") {
+            None | Some(Value::Null) => None,
+            Some(value) => match value.as_str() {
+                Some(version) => {
+                    let version = version.trim();
+                    if version.is_empty() {
+                        return Err(DreamError::composer(format!(
+                            "version for `{name}` must be nonempty"
+                        )));
+                    }
+                    Some(version.to_string())
+                }
+                None => {
+                    return Err(DreamError::composer(format!(
+                        "version for `{name}` must be a string"
+                    )));
+                }
+            },
+        };
         dependencies.push(Dependency {
             name: name.to_string(),
+            version,
             features,
         });
     }
@@ -62,9 +82,37 @@ mod tests {
         }))
         .unwrap();
         assert_eq!(parsed[0].name, "serde");
+        assert_eq!(parsed[0].version, None);
         assert_eq!(parsed[0].features, vec!["derive"]);
         assert_eq!(parsed[1].name, "tokio");
         assert!(parsed[1].features.is_empty());
+    }
+
+    #[test]
+    fn optional_version() {
+        let parsed = dependencies(&json!({
+            "dependencies": [
+                { "name": "serde", "version": "1.0", "features": [] }
+            ]
+        }))
+        .unwrap();
+        assert_eq!(parsed[0].version.as_deref(), Some("1.0"));
+        let null = dependencies(&json!({
+            "dependencies": [
+                { "name": "serde", "version": null, "features": [] }
+            ]
+        }))
+        .unwrap();
+        assert_eq!(null[0].version, None);
+        let empty = dependencies(&json!({
+            "dependencies": [
+                { "name": "serde", "version": "  ", "features": [] }
+            ]
+        }))
+        .unwrap_err();
+        assert!(empty
+            .to_string()
+            .contains("version for `serde` must be nonempty"));
     }
 
     #[test]

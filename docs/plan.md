@@ -130,11 +130,11 @@ Do not invent lock CLI, project tools, or a formal IR in this phase. Do not requ
 
 Needs Phase 8. Known builders only.
 
-Dream owns manifests. One tool: `set_dependencies(unit, …)` — package names plus optional features; Dream chooses versions. Package name = entry stem on init only; do not overwrite later. Dream does not generate target-language wiring (`mod` / `import` / …). `unsupported`: first writer owns manifest-shaped files.
+Dream owns manifests. One tool: `set_dependencies(unit, …)` — package names plus optional version and features. Package name = entry stem on init only; do not overwrite later. Dream does not generate target-language wiring (`mod` / `import` / …). `unsupported`: first writer owns manifest-shaped files.
 
 - [x] Dream-owned manifest mutation for catalog builders
 - [x] Composer writes of those paths rejected
-- [x] `set_dependencies` replaces that unit’s dependencies (name + optional features)
+- [x] `set_dependencies` replaces that unit’s dependencies (name + optional version and features)
 - [x] Init package name from entry stem; leave existing names alone
 
 ## Phase 10 — Target-specific locks

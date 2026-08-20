@@ -11,7 +11,7 @@ Effect ownership, `Mode` isolation, in-place provenance, `--lucid` isolation, an
 
 ## Architecture
 
-- [ ] **Go stub versions** — `apply` writes `require {name} v0.0.0`. `go build` fails; repair cannot touch the manifest. Do not add a resolver. Omit stubs and let `go build` fill the graph, or put `go mod tidy` in the catalog argv.
+- [x] **Go stub versions** — Optional `version` on `set_dependencies`. No version → omit `require`. Do not write `v0.0.0`. No crates.io/proxy resolver.
 - [ ] **Python `--run`** — Catalog `run` is `["python"]`. That starts a REPL, not the composed program. Pick a real argv or treat python run as unsupported. Do not take argv from the model.
 
 ## Prompting

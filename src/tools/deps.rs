@@ -8,7 +8,8 @@ use crate::tools::Mode;
 use super::composer::authorize;
 use super::reply;
 use super::{
-    arg_str, object_array_arg, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec,
+    arg_str, nullable_string_arg, object_array_arg, object_params, string_arg, Family, Tool,
+    ToolCtx, ToolSpec,
 };
 
 pub fn tools() -> Vec<Box<dyn Tool>> {
@@ -22,7 +23,7 @@ impl Tool for SetDependencies {
         ToolSpec {
             name: "set_dependencies",
             family: Family::Project,
-            description: "Replace this unit's dependencies in the selected toolchain's manifest. Dream owns the manifest and chooses versions. Each entry is a package name plus optional features. Fails if that unit is locked.",
+            description: "Replace this unit's dependencies in the selected toolchain's manifest. Dream owns the manifest. Each entry is a package name, optional version, and optional features. Fails if that unit is locked.",
             parameters: object_params(
                 &[
                     ("unit", string_arg("Project-relative .foo these packages belong to")),
@@ -33,6 +34,12 @@ impl Tool for SetDependencies {
                             &[
                                 ("name", string_arg("Package name")),
                                 (
+                                    "version",
+                                    nullable_string_arg(
+                                        "Package version, or null if unconstrained",
+                                    ),
+                                ),
+                                (
                                     "features",
                                     json!({
                                         "type": "array",
@@ -41,7 +48,7 @@ impl Tool for SetDependencies {
                                     }),
                                 ),
                             ],
-                            &["name", "features"],
+                            &["name", "version", "features"],
                         ),
                     ),
                 ],

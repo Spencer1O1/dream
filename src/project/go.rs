@@ -40,10 +40,13 @@ pub fn apply(
         if existing.contains(&dep.name) {
             continue;
         }
+        let Some(version) = &dep.version else {
+            continue;
+        };
         if !text.ends_with('\n') && !text.is_empty() {
             text.push('\n');
         }
-        text.push_str(&format!("require {} v0.0.0\n", dep.name));
+        text.push_str(&format!("require {} {version}\n", dep.name));
         installed_set.insert(dep.name.clone());
     }
 
@@ -132,11 +135,24 @@ mod tests {
     use super::*;
     use std::fs;
 
-    fn dep(name: &str) -> Dependency {
+    fn dep(name: &str, version: Option<&str>) -> Dependency {
         Dependency {
             name: name.into(),
+            version: version.map(ToOwned::to_owned),
             features: Vec::new(),
         }
+    }
+
+    #[test]
+    fn omits_require_without_a_version() {
+        let dest = tempfile::tempdir().unwrap();
+        create_if_missing(dest.path(), "demo").unwrap();
+        let mut installed = Vec::new();
+        apply(dest.path(), &[dep("example.com/foo", None)], &mut installed).unwrap();
+        let text = fs::read_to_string(dest.path().join("go.mod")).unwrap();
+        assert!(text.contains("module demo"));
+        assert!(!text.contains("example.com/foo"));
+        assert!(installed.is_empty());
     }
 
     #[test]
@@ -144,10 +160,15 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         create_if_missing(dest.path(), "demo").unwrap();
         let mut installed = Vec::new();
-        apply(dest.path(), &[dep("example.com/foo")], &mut installed).unwrap();
+        apply(
+            dest.path(),
+            &[dep("example.com/foo", Some("v1.2.3"))],
+            &mut installed,
+        )
+        .unwrap();
         let text = fs::read_to_string(dest.path().join("go.mod")).unwrap();
         assert!(text.contains("module demo"));
-        assert!(text.contains("require example.com/foo v0.0.0"));
+        assert!(text.contains("require example.com/foo v1.2.3"));
         apply(dest.path(), &[], &mut installed).unwrap();
         let text = fs::read_to_string(dest.path().join("go.mod")).unwrap();
         assert!(!text.contains("example.com/foo"));

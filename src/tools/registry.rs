@@ -137,6 +137,43 @@ mod tests {
     }
 
     #[test]
+    fn openai_strict_lists_every_property() {
+        let cargo = crate::builder::Builder::parse("cargo").unwrap();
+        for registry in [
+            Registry::interpreter(),
+            Registry::composer(),
+            Registry::composer_for(Some(cargo)),
+            Registry::builder(),
+            Registry::repair(),
+        ] {
+            for tool in registry.tools() {
+                let spec = tool.spec();
+                assert_required_covers_properties(&spec.parameters, spec.name);
+            }
+        }
+    }
+
+    fn assert_required_covers_properties(schema: &Value, path: &str) {
+        if let Some(properties) = schema.get("properties").and_then(Value::as_object) {
+            let required = schema
+                .get("required")
+                .and_then(Value::as_array)
+                .unwrap_or_else(|| panic!("{path}: missing required"));
+            let required: Vec<&str> = required.iter().filter_map(Value::as_str).collect();
+            for key in properties.keys() {
+                assert!(
+                    required.contains(&key.as_str()),
+                    "{path}: `{key}` is not in required"
+                );
+                assert_required_covers_properties(&properties[key], &format!("{path}.{key}"));
+            }
+        }
+        if let Some(items) = schema.get("items") {
+            assert_required_covers_properties(items, &format!("{path}.items"));
+        }
+    }
+
+    #[test]
     fn repair_names() {
         assert_eq!(
             Registry::repair().names(),

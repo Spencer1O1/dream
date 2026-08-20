@@ -7,7 +7,7 @@ use crate::provenance::Store;
 use super::manifest;
 
 pub fn reconcile(dest: &Path, spec: &BuilderSpec, store: &mut Store) -> Result<(), DreamError> {
-    let wanted = store.union_dependencies();
+    let wanted = store.union_dependencies()?;
     manifest::apply(dest, spec, &wanted, &mut store.installed)?;
     store.save(dest)?;
     Ok(())
@@ -31,6 +31,7 @@ mod tests {
             "main.foo",
             vec![Dependency {
                 name: "serde".into(),
+                version: None,
                 features: vec!["derive".into()],
             }],
         );
@@ -38,6 +39,7 @@ mod tests {
             "utils.foo",
             vec![Dependency {
                 name: "tokio".into(),
+                version: None,
                 features: vec![],
             }],
         );

@@ -76,10 +76,14 @@ pub fn apply(
 }
 
 fn requirement(dep: &Dependency) -> String {
-    if dep.features.is_empty() {
+    let package = if dep.features.is_empty() {
         dep.name.clone()
     } else {
         format!("{}[{}]", dep.name, dep.features.join(","))
+    };
+    match &dep.version {
+        Some(version) => format!("{package}=={version}"),
+        None => package,
     }
 }
 
@@ -124,6 +128,7 @@ mod tests {
     fn dep(name: &str, features: &[&str]) -> Dependency {
         Dependency {
             name: name.into(),
+            version: None,
             features: features
                 .iter()
                 .map(|feature| (*feature).to_string())
@@ -140,5 +145,24 @@ mod tests {
         let text = fs::read_to_string(dest.path().join("pyproject.toml")).unwrap();
         assert!(text.contains("httpx[http2]"));
         assert_eq!(installed, vec!["httpx"]);
+    }
+
+    #[test]
+    fn pins_optional_version() {
+        let dest = tempfile::tempdir().unwrap();
+        create_if_missing(dest.path(), "demo").unwrap();
+        let mut installed = Vec::new();
+        apply(
+            dest.path(),
+            &[Dependency {
+                name: "httpx".into(),
+                version: Some("0.27".into()),
+                features: vec!["http2".into()],
+            }],
+            &mut installed,
+        )
+        .unwrap();
+        let text = fs::read_to_string(dest.path().join("pyproject.toml")).unwrap();
+        assert!(text.contains("httpx[http2]==0.27"));
     }
 }

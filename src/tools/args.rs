@@ -28,6 +28,13 @@ pub fn string_arg(description: &str) -> Value {
     })
 }
 
+pub fn nullable_string_arg(description: &str) -> Value {
+    json!({
+        "type": ["string", "null"],
+        "description": description
+    })
+}
+
 pub fn object_array_arg(description: &str, fields: &[(&str, Value)], required: &[&str]) -> Value {
     json!({
         "type": "array",
