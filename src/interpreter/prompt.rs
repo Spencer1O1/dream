@@ -14,11 +14,7 @@ Request other source units instead of inventing them.
 Chat text is discarded. Do not chat.";
 
 pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
-    let tools = registry.prompt_catalog();
-    match flags.prompt_catalog() {
-        Some(catalog) => format!("{PREAMBLE}\n\n{tools}\n{catalog}"),
-        None => format!("{PREAMBLE}\n\n{tools}"),
-    }
+    registry.instructions(PREAMBLE, flags)
 }
 
 #[cfg(test)]

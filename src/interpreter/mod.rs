@@ -2,7 +2,7 @@ mod prompt;
 
 use std::path::Path;
 
-use serde_json::{json, Value};
+use serde_json::json;
 
 use crate::config::Config;
 use crate::error::DreamError;
@@ -58,18 +58,11 @@ fn dispatch(
     deps: &mut DepGraph,
     call: &FunctionCall,
 ) -> Result<String, DreamError> {
-    let args: Value = if call.arguments.trim().is_empty() {
-        json!({})
-    } else {
-        serde_json::from_str(&call.arguments).map_err(|_| {
-            DreamError::runtime(format!("invalid arguments for tool `{}`", call.name))
-        })?
-    };
     let mut ctx = ToolCtx {
         project,
         deps,
         staging: None,
         builder: None,
     };
-    registry.call(&call.name, &mut ctx, &args)
+    registry.dispatch(&mut ctx, call)
 }

@@ -19,19 +19,11 @@ pub const BUILDER_PREAMBLE: &str = "\
 Declare the toolchain for the project you just wrote.";
 
 pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
-    let tools = registry.prompt_catalog();
-    match flags.prompt_catalog() {
-        Some(catalog) => format!("{PREAMBLE}\n\n{tools}\n{catalog}"),
-        None => format!("{PREAMBLE}\n\n{tools}"),
-    }
+    registry.instructions(PREAMBLE, flags)
 }
 
 pub fn builder(registry: &Registry, flags: &ActiveFlags) -> String {
-    let tools = registry.prompt_catalog();
-    match flags.prompt_catalog() {
-        Some(catalog) => format!("{BUILDER_PREAMBLE}\n\n{tools}\n{catalog}"),
-        None => format!("{BUILDER_PREAMBLE}\n\n{tools}"),
-    }
+    registry.instructions(BUILDER_PREAMBLE, flags)
 }
 
 #[cfg(test)]

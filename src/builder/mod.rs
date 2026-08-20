@@ -12,8 +12,6 @@ pub enum Builder {
 impl Builder {
     pub const ALL: [Self; 4] = [Self::Cargo, Self::Go, Self::Python, Self::Unsupported];
 
-    pub const NAMES: [&'static str; 4] = ["cargo", "go", "python", "unsupported"];
-
     pub const fn as_str(self) -> &'static str {
         match self {
             Self::Cargo => "cargo",
@@ -36,18 +34,10 @@ mod tests {
     use super::*;
 
     #[test]
-    fn names_match_variants() {
-        let from_enum: Vec<&str> = Builder::ALL
-            .iter()
-            .map(|builder| builder.as_str())
-            .collect();
-        assert_eq!(from_enum, Builder::NAMES);
-    }
-
-    #[test]
-    fn parse_known_and_reject_unknown() {
-        assert_eq!(Builder::parse("cargo").unwrap(), Builder::Cargo);
-        assert_eq!(Builder::parse("unsupported").unwrap(), Builder::Unsupported);
+    fn parse_round_trips_and_rejects_unknown() {
+        for builder in Builder::ALL {
+            assert_eq!(Builder::parse(builder.as_str()).unwrap(), builder);
+        }
         let err = Builder::parse("rust").unwrap_err();
         assert!(err.to_string().contains("unknown builder `rust`"));
     }

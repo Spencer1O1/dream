@@ -57,8 +57,14 @@ pub async fn run(
         input.extend(turn.output);
 
         for call in turn.function_calls {
-            let tool_output =
-                dispatch(&registry, &project, &mut deps, staging.path(), None, &call)?;
+            let tool_output = dispatch(
+                &registry,
+                &project,
+                &mut deps,
+                Some(staging.path()),
+                None,
+                &call,
+            )?;
             input.push(json!({
                 "type": "function_call_output",
                 "call_id": call.call_id,
@@ -83,7 +89,7 @@ async fn finish(
     output: &Path,
 ) -> Result<(), DreamError> {
     require_files(staging.path())?;
-    let _builder = ask_builder(openai, project, deps, staging.path(), input, flags).await?;
+    let _builder = ask_builder(openai, project, deps, input, flags).await?;
     output::replace_output(output, staging.path())?;
     let _ = staging.keep();
     Ok(())
@@ -93,7 +99,6 @@ async fn ask_builder(
     openai: &OpenAi,
     project: &Project,
     deps: &mut DepGraph,
-    staging: &Path,
     input: &mut Vec<Value>,
     flags: &ActiveFlags,
 ) -> Result<Option<Builder>, DreamError> {
@@ -110,15 +115,9 @@ async fn ask_builder(
         return Ok(None);
     }
 
-    input.extend(turn.output);
     let mut builder = None;
     for call in turn.function_calls {
-        let tool_output = dispatch(&registry, project, deps, staging, Some(&mut builder), &call)?;
-        input.push(json!({
-            "type": "function_call_output",
-            "call_id": call.call_id,
-            "output": tool_output,
-        }));
+        dispatch(&registry, project, deps, None, Some(&mut builder), &call)?;
     }
     Ok(builder)
 }
@@ -143,30 +142,22 @@ fn dispatch(
     registry: &Registry,
     project: &Project,
     deps: &mut DepGraph,
-    staging: &Path,
+    staging: Option<&Path>,
     builder: Option<&mut Option<Builder>>,
     call: &FunctionCall,
 ) -> Result<String, DreamError> {
-    let args: Value = if call.arguments.trim().is_empty() {
-        json!({})
-    } else {
-        serde_json::from_str(&call.arguments).map_err(|_| {
-            DreamError::runtime(format!("invalid arguments for tool `{}`", call.name))
-        })?
-    };
     let mut ctx = ToolCtx {
         project,
         deps,
-        staging: Some(staging),
+        staging,
         builder,
     };
-    registry.call(&call.name, &mut ctx, &args)
+    registry.dispatch(&mut ctx, call)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::fs;
 
     #[test]
     fn build_and_run_are_not_implemented() {
@@ -176,14 +167,9 @@ mod tests {
     }
 
     #[test]
-    fn no_files_leaves_destination() {
-        let parent = tempfile::tempdir().unwrap();
-        let dest = parent.path().join("out");
-        fs::create_dir(&dest).unwrap();
-        fs::write(dest.join("keep.txt"), "keep").unwrap();
+    fn no_files_is_an_error() {
         let staging = tempfile::tempdir().unwrap();
         let err = require_files(staging.path()).unwrap_err();
         assert!(err.to_string().contains("produced no files"));
-        assert_eq!(fs::read_to_string(dest.join("keep.txt")).unwrap(), "keep");
     }
 }

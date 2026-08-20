@@ -17,13 +17,16 @@ impl Tool for SetBuilder {
             name: "set_builder",
             family: Family::Composer,
             description: "Declare the toolchain for this project.",
-            parameters: object_params(
-                &[(
-                    "builder",
-                    enum_arg("Toolchain, or unsupported if none apply", &Builder::NAMES),
-                )],
-                &["builder"],
-            ),
+            parameters: {
+                let names = Builder::ALL.map(Builder::as_str);
+                object_params(
+                    &[(
+                        "builder",
+                        enum_arg("Toolchain, or unsupported if none apply", &names),
+                    )],
+                    &["builder"],
+                )
+            },
         }
     }
 

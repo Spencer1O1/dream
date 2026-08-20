@@ -3,6 +3,8 @@ use std::fmt::Write;
 use serde_json::Value;
 
 use crate::error::DreamError;
+use crate::flags::ActiveFlags;
+use crate::llm::FunctionCall;
 
 use super::{Family, Tool, ToolCtx};
 
@@ -48,6 +50,14 @@ impl Registry {
         self.tools.iter().map(|tool| tool.spec().schema()).collect()
     }
 
+    pub fn instructions(&self, preamble: &str, flags: &ActiveFlags) -> String {
+        let tools = self.prompt_catalog();
+        match flags.prompt_catalog() {
+            Some(catalog) => format!("{preamble}\n\n{tools}\n{catalog}"),
+            None => format!("{preamble}\n\n{tools}"),
+        }
+    }
+
     pub fn prompt_catalog(&self) -> String {
         let mut out = String::from("Tools:\n");
         for family in Family::ORDER {
@@ -73,18 +83,18 @@ impl Registry {
         out
     }
 
-    pub fn call(
+    pub fn dispatch(
         &self,
-        name: &str,
         ctx: &mut ToolCtx<'_>,
-        args: &Value,
+        call: &FunctionCall,
     ) -> Result<String, DreamError> {
+        let args = call.parsed_args()?;
         let tool = self
             .tools
             .iter()
-            .find(|tool| tool.spec().name == name)
-            .ok_or_else(|| DreamError::runtime(format!("unknown tool `{name}`")))?;
-        tool.call(ctx, args)
+            .find(|tool| tool.spec().name == call.name)
+            .ok_or_else(|| DreamError::runtime(format!("unknown tool `{}`", call.name)))?;
+        tool.call(ctx, &args)
     }
 }
 
