@@ -22,7 +22,7 @@ impl Tool for ReadSourceFile {
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
         let unit = ctx.project.read_source_file(arg_str(args, "path"))?;
-        ctx.deps.record_read(&unit.rel)?;
+        ctx.deps.record_read(&unit.rel);
         if let (Some(dest), Some(store)) = (ctx.dest, ctx.store) {
             let (artifacts, locked) = store
                 .units

@@ -6,7 +6,7 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 
 ## Must-fix
 
-- [ ] **DepGraph cycle** — Stop treating last-read as the composer. A re-read of the entry must not abort. Record reads as a set for `may_own`. (`src/source/graph.rs`)
+- [x] **DepGraph cycle** — Stop treating last-read as the composer. A re-read of the entry must not abort. Record reads as a set; `reached` is entry-or-read. (`src/source/graph.rs`)
 
 ## Architecture
 

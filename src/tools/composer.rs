@@ -14,7 +14,7 @@ pub fn tools() -> Vec<Box<dyn Tool>> {
 
 pub(super) fn claim_unit(ctx: &ToolCtx<'_>, requested: &str) -> Result<String, DreamError> {
     let unit = ctx.project.read_source_file(requested)?;
-    if !ctx.deps.may_own(&unit.rel) {
+    if !ctx.deps.reached(&unit.rel) {
         return Err(DreamError::runtime(format!(
             "cannot write for `{}`; read that unit first",
             unit.rel

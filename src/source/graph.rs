@@ -1,82 +1,26 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
-use crate::error::DreamError;
-
+/// Units this session has reached: the entry, plus every `.foo` that was read.
+/// Session-only. Not a request stack. Re-reading the entry is fine.
 #[derive(Debug)]
 pub struct DepGraph {
-    entry: String,
-    current: String,
-    edges: HashMap<String, HashSet<String>>,
+    read: HashSet<String>,
 }
 
 impl DepGraph {
     pub fn new(entry: impl Into<String>) -> Self {
-        let entry = entry.into();
         Self {
-            current: entry.clone(),
-            entry,
-            edges: HashMap::new(),
+            read: HashSet::from([entry.into()]),
         }
     }
 
-    pub fn may_own(&self, unit: &str) -> bool {
-        unit == self.entry
-            || unit == self.current
-            || self.edges.values().any(|set| set.contains(unit))
+    pub fn reached(&self, unit: &str) -> bool {
+        self.read.contains(unit)
     }
 
-    pub fn record_read(&mut self, path: &str) -> Result<(), DreamError> {
-        if path == self.current {
-            return Ok(());
-        }
-        if reaches(&self.edges, path, &self.current) {
-            let mut chain = path_between(&self.edges, path, &self.current).unwrap_or_default();
-            chain.push(self.current.clone());
-            chain.push(path.to_string());
-            return Err(DreamError::runtime(format!(
-                "cycle in source requests: {}",
-                chain.join(" -> ")
-            )));
-        }
-        self.edges
-            .entry(self.current.clone())
-            .or_default()
-            .insert(path.to_string());
-        self.current = path.to_string();
-        Ok(())
+    pub fn record_read(&mut self, path: &str) {
+        self.read.insert(path.to_string());
     }
-}
-
-fn reaches(edges: &HashMap<String, HashSet<String>>, from: &str, to: &str) -> bool {
-    path_between(edges, from, to).is_some()
-}
-
-fn path_between(
-    edges: &HashMap<String, HashSet<String>>,
-    from: &str,
-    to: &str,
-) -> Option<Vec<String>> {
-    if from == to {
-        return Some(Vec::new());
-    }
-    let mut stack = vec![(from.to_string(), vec![from.to_string()])];
-    let mut seen = HashSet::from([from.to_string()]);
-    while let Some((node, trail)) = stack.pop() {
-        let Some(nexts) = edges.get(&node) else {
-            continue;
-        };
-        for next in nexts {
-            if next == to {
-                return Some(trail);
-            }
-            if seen.insert(next.clone()) {
-                let mut next_trail = trail.clone();
-                next_trail.push(next.clone());
-                stack.push((next.clone(), next_trail));
-            }
-        }
-    }
-    None
 }
 
 #[cfg(test)]
@@ -84,32 +28,29 @@ mod tests {
     use super::*;
 
     #[test]
-    fn detects_request_cycle() {
+    fn reread_of_the_entry_after_other_units_is_ok() {
         let mut graph = DepGraph::new("main.foo");
-        graph.record_read("users/a.foo").unwrap();
-        graph.record_read("users/b.foo").unwrap();
-        let err = graph.record_read("main.foo").unwrap_err();
-        assert_eq!(
-            err.to_string(),
-            "RuntimeError: cycle in source requests: main.foo -> users/a.foo -> users/b.foo -> main.foo"
-        );
+        graph.record_read("utils.foo");
+        graph.record_read("main.foo");
+        assert!(graph.reached("main.foo"));
+        assert!(graph.reached("utils.foo"));
     }
 
     #[test]
-    fn allows_reread_of_current_unit() {
+    fn allows_reread_of_a_unit() {
         let mut graph = DepGraph::new("main.foo");
-        graph.record_read("main.foo").unwrap();
-        graph.record_read("users/a.foo").unwrap();
-        graph.record_read("users/a.foo").unwrap();
+        graph.record_read("utils.foo");
+        graph.record_read("utils.foo");
+        assert!(graph.reached("utils.foo"));
     }
 
     #[test]
-    fn may_own_entry_or_a_unit_that_was_read() {
+    fn reached_is_entry_or_a_unit_that_was_read() {
         let mut graph = DepGraph::new("main.foo");
-        assert!(graph.may_own("main.foo"));
-        assert!(!graph.may_own("utils.foo"));
-        graph.record_read("utils.foo").unwrap();
-        assert!(graph.may_own("utils.foo"));
-        assert!(graph.may_own("main.foo"));
+        assert!(graph.reached("main.foo"));
+        assert!(!graph.reached("utils.foo"));
+        graph.record_read("utils.foo");
+        assert!(graph.reached("utils.foo"));
+        assert!(graph.reached("main.foo"));
     }
 }

@@ -24,8 +24,8 @@ dream [--lucid] [--strict] <file.foo>
 
 - [x] Project root = parent of the entry file
 - [x] Sandboxed list/read
-- [x] Request-loop cycle detection
-- [x] Recorded dependency set for the run
+- [x] Recorded read set for the run (entry + units that were read; re-read is fine)
+- [x] No request-stack cycle abort (that blocked compose reads of the entry)
 - [x] Live: `examples/multifile/multifile.foo` + `examples/multifile/utils.foo`
 
 ## Phase 3 — Compose
