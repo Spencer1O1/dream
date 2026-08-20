@@ -23,7 +23,7 @@ cargo run -- --strict examples/hey-you.foo -t rust -o ./out --run
 
 ```env
 OPENAI_API_KEY=...
-DREAM_MODEL=gpt-4.1
+DREAM_MODEL=gpt-5.6-luna
 DREAM_TURN_CAP=10
 DREAM_REPAIR_CAP=3
 ```
