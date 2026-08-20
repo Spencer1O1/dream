@@ -1,5 +1,6 @@
 mod args;
 mod builder;
+mod catalog;
 mod composer;
 mod control;
 mod registry;

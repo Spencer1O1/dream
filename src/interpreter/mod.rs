@@ -1,4 +1,5 @@
 mod prompt;
+mod session;
 
 use std::path::Path;
 
@@ -7,9 +8,11 @@ use serde_json::json;
 use crate::config::Config;
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
-use crate::llm::{FunctionCall, OpenAi};
+use crate::llm::OpenAi;
 use crate::source::{DepGraph, Project};
-use crate::tools::{Registry, ToolCtx};
+use crate::tools::Registry;
+
+use session::Session;
 
 pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), DreamError> {
     let (project, unit) = Project::from_entry(entry)?;
@@ -28,41 +31,16 @@ pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), Drea
         )
     })];
 
-    for _ in 0..config.turn_cap {
-        let turn = openai.respond(&instructions, &input, &schemas).await?;
-        if turn.function_calls.is_empty() {
-            return Ok(());
-        }
-
-        input.extend(turn.output);
-
-        for call in turn.function_calls {
-            let output = dispatch(&registry, &project, &mut deps, &call)?;
-            input.push(json!({
-                "type": "function_call_output",
-                "call_id": call.call_id,
-                "output": output,
-            }));
-        }
+    Session {
+        openai: &openai,
+        registry: &registry,
+        instructions: &instructions,
+        schemas: &schemas,
+        project: &project,
+        deps: &mut deps,
+        input: &mut input,
+        turn_cap: config.turn_cap,
     }
-
-    Err(DreamError::interpreter(format!(
-        "turn limit reached before the program settled ({})",
-        config.turn_cap
-    )))
-}
-
-fn dispatch(
-    registry: &Registry,
-    project: &Project,
-    deps: &mut DepGraph,
-    call: &FunctionCall,
-) -> Result<String, DreamError> {
-    let mut ctx = ToolCtx {
-        project,
-        deps,
-        staging: None,
-        builder: None,
-    };
-    registry.dispatch(&mut ctx, call)
+    .until_settled()
+    .await
 }
