@@ -44,6 +44,9 @@ impl ComposeState {
                     dependencies: &mut dependencies,
                     repair: false,
                     toolchain: builder,
+                    registry: session.registry,
+                    instructions: session.instructions,
+                    schemas: session.schemas,
                 },
             )
             .await?;

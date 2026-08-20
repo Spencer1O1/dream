@@ -45,6 +45,14 @@ impl Registry {
         Self::gather(&[super::builder::tools])
     }
 
+    pub fn repair() -> Self {
+        Self::gather(&[
+            super::source::tools,
+            super::composer::repair_tools,
+            super::control::tools,
+        ])
+    }
+
     fn gather(families: &[FamilyTools]) -> Self {
         Self {
             tools: families.iter().flat_map(|family| family()).collect(),
@@ -125,5 +133,26 @@ mod tests {
     #[test]
     fn builder_names() {
         assert_eq!(Registry::builder().names(), vec!["set_builder"]);
+    }
+
+    #[test]
+    fn repair_names() {
+        assert_eq!(
+            Registry::repair().names(),
+            vec![
+                "list_source_files",
+                "read_source_file",
+                "write_output_file",
+                "remove_output_file",
+                "dream_error"
+            ]
+        );
+        let write = Registry::repair()
+            .tools()
+            .iter()
+            .find(|tool| tool.spec().name == "write_output_file")
+            .unwrap()
+            .spec();
+        assert!(write.parameters["properties"].get("unit").is_none());
     }
 }

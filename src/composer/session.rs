@@ -18,6 +18,9 @@ pub(crate) struct WriteLoop<'a> {
     pub dependencies: &'a mut HashMap<String, Vec<Dependency>>,
     pub repair: bool,
     pub toolchain: Option<Builder>,
+    pub registry: &'a Registry,
+    pub instructions: &'a str,
+    pub schemas: &'a [Value],
 }
 
 pub(crate) struct Session<'a> {
@@ -45,12 +48,12 @@ impl Session<'_> {
             dependencies,
             repair,
             toolchain,
+            registry,
+            instructions,
+            schemas,
         } = loop_state;
         for _ in 0..self.turn_cap {
-            let turn = self
-                .openai
-                .respond(self.instructions, input, self.schemas)
-                .await?;
+            let turn = self.openai.respond(instructions, input, schemas).await?;
             if turn.function_calls.is_empty() {
                 return Ok(());
             }
@@ -73,7 +76,7 @@ impl Session<'_> {
                         },
                     )
                 };
-                let output = dispatch(self.registry, &mut ctx, &call)?;
+                let output = dispatch(registry, &mut ctx, &call)?;
                 input.push(json!({
                     "type": "function_call_output",
                     "call_id": call.call_id,

@@ -81,6 +81,23 @@ mod tests {
     }
 
     #[test]
+    fn repair_has_write_without_unit_or_deps() {
+        let registry = Registry::repair();
+        let catalog = registry.prompt_catalog();
+        assert!(catalog.contains("- write_output_file:"));
+        assert!(catalog.contains("- remove_output_file:"));
+        assert!(!catalog.contains("set_dependencies"));
+        let write = registry
+            .tools()
+            .iter()
+            .find(|tool| tool.spec().name == "write_output_file")
+            .unwrap()
+            .spec();
+        assert!(write.parameters["properties"].get("unit").is_none());
+        assert!(!write.description.contains("unit"));
+    }
+
+    #[test]
     fn builder_is_set_builder_only() {
         let catalog = Registry::builder().prompt_catalog();
         assert!(catalog.contains("- set_builder:"));

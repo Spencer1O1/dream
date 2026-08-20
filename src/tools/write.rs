@@ -1,79 +1,65 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::error::DreamError;
-use crate::output;
-use crate::provenance;
-use crate::tools::{Compose, Mode};
 
-use super::composer::{authorize, dest_rel};
-use super::reply;
+use super::composer::{mutate_output, OutputOp};
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
-pub(super) struct WriteOutputFile;
+pub(super) struct WriteOutputFile {
+    repair: bool,
+}
+
+impl WriteOutputFile {
+    pub(super) fn compose() -> Self {
+        Self { repair: false }
+    }
+
+    pub(super) fn repair() -> Self {
+        Self { repair: true }
+    }
+}
 
 impl Tool for WriteOutputFile {
     fn spec(&self) -> ToolSpec {
-        ToolSpec {
-            name: "write_output_file",
-            family: Family::Composer,
-            description: "Write one source (code) file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists. Fails if that unit is locked.",
-            parameters: object_params(
-                &[
-                    ("unit", string_arg("Project-relative .foo that owns this file")),
-                    ("path", string_arg("Output-relative file path")),
-                    ("contents", string_arg("Exact file contents")),
-                ],
-                &["unit", "path", "contents"],
-            ),
+        if self.repair {
+            ToolSpec {
+                name: "write_output_file",
+                family: Family::Composer,
+                description: "Write one dest-relative file. Path is relative to the output root. Overwrites if the file exists.",
+                parameters: object_params(
+                    &[
+                        ("path", string_arg("Output-relative file path")),
+                        ("contents", string_arg("Exact file contents")),
+                    ],
+                    &["path", "contents"],
+                ),
+            }
+        } else {
+            ToolSpec {
+                name: "write_output_file",
+                family: Family::Composer,
+                description: "Write one source (code) file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Overwrites if the file exists. Fails if that unit is locked.",
+                parameters: object_params(
+                    &[
+                        ("unit", string_arg("Project-relative .foo that owns this file")),
+                        ("path", string_arg("Output-relative file path")),
+                        ("contents", string_arg("Exact file contents")),
+                    ],
+                    &["unit", "path", "contents"],
+                ),
+            }
         }
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let claimed = if matches!(ctx.mode, Mode::Compose(_)) {
-            match authorize(ctx, arg_str(args, "unit")) {
-                Ok(unit) => Some(unit),
-                Err(err) => return Ok(reply::refused(err)),
-            }
-        } else {
-            None
-        };
-        match &mut ctx.mode {
-            Mode::Compose(Compose {
-                dest,
-                store,
-                artifacts,
-                ..
-            }) => {
-                let unit = claimed
-                    .ok_or_else(|| DreamError::runtime("write_output_file requires unit"))?;
-                let rel = dest_rel(dest, arg_str(args, "path"))?;
-                if let Err(err) = provenance::authorize_write(
-                    store,
-                    dest,
-                    &rel,
-                    Some(&unit),
-                    artifacts.get(&unit),
-                ) {
-                    return Ok(reply::refused(err));
-                }
-                let path = output::write_file(dest, &rel, arg_str(args, "contents"))?;
-                artifacts.entry(unit).or_default().insert(path.clone());
-                Ok(json!({ "ok": true, "path": path }).to_string())
-            }
-            Mode::Repair(repair) => {
-                let dest = repair.dest;
-                let store = repair.store;
-                let rel = dest_rel(dest, arg_str(args, "path"))?;
-                if let Err(err) = provenance::authorize_write(store, dest, &rel, None, None) {
-                    return Ok(reply::refused(err));
-                }
-                let path = output::write_file(dest, &rel, arg_str(args, "contents"))?;
-                Ok(json!({ "ok": true, "path": path }).to_string())
-            }
-            Mode::Lucid | Mode::Pick(_) => Err(DreamError::runtime(
-                "write_output_file is only available while composing",
-            )),
-        }
+        mutate_output(
+            ctx,
+            args,
+            "write_output_file",
+            OutputOp::Write {
+                contents: arg_str(args, "contents"),
+            },
+        )
     }
 }
 
@@ -82,7 +68,8 @@ mod tests {
     use super::*;
     use crate::provenance::Store;
     use crate::source::{DepGraph, Project};
-    use crate::tools::ToolCtx;
+    use crate::tools::reply;
+    use crate::tools::{Compose, ToolCtx};
     use serde_json::json;
     use std::collections::HashMap;
 
@@ -111,7 +98,7 @@ mod tests {
                 toolchain: None,
             },
         );
-        let out = WriteOutputFile
+        let out = WriteOutputFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "hello.txt", "hello"))
             .unwrap();
         assert!(out.contains("hello.txt"));
@@ -144,7 +131,7 @@ mod tests {
                 toolchain: None,
             },
         );
-        let out = WriteOutputFile
+        let out = WriteOutputFile::compose()
             .call(&mut ctx, &write_args("utils.foo", "src/lib.rs", "no"))
             .unwrap();
         assert!(out.contains("read that unit first"));
@@ -175,7 +162,7 @@ mod tests {
                 toolchain: None,
             },
         );
-        let err = WriteOutputFile
+        let err = WriteOutputFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "../secret", "no"))
             .unwrap_err();
         assert!(err.to_string().contains("output write escapes -o"));
@@ -190,12 +177,20 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
         let mut ctx = ToolCtx::repair(&project, &mut deps, dest.path(), &store);
-        let out = WriteOutputFile
-            .call(&mut ctx, &write_args(&unit.rel, "src/new.rs", "no"))
+        let out = WriteOutputFile::repair()
+            .call(&mut ctx, &json!({ "path": "src/new.rs", "contents": "no" }))
             .unwrap();
         assert!(reply::warning_of(&out)
             .unwrap()
             .contains("repair cannot create"));
+    }
+
+    #[test]
+    fn repair_schema_has_no_unit() {
+        let spec = WriteOutputFile::repair().spec();
+        let required = spec.parameters["required"].as_array().unwrap();
+        assert!(!required.iter().any(|value| value == "unit"));
+        assert!(spec.parameters["properties"].get("unit").is_none());
     }
 
     #[test]
@@ -226,7 +221,7 @@ mod tests {
                 toolchain: None,
             },
         );
-        let out = WriteOutputFile
+        let out = WriteOutputFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "src/main.rs", "new"))
             .unwrap();
         assert_eq!(

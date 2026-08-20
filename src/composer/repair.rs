@@ -4,8 +4,10 @@ use crate::builder::{Builder, Outcome};
 use crate::error::DreamError;
 use crate::provenance;
 use crate::source::DepGraph;
+use crate::tools::Registry;
 
 use super::progress;
+use super::prompt;
 use super::session::Session;
 use super::state::ComposeState;
 
@@ -31,6 +33,9 @@ impl Session<'_> {
                     }));
                     let mut artifacts = std::collections::HashMap::new();
                     let mut dependencies = std::collections::HashMap::new();
+                    let registry = Registry::repair();
+                    let instructions = prompt::compose(&registry, self.flags);
+                    let schemas = registry.schemas();
                     self.write_until_settled(
                         state,
                         deps,
@@ -40,6 +45,9 @@ impl Session<'_> {
                             dependencies: &mut dependencies,
                             repair: true,
                             toolchain: builder,
+                            registry: &registry,
+                            instructions: &instructions,
+                            schemas: &schemas,
                         },
                     )
                     .await?;

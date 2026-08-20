@@ -1,74 +1,54 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::error::DreamError;
-use crate::output;
-use crate::provenance;
-use crate::tools::{Compose, Mode};
 
-use super::composer::{authorize, dest_rel};
-use super::reply;
-use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
+use super::composer::{mutate_output, OutputOp};
+use super::{object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
-pub(super) struct RemoveOutputFile;
+pub(super) struct RemoveOutputFile {
+    repair: bool,
+}
+
+impl RemoveOutputFile {
+    pub(super) fn compose() -> Self {
+        Self { repair: false }
+    }
+
+    pub(super) fn repair() -> Self {
+        Self { repair: true }
+    }
+}
 
 impl Tool for RemoveOutputFile {
     fn spec(&self) -> ToolSpec {
-        ToolSpec {
-            name: "remove_output_file",
-            family: Family::Composer,
-            description: "Remove one source file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Fails if that unit is locked.",
-            parameters: object_params(
-                &[
-                    ("unit", string_arg("Project-relative .foo that owns this file")),
-                    ("path", string_arg("Output-relative file path")),
-                ],
-                &["unit", "path"],
-            ),
+        if self.repair {
+            ToolSpec {
+                name: "remove_output_file",
+                family: Family::Composer,
+                description: "Remove one dest-relative file. Path is relative to the output root.",
+                parameters: object_params(
+                    &[("path", string_arg("Output-relative file path"))],
+                    &["path"],
+                ),
+            }
+        } else {
+            ToolSpec {
+                name: "remove_output_file",
+                family: Family::Composer,
+                description: "Remove one source file owned by a .foo unit. unit is the project-relative .foo path. Path is relative to the output root. Fails if that unit is locked.",
+                parameters: object_params(
+                    &[
+                        ("unit", string_arg("Project-relative .foo that owns this file")),
+                        ("path", string_arg("Output-relative file path")),
+                    ],
+                    &["unit", "path"],
+                ),
+            }
         }
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let claimed = if matches!(ctx.mode, Mode::Compose(_)) {
-            match authorize(ctx, arg_str(args, "unit")) {
-                Ok(unit) => Some(unit),
-                Err(err) => return Ok(reply::refused(err)),
-            }
-        } else {
-            None
-        };
-        match &mut ctx.mode {
-            Mode::Compose(Compose {
-                dest,
-                store,
-                artifacts,
-                ..
-            }) => {
-                let unit = claimed
-                    .ok_or_else(|| DreamError::runtime("remove_output_file requires unit"))?;
-                let rel = dest_rel(dest, arg_str(args, "path"))?;
-                if let Err(err) =
-                    provenance::authorize_remove(store, &rel, Some(&unit), artifacts.get(&unit))
-                {
-                    return Ok(reply::refused(err));
-                }
-                let path = output::remove_file(dest, &rel)?;
-                artifacts.entry(unit).or_default().remove(&path);
-                Ok(json!({ "ok": true, "path": path }).to_string())
-            }
-            Mode::Repair(repair) => {
-                let dest = repair.dest;
-                let store = repair.store;
-                let rel = dest_rel(dest, arg_str(args, "path"))?;
-                if let Err(err) = provenance::authorize_remove(store, &rel, None, None) {
-                    return Ok(reply::refused(err));
-                }
-                let path = output::remove_file(dest, &rel)?;
-                Ok(json!({ "ok": true, "path": path }).to_string())
-            }
-            Mode::Lucid | Mode::Pick(_) => Err(DreamError::runtime(
-                "remove_output_file is only available while composing",
-            )),
-        }
+        mutate_output(ctx, args, "remove_output_file", OutputOp::Remove)
     }
 }
 
@@ -102,17 +82,25 @@ mod tests {
                 toolchain: None,
             },
         );
-        crate::tools::write::WriteOutputFile
+        crate::tools::write::WriteOutputFile::compose()
             .call(
                 &mut ctx,
                 &json!({ "unit": unit.rel, "path": "oops.rs", "contents": "nope" }),
             )
             .unwrap();
-        let out = RemoveOutputFile
+        let out = RemoveOutputFile::compose()
             .call(&mut ctx, &json!({ "unit": unit.rel, "path": "oops.rs" }))
             .unwrap();
         assert!(out.contains("oops.rs"));
         assert!(!dest.path().join("oops.rs").exists());
         assert!(!artifacts[&unit.rel].contains("oops.rs"));
+    }
+
+    #[test]
+    fn repair_schema_has_no_unit() {
+        let spec = RemoveOutputFile::repair().spec();
+        let required = spec.parameters["required"].as_array().unwrap();
+        assert!(!required.iter().any(|value| value == "unit"));
+        assert!(spec.parameters["properties"].get("unit").is_none());
     }
 }
