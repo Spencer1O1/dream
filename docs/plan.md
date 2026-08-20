@@ -17,7 +17,7 @@ dream [--lucid] [--strict] <file.foo>
 - [x] `stdout` / `stdin`
 - [x] Chat text discarded
 - [x] `--strict` as a prompt flag
-- [x] `DreamError` subtypes (Interpreter / Runtime / Config / Usage)
+- [x] `DreamError` subtypes (see [errors.md](errors.md))
 - [x] Live: `examples/hello/hello.foo`, `examples/hey-you/hey-you.foo`
 
 ## Phase 2 — Multi-file
@@ -28,6 +28,10 @@ dream [--lucid] [--strict] <file.foo>
 - [x] No request-stack cycle abort (that blocked compose reads of the entry)
 - [x] Live: `examples/multifile/multifile.foo` + `examples/multifile/utils.foo`
 
+## Phase 3–7 — Historical
+
+These phases shipped **replace-`-o`** and, until Phase 7, **builder-last**. Phase 8 is the contract break: compose writes in place. Do not restore replace-`-o` or a post-write `set_builder` turn.
+
 ## Phase 3 — Compose
 
 ```bash
@@ -37,7 +41,7 @@ dream [--strict] <file.foo> -t <target> -o <dir>
 - [x] Composer tool loop (source + composer + control; no stdout/stdin)
 - [x] `write_output_file`
 - [x] `remove_output_file`
-- [x] Stage, then replace `-o` (failed compose leaves the destination)
+- [x] Historical: stage, then replace `-o` (failed compose leaves the destination). Replaced in Phase 8.
 - [x] Open-ended `-t`
 - [x] Live: `hey-you/hey-you.foo -t rust -o ./out` then `cargo run`
 
@@ -45,7 +49,7 @@ dream [--strict] <file.foo> -t <target> -o <dir>
 
 Declare the toolchain before Dream can build. `-t` stays an open-ended compose hint. A **builder** is a toolchain Dream will exec.
 
-**v0:** asked after the write loop. Phase 7 asks **before** writes.
+Historical: asked after the write loop. Phase 7 asks **before** writes.
 
 No pick, or `unsupported`, means do not `--build`, `--run`, or repair. Compose still succeeds.
 
@@ -54,7 +58,7 @@ Do not infer the builder from the tree. Do not take build argv from the model.
 The source of truth is `src/builder/catalog.rs`: name, build argv, run argv, install hint. `set_builder` is those names plus `unsupported`. `unsupported` is not a catalog row.
 
 - [x] Closed builder list in Dream (`src/builder/catalog.rs`)
-- [x] Follow-up `set_builder` turn after compose settles
+- [x] Historical: follow-up `set_builder` turn after compose settles. Phase 7 asks first.
 - [x] Missing / `unsupported` → compose only
 
 ## Phase 5 — Build and run
@@ -64,7 +68,7 @@ dream <file.foo> -t <target> -o <dir> --build
 dream <file.foo> -t <target> -o <dir> --run
 ```
 
-Needs Phase 4. v0 still replaces `-o` first. Then Dream execs the catalog argv in that folder. Build captures streams (repair / `--no-warn`). Run inherits the terminal.
+Needs Phase 4. Historical: replaced `-o` first, then exec. Phase 8 builds in the in-place dest. Build captures streams (repair / `--no-warn`). Run inherits the terminal.
 
 If the declared builder’s toolchain is not on the machine, Dream errors and says how to install it. Dream does not install it. That is different from `unsupported` (Dream has no builder).
 
@@ -75,7 +79,7 @@ If the declared builder’s toolchain is not on the machine, Dream errors and sa
 
 ## Phase 6 — Bounded repair
 
-Needs Phase 5. Build failures only (not run, not missing toolchain, not `unsupported`). Compose has already replaced `-o`. Repair writes stay in `-o`. Same builder; do not ask again. Warnings are not repair unless `--no-warn`.
+Needs Phase 5. Build failures only (not run, not missing toolchain, not `unsupported`). Historical: compose had already replaced `-o`. Repair writes stay in `-o`. Same builder; do not ask again. Warnings are not repair unless `--no-warn`.
 
 Cap is `DREAM_REPAIR_CAP` (default 3, `0` means no repair).
 
@@ -86,7 +90,7 @@ Cap is `DREAM_REPAIR_CAP` (default 3, `0` means no repair).
 
 ## Phase 7 — Builder first
 
-Needs Phase 6. Still v0 replace-`-o` is fine for this phase.
+Needs Phase 6. Historical: still used replace-`-o`. Phase 8 is the contract break.
 
 Ask `set_builder` **once, before any output writes**. That turn has only `set_builder` (no `dream_error`, no write tools). Then the write loop runs with a known builder (or `unsupported`).
 

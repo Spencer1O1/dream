@@ -39,6 +39,6 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 
 ## Leftovers
 
-- [ ] **plan.md Phase 3–7** — Mark replace-`-o` / builder-last as historical. Phase 8 is the contract break.
-- [ ] **tempfile** — Move `tempfile` from `[dependencies]` to `[dev-dependencies]`.
-- [ ] **Go features twice** — One check at the tool. `apply` stays internal / assert, not a second process error.
+- [x] **plan.md Phase 3–7** — replace-`-o` and builder-last are marked historical. Phase 8 is the contract break.
+- [x] **tempfile** — `[dev-dependencies]` only.
+- [x] **Go features twice** — Tool warning only. `apply` `debug_assert`s; not a second process error.

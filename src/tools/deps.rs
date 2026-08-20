@@ -169,6 +169,35 @@ mod tests {
     }
 
     #[test]
+    fn go_features_are_a_warning() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let dest = tempfile::tempdir().unwrap();
+        let store = Store::new("go");
+        let mut artifacts = HashMap::new();
+        let mut dependencies = HashMap::new();
+        let mut ctx = ToolCtx::compose(
+            &project,
+            &mut deps,
+            Compose {
+                dest: dest.path(),
+                store: &store,
+                artifacts: &mut artifacts,
+                dependencies: &mut dependencies,
+                toolchain: Some(Builder::parse("go").unwrap()),
+            },
+        );
+        let out = SetDependencies.call(&mut ctx, &args(&unit.rel)).unwrap();
+        assert_eq!(
+            reply::warning_of(&out).as_deref(),
+            Some("go dependencies do not take features")
+        );
+        assert!(dependencies.is_empty());
+    }
+
+    #[test]
     fn repair_is_rejected() {
         let project_dir = tempfile::tempdir().unwrap();
         std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();

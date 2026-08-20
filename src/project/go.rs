@@ -19,9 +19,10 @@ pub fn apply(
     wanted: &[Dependency],
     installed: &mut Vec<String>,
 ) -> Result<(), DreamError> {
-    if wanted.iter().any(|dep| !dep.features.is_empty()) {
-        return Err(DreamError::composer("go dependencies do not take features"));
-    }
+    debug_assert!(
+        wanted.iter().all(|dep| dep.features.is_empty()),
+        "go features are refused at set_dependencies"
+    );
     let path = dest.join("go.mod");
     let mut text = fs::read_to_string(&path)?;
     let existing = require_names(&text);
@@ -151,22 +152,5 @@ mod tests {
         let text = fs::read_to_string(dest.path().join("go.mod")).unwrap();
         assert!(!text.contains("example.com/foo"));
         assert!(text.contains("module demo"));
-    }
-
-    #[test]
-    fn rejects_features() {
-        let dest = tempfile::tempdir().unwrap();
-        create_if_missing(dest.path(), "demo").unwrap();
-        let mut installed = Vec::new();
-        let err = apply(
-            dest.path(),
-            &[Dependency {
-                name: "example.com/foo".into(),
-                features: vec!["x".into()],
-            }],
-            &mut installed,
-        )
-        .unwrap_err();
-        assert!(err.to_string().contains("do not take features"));
     }
 }
