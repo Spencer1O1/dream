@@ -19,6 +19,7 @@ cargo run -- now --strict examples/hello.foo
 ```env
 OPENAI_API_KEY=...
 DREAM_MODEL=gpt-4.1
+DREAM_TURN_CAP=40
 ```
 
 ## CLI

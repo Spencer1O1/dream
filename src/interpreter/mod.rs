@@ -8,8 +8,6 @@ use crate::llm::{FunctionCall, OpenAi};
 use crate::source::{DepGraph, Project};
 use crate::tools::{Registry, ToolCtx};
 
-const TURN_CAP: usize = 40;
-
 const PREAMBLE: &str = "\
 Your goal is to execute this Dream program as if it were actually running. Use the tools to do that.
 
@@ -21,7 +19,8 @@ Request other source units instead of inventing them.
 
 Chat text is discarded. Do not chat.";
 
-const STRICT_PROMPT: &str = "You are running in strict mode. Do not guess important ambiguity, return an error instead.";
+const STRICT_PROMPT: &str =
+    "You are running in strict mode. Do not guess important ambiguity, return an error instead.";
 
 const CLOSING: &str = "These tools are the entire interface. Anything else is invalid.";
 
@@ -41,7 +40,7 @@ pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), Drea
         )
     })];
 
-    for _ in 0..TURN_CAP {
+    for _ in 0..config.turn_cap {
         let turn = openai.respond(&instructions, &input, &schemas).await?;
         if turn.function_calls.is_empty() {
             return Ok(());
@@ -59,9 +58,10 @@ pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), Drea
         }
     }
 
-    Err(DreamError::new(
-        "turn limit reached before the program settled",
-    ))
+    Err(DreamError::new(format!(
+        "turn limit reached before the program settled ({})",
+        config.turn_cap
+    )))
 }
 
 fn compose_instructions(registry: &Registry, strict: bool) -> String {

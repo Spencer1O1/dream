@@ -1,0 +1,2 @@
+ask the user their name
+print("Hey, %s", name)
