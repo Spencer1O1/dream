@@ -113,7 +113,7 @@ Repair after Phase 8: stack is empty; only overwrite existing unlocked unit-owne
 
 `--fresh` the same day: drop provenance, locks, and Dream-owned paths; leave unmanaged files; recompose.
 
-Do not invent lock CLI, project tools, or a formal IR in this phase. Do not require one `.foo` → one target file. No source-hash skip yet.
+Do not invent lock CLI, project tools, or a formal IR in this phase. Do not require one `.foo` → one target file. Do not skip unlocked units because the source hash matches. Lock is the skip.
 
 - [x] Stop replace-`-o` on normal compose
 - [x] Persist unit → artifact paths in `-o` (format not precious)
@@ -161,7 +161,6 @@ Inspect is later if needed.
 
 Do not start these during the phases above.
 
-- [ ] Skip unchanged unlocked units (source hash)
 - [ ] `dream inspect`
 - [ ] `dream.toml` (name / entry so `dream .` works)
 - [ ] Formal semantic core / Gimbal
