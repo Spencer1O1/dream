@@ -45,15 +45,15 @@ dream [--strict] <file.foo> -t <target> -o <dir>
 
 Declare the toolchain before Dream can build. `-t` stays an open-ended compose hint. A **builder** is a toolchain Dream will exec.
 
-The composer declares one with `set_builder` (anytime, last call wins). Never called, or `unsupported`, means do not `--build`, `--run`, or repair. Compose still succeeds.
+After the write loop settles, Dream asks once for a builder. That turn has only `set_builder` (and `dream_error`). No pick, or `unsupported`, means do not `--build`, `--run`, or repair. Compose still succeeds.
 
-Do not infer the builder from the tree. Do not take build argv from the model. Do not add a `finish` tool; settle stays “no more tool calls.”
+Do not infer the builder from the tree. Do not take build argv from the model. Do not put `set_builder` in the write-loop catalog.
 
 Enum values are toolchains Dream owns (`cargo`, `go`, …), not language vibes (`cpp`, `embedded`). Vague `-t` (Arduino Nano, COBOL, …) should be `unsupported` until that builder exists.
 
-- [ ] Closed builder list in Dream
-- [ ] Composer tool `set_builder`
-- [ ] Missing / `unsupported` → compose only
+- [x] Closed builder list in Dream (`cargo`, `go`, `python`, `unsupported`)
+- [x] Follow-up `set_builder` turn after compose settles
+- [x] Missing / `unsupported` → compose only
 
 ## Phase 5 — Build and run
 

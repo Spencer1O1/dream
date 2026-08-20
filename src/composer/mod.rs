@@ -5,6 +5,7 @@ use std::path::Path;
 
 use serde_json::{json, Value};
 
+use crate::builder::Builder;
 use crate::config::Config;
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
@@ -47,13 +48,17 @@ pub async fn run(
     for _ in 0..config.turn_cap {
         let turn = openai.respond(&instructions, &input, &schemas).await?;
         if turn.function_calls.is_empty() {
-            return settle(&output, staging);
+            return finish(
+                &openai, &project, &mut deps, staging, &mut input, &flags, &output,
+            )
+            .await;
         }
 
         input.extend(turn.output);
 
         for call in turn.function_calls {
-            let tool_output = dispatch(&registry, &project, &mut deps, staging.path(), &call)?;
+            let tool_output =
+                dispatch(&registry, &project, &mut deps, staging.path(), None, &call)?;
             input.push(json!({
                 "type": "function_call_output",
                 "call_id": call.call_id,
@@ -68,12 +73,60 @@ pub async fn run(
     )))
 }
 
-fn settle(output: &Path, staging: tempfile::TempDir) -> Result<(), DreamError> {
-    if !output::tree_has_files(staging.path())? {
-        return Err(DreamError::runtime("composition produced no files"));
-    }
+async fn finish(
+    openai: &OpenAi,
+    project: &Project,
+    deps: &mut DepGraph,
+    staging: tempfile::TempDir,
+    input: &mut Vec<Value>,
+    flags: &ActiveFlags,
+    output: &Path,
+) -> Result<(), DreamError> {
+    require_files(staging.path())?;
+    let _builder = ask_builder(openai, project, deps, staging.path(), input, flags).await?;
     output::replace_output(output, staging.path())?;
     let _ = staging.keep();
+    Ok(())
+}
+
+async fn ask_builder(
+    openai: &OpenAi,
+    project: &Project,
+    deps: &mut DepGraph,
+    staging: &Path,
+    input: &mut Vec<Value>,
+    flags: &ActiveFlags,
+) -> Result<Option<Builder>, DreamError> {
+    let registry = Registry::builder();
+    let instructions = prompt::builder(&registry, flags);
+    input.push(json!({
+        "role": "user",
+        "content": "Declare the toolchain for this project."
+    }));
+    let turn = openai
+        .respond(&instructions, input, &registry.schemas())
+        .await?;
+    if turn.function_calls.is_empty() {
+        return Ok(None);
+    }
+
+    input.extend(turn.output);
+    let mut builder = None;
+    for call in turn.function_calls {
+        let tool_output = dispatch(&registry, project, deps, staging, Some(&mut builder), &call)?;
+        input.push(json!({
+            "type": "function_call_output",
+            "call_id": call.call_id,
+            "output": tool_output,
+        }));
+    }
+    Ok(builder)
+}
+
+fn require_files(staging: &Path) -> Result<(), DreamError> {
+    if !output::tree_has_files(staging)? {
+        return Err(DreamError::runtime("composition produced no files"));
+    }
     Ok(())
 }
 
@@ -91,6 +144,7 @@ fn dispatch(
     project: &Project,
     deps: &mut DepGraph,
     staging: &Path,
+    builder: Option<&mut Option<Builder>>,
     call: &FunctionCall,
 ) -> Result<String, DreamError> {
     let args: Value = if call.arguments.trim().is_empty() {
@@ -104,6 +158,7 @@ fn dispatch(
         project,
         deps,
         staging: Some(staging),
+        builder,
     };
     registry.call(&call.name, &mut ctx, &args)
 }
@@ -121,13 +176,13 @@ mod tests {
     }
 
     #[test]
-    fn settle_without_files_leaves_destination() {
+    fn no_files_leaves_destination() {
         let parent = tempfile::tempdir().unwrap();
         let dest = parent.path().join("out");
         fs::create_dir(&dest).unwrap();
         fs::write(dest.join("keep.txt"), "keep").unwrap();
         let staging = tempfile::tempdir().unwrap();
-        let err = settle(&dest, staging).unwrap_err();
+        let err = require_files(staging.path()).unwrap_err();
         assert!(err.to_string().contains("produced no files"));
         assert_eq!(fs::read_to_string(dest.join("keep.txt")).unwrap(), "keep");
     }

@@ -1,4 +1,5 @@
 mod args;
+mod builder;
 mod composer;
 mod control;
 mod registry;
@@ -9,4 +10,4 @@ mod tool;
 pub use registry::Registry;
 pub use tool::{Family, Tool, ToolCtx, ToolSpec};
 
-pub(crate) use args::{arg_str, object_params, string_arg};
+pub(crate) use args::{arg_str, enum_arg, object_params, string_arg};

@@ -69,6 +69,7 @@ fn dispatch(
         project,
         deps,
         staging: None,
+        builder: None,
     };
     registry.call(&call.name, &mut ctx, &args)
 }

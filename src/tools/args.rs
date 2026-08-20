@@ -13,6 +13,14 @@ pub fn object_params(fields: &[(&str, Value)], required: &[&str]) -> Value {
     })
 }
 
+pub fn enum_arg(description: &str, values: &[&str]) -> Value {
+    json!({
+        "type": "string",
+        "description": description,
+        "enum": values
+    })
+}
+
 pub fn string_arg(description: &str) -> Value {
     json!({
         "type": "string",

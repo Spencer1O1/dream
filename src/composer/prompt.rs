@@ -15,11 +15,22 @@ The requested target is already in the conversation.
 
 Do not execute the program. Chat text is discarded. Do not chat.";
 
+pub const BUILDER_PREAMBLE: &str = "\
+Declare the toolchain for the project you just wrote.";
+
 pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
     let tools = registry.prompt_catalog();
     match flags.prompt_catalog() {
         Some(catalog) => format!("{PREAMBLE}\n\n{tools}\n{catalog}"),
         None => format!("{PREAMBLE}\n\n{tools}"),
+    }
+}
+
+pub fn builder(registry: &Registry, flags: &ActiveFlags) -> String {
+    let tools = registry.prompt_catalog();
+    match flags.prompt_catalog() {
+        Some(catalog) => format!("{BUILDER_PREAMBLE}\n\n{tools}\n{catalog}"),
+        None => format!("{BUILDER_PREAMBLE}\n\n{tools}"),
     }
 }
 
@@ -37,8 +48,18 @@ mod tests {
         assert!(instructions.contains(&registry.prompt_catalog()));
         assert!(instructions.contains("write_output_file"));
         assert!(instructions.contains("remove_output_file"));
+        assert!(!instructions.contains("set_builder"));
         assert!(!instructions.contains("stdout"));
         assert!(!instructions.contains("--strict"));
         assert!(compose(&registry, &ActiveFlags::new(true)).contains("--strict:"));
+    }
+
+    #[test]
+    fn builder_prompt_is_the_pick_turn() {
+        let registry = Registry::builder();
+        let instructions = builder(&registry, &ActiveFlags::new(false));
+        assert!(instructions.contains(BUILDER_PREAMBLE));
+        assert!(instructions.contains("set_builder"));
+        assert!(!instructions.contains("write_output_file"));
     }
 }

@@ -29,6 +29,10 @@ impl Registry {
         ])
     }
 
+    pub fn builder() -> Self {
+        Self::gather(&[super::builder::tools, super::control::tools])
+    }
+
     fn gather(families: &[FamilyTools]) -> Self {
         Self {
             tools: families.iter().flat_map(|family| family()).collect(),
@@ -130,7 +134,16 @@ mod tests {
         assert!(catalog.contains("Composer"));
         assert!(catalog.contains("- write_output_file:"));
         assert!(catalog.contains("- remove_output_file:"));
+        assert!(!catalog.contains("set_builder"));
         assert!(!catalog.contains("Runtime"));
         assert!(!catalog.contains("stdout"));
+    }
+
+    #[test]
+    fn builder_registry_is_set_builder_only() {
+        let registry = Registry::builder();
+        assert_eq!(registry.names(), vec!["set_builder", "dream_error"]);
+        assert!(registry.prompt_catalog().contains("- set_builder:"));
+        assert!(!registry.prompt_catalog().contains("write_output_file"));
     }
 }

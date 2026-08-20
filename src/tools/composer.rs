@@ -68,6 +68,19 @@ mod tests {
     use crate::tools::ToolCtx;
     use serde_json::json;
 
+    fn compose_ctx<'a>(
+        project: &'a Project,
+        deps: &'a mut DepGraph,
+        staging: &'a std::path::Path,
+    ) -> ToolCtx<'a> {
+        ToolCtx {
+            project,
+            deps,
+            staging: Some(staging),
+            builder: None,
+        }
+    }
+
     #[test]
     fn writes_into_staging() {
         let project_dir = tempfile::tempdir().unwrap();
@@ -75,11 +88,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(unit.rel);
         let staging = tempfile::tempdir().unwrap();
-        let mut ctx = ToolCtx {
-            project: &project,
-            deps: &mut deps,
-            staging: Some(staging.path()),
-        };
+        let mut ctx = compose_ctx(&project, &mut deps, staging.path());
         let out = WriteOutputFile
             .call(
                 &mut ctx,
@@ -100,11 +109,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(unit.rel);
         let staging = tempfile::tempdir().unwrap();
-        let mut ctx = ToolCtx {
-            project: &project,
-            deps: &mut deps,
-            staging: Some(staging.path()),
-        };
+        let mut ctx = compose_ctx(&project, &mut deps, staging.path());
         let err = WriteOutputFile
             .call(&mut ctx, &json!({ "path": "../secret", "contents": "no" }))
             .unwrap_err();
@@ -118,11 +123,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(unit.rel);
         let staging = tempfile::tempdir().unwrap();
-        let mut ctx = ToolCtx {
-            project: &project,
-            deps: &mut deps,
-            staging: Some(staging.path()),
-        };
+        let mut ctx = compose_ctx(&project, &mut deps, staging.path());
         WriteOutputFile
             .call(&mut ctx, &json!({ "path": "oops.rs", "contents": "nope" }))
             .unwrap();
