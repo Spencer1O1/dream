@@ -15,7 +15,7 @@ cargo run -- examples/hey-you.foo -t rust -o ./out
 cargo run -- --strict examples/hey-you.foo -t rust -o ./out --run
 ```
 
-`-o` replaces the whole folder after a successful compose. A failed compose leaves the destination alone.
+`-o` replaces the whole folder after a successful compose. A failed compose leaves the destination alone. Compose prints each tool call on stderr (name and path, not file contents).
 
 `--build` / `--run` exec the declared catalog toolchain in `-o`. A failed **build** may go back to the composer a bounded number of times. `--no-warn` treats toolchain warnings as a failed build (and thus repairable). A failed run, a missing toolchain, or `unsupported` does not repair. Dream does not install tools.
 

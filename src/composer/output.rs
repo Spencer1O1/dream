@@ -84,6 +84,13 @@ pub fn tree_has_files(dir: &Path) -> Result<bool, DreamError> {
     Ok(false)
 }
 
+pub fn require_files(dir: &Path) -> Result<(), DreamError> {
+    if !tree_has_files(dir)? {
+        return Err(DreamError::runtime("composition produced no files"));
+    }
+    Ok(())
+}
+
 pub fn replace_output(output: &Path, staging: &Path) -> Result<(), DreamError> {
     if let Some(parent) = output.parent() {
         fs::create_dir_all(parent)?;
@@ -240,6 +247,13 @@ mod tests {
 
         assert!(!dest.join("old.txt").exists());
         assert_eq!(fs::read_to_string(dest.join("new.txt")).unwrap(), "new");
+    }
+
+    #[test]
+    fn no_files_is_an_error() {
+        let staging = tempfile::tempdir().unwrap();
+        let err = require_files(staging.path()).unwrap_err();
+        assert!(err.to_string().contains("produced no files"));
     }
 
     #[test]
