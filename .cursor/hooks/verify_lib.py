@@ -215,7 +215,7 @@ def auto_format_file(config: dict[str, Any], rel: str) -> None:
     abs_path = ROOT / rel
     if not abs_path.is_file():
         return
-    suffixes = set(auto.get("prettier_suffixes") or [])
+    suffixes = set(auto.get("suffixes") or [])
     if abs_path.suffix not in suffixes:
         return
     write_cmd = cmd(config, "format_write")

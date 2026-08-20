@@ -1,5 +1,4 @@
 {
-  "package_manager": "cargo",
   "buckets": {
     "rust": {
       "path_prefixes": ["src/"],
@@ -21,6 +20,6 @@
   },
   "auto_format": {
     "enabled": true,
-    "prettier_suffixes": [".rs"]
+    "suffixes": [".rs"]
   }
 }
