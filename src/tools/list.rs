@@ -6,14 +6,30 @@ use crate::tools::Mode;
 
 use super::{object_params, Family, Tool, ToolCtx, ToolSpec};
 
-pub(super) struct ListSourceFiles;
+pub(super) struct ListSourceFiles {
+    compose: bool,
+}
+
+impl ListSourceFiles {
+    pub(super) fn lucid() -> Self {
+        Self { compose: false }
+    }
+
+    pub(super) fn compose() -> Self {
+        Self { compose: true }
+    }
+}
 
 impl Tool for ListSourceFiles {
     fn spec(&self) -> ToolSpec {
         ToolSpec {
             name: "list_source_files",
             family: Family::Source,
-            description: "List every .foo path in the project. No contents. Compose includes whether each unit is locked.",
+            description: if self.compose {
+                "List every project-relative .foo path. No contents. Each path includes whether that unit is locked."
+            } else {
+                "List every project-relative .foo path. No contents."
+            },
             parameters: object_params(&[], &[]),
         }
     }
@@ -58,9 +74,17 @@ mod tests {
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
         let mut ctx = ToolCtx::lucid(&project, &mut deps);
-        let out = ListSourceFiles.call(&mut ctx, &json!({})).unwrap();
+        let out = ListSourceFiles::lucid().call(&mut ctx, &json!({})).unwrap();
         assert!(out.contains("main.foo"));
         assert!(!out.contains("locked"));
+        assert!(!ListSourceFiles::lucid()
+            .spec()
+            .description
+            .contains("locked"));
+        assert!(ListSourceFiles::compose()
+            .spec()
+            .description
+            .contains("locked"));
     }
 
     #[test]
@@ -87,8 +111,12 @@ mod tests {
                 toolchain: None,
             },
         );
-        let out: Value =
-            serde_json::from_str(&ListSourceFiles.call(&mut ctx, &json!({})).unwrap()).unwrap();
+        let out: Value = serde_json::from_str(
+            &ListSourceFiles::compose()
+                .call(&mut ctx, &json!({}))
+                .unwrap(),
+        )
+        .unwrap();
         let files = out["files"].as_array().unwrap();
         assert_eq!(files.len(), 2);
         let utils = files

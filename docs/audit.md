@@ -20,7 +20,7 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 ## Prompting
 
 - [x] **Parallel catalog sentence** — Keep the batch instruction. Dropped “Anything else is invalid.” Sequential still works. The listed tools are the interface.
-- [ ] **Lucid tool text** — Mode-specific list/read descriptions. `--lucid` must not hear about compose locks. Describe the tool, not heuristics.
+- [x] **Lucid tool text** — Lucid list/read are path/source only. Compose list/read describe `locked` and stored artifacts. Mutation tools still say they fail if the unit is locked.
 - [ ] **Flags on the wrong turn** — `--no-warn` out of prompts (the build step already implements it). `--strict` only on turns that have `dream_error`.
 - [ ] **Write/remove description** — Dest-relative file owned by that `.foo`, not “source (code) file” only.
 - [ ] **Warning tool name** — Decide: keep `set_dependencies` in the project-owned warning, or say “use the project dependency tool.”

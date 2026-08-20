@@ -14,7 +14,7 @@ pub struct Registry {
 impl Registry {
     pub fn interpreter() -> Self {
         Self::gather(&[
-            super::source::tools,
+            super::source::lucid_tools,
             super::runtime::tools,
             super::control::tools,
         ])
@@ -28,14 +28,14 @@ impl Registry {
     pub fn composer_for(builder: Option<crate::builder::Builder>) -> Self {
         if builder.and_then(|known| known.spec()).is_some() {
             Self::gather(&[
-                super::source::tools,
+                super::source::compose_tools,
                 super::composer::tools,
                 super::deps::tools,
                 super::control::tools,
             ])
         } else {
             Self::gather(&[
-                super::source::tools,
+                super::source::compose_tools,
                 super::composer::tools,
                 super::control::tools,
             ])
@@ -48,7 +48,7 @@ impl Registry {
 
     pub fn repair() -> Self {
         Self::gather(&[
-            super::source::tools,
+            super::source::compose_tools,
             super::composer::repair_tools,
             super::control::tools,
         ])

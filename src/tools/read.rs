@@ -7,15 +7,30 @@ use crate::tools::Mode;
 
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
-pub(super) struct ReadSourceFile;
+pub(super) struct ReadSourceFile {
+    compose: bool,
+}
+
+impl ReadSourceFile {
+    pub(super) fn lucid() -> Self {
+        Self { compose: false }
+    }
+
+    pub(super) fn compose() -> Self {
+        Self { compose: true }
+    }
+}
 
 impl Tool for ReadSourceFile {
     fn spec(&self) -> ToolSpec {
         ToolSpec {
             name: "read_source_file",
             family: Family::Source,
-            description:
-                "Read one relevant .foo source unit inside the project. Do not invent files.",
+            description: if self.compose {
+                "Read one .foo unit. Returns path, source, whether it is locked, and stored artifacts if any."
+            } else {
+                "Read one .foo unit. Returns path and source."
+            },
             parameters: object_params(
                 &[("path", string_arg("Project-relative .foo path"))],
                 &["path"],
@@ -66,7 +81,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
         let mut ctx = ToolCtx::lucid(&project, &mut deps);
-        let out = ReadSourceFile
+        let out = ReadSourceFile::lucid()
             .call(&mut ctx, &json!({ "path": "main.foo" }))
             .unwrap();
         assert!(out.contains("print hi"));
@@ -97,7 +112,7 @@ mod tests {
                 toolchain: None,
             },
         );
-        let out = ReadSourceFile
+        let out = ReadSourceFile::compose()
             .call(&mut ctx, &json!({ "path": "main.foo" }))
             .unwrap();
         assert!(out.contains("print hi"));
@@ -131,7 +146,7 @@ mod tests {
                 toolchain: None,
             },
         );
-        let out = ReadSourceFile
+        let out = ReadSourceFile::compose()
             .call(&mut ctx, &json!({ "path": "main.foo" }))
             .unwrap();
         assert!(out.contains("\"locked\":true"));

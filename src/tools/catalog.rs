@@ -60,12 +60,16 @@ mod tests {
         assert!(catalog.contains("- dream_error:"));
         assert!(catalog.contains("next contiguous calls that can run without waiting on a result"));
         assert!(!catalog.contains("--strict"));
+        assert!(!catalog.contains("locked"));
+        assert!(!catalog.contains("artifacts"));
     }
 
     #[test]
     fn composer_has_source_and_write_not_runtime() {
         let catalog = Registry::composer().prompt_catalog();
         assert!(catalog.contains("Composer"));
+        assert!(catalog.contains("whether that unit is locked"));
+        assert!(catalog.contains("stored artifacts"));
         assert!(catalog.contains("- write_output_file:"));
         assert!(catalog.contains("- remove_output_file:"));
         assert!(!catalog.contains("set_dependencies"));
