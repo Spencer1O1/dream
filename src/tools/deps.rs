@@ -5,7 +5,7 @@ use crate::project;
 
 use crate::tools::Mode;
 
-use super::composer::claim_unit;
+use super::composer::authorize;
 use super::reply;
 use super::{
     arg_str, object_array_arg, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec,
@@ -64,15 +64,10 @@ impl Tool for SetDependencies {
                 "set_dependencies is only available for a known builder",
             ));
         }
-        let unit = match claim_unit(ctx, arg_str(args, "unit")) {
+        let unit = match authorize(ctx, arg_str(args, "unit")) {
             Ok(unit) => unit,
             Err(err) => return Ok(reply::refused(err)),
         };
-        if let Mode::Compose(compose) = &ctx.mode {
-            if compose.store.is_locked(&unit) {
-                return Ok(reply::warning(format!("`{unit}` is locked")));
-            }
-        }
         let parsed = match project::dependencies(args) {
             Ok(parsed) => parsed,
             Err(err) => return Ok(reply::refused(err)),
@@ -132,7 +127,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut dependencies,
-                fresh: false,
                 toolchain: Some(Builder::parse("cargo").unwrap()),
             },
         );
@@ -164,7 +158,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut dependencies,
-                fresh: false,
                 toolchain: Some(Builder::parse("cargo").unwrap()),
             },
         );

@@ -94,7 +94,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut dependencies,
-                fresh: false,
                 toolchain: None,
             },
         );
@@ -129,7 +128,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut dependencies,
-                fresh: false,
                 toolchain: None,
             },
         );

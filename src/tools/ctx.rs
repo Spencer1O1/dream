@@ -14,7 +14,6 @@ pub struct Compose<'a> {
     pub store: &'a Store,
     pub artifacts: &'a mut HashMap<String, HashSet<String>>,
     pub dependencies: &'a mut HashMap<String, Vec<Dependency>>,
-    pub fresh: bool,
     pub toolchain: Option<Builder>,
 }
 

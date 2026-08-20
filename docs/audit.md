@@ -11,7 +11,7 @@ Effect ownership, preamble-without-tool-names, `--lucid` isolation, and locks-as
 ## Architecture
 
 - [x] **tools ↔ composer cycle** — Provenance and dest I/O live at the crate root. `ToolCtx` is project + deps + a `Mode` (Lucid / Pick / Compose / Repair), not an option bag. Tools do not import `composer`.
-- [ ] **One authorize** — Every unit-scoped mutation (write / remove / `set_dependencies`) goes through one authorize. Drop the dead `--fresh` lock bypass.
+- [x] **One authorize** — Write / remove / `set_dependencies` go through `authorize` (reached + lock). `--fresh` drops the store at open; it is not a write-time lock bypass.
 - [ ] **write / remove duplication** — One output-mutation helper. Repair: drop the required unused `unit`, or stop requiring it.
 - [ ] **Pick Session** — Do not construct a composer `Session` for pick. Pick owns the builder registry.
 - [ ] **reserved / staging** — One `reserved()` for `.dream`. Rename `files.rs` `staging` params to `dest`.

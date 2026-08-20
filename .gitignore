@@ -6,3 +6,4 @@ target/
 .env.local
 __pycache__/
 out/
+try/

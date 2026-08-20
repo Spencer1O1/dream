@@ -5,7 +5,7 @@ use crate::output;
 use crate::provenance;
 use crate::tools::{Compose, Mode};
 
-use super::composer::{claim_unit, dest_rel};
+use super::composer::{authorize, dest_rel};
 use super::reply;
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
@@ -30,7 +30,7 @@ impl Tool for WriteOutputFile {
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
         let claimed = if matches!(ctx.mode, Mode::Compose(_)) {
-            match claim_unit(ctx, arg_str(args, "unit")) {
+            match authorize(ctx, arg_str(args, "unit")) {
                 Ok(unit) => Some(unit),
                 Err(err) => return Ok(reply::refused(err)),
             }
@@ -42,7 +42,6 @@ impl Tool for WriteOutputFile {
                 dest,
                 store,
                 artifacts,
-                fresh,
                 ..
             }) => {
                 let unit = claimed
@@ -53,7 +52,6 @@ impl Tool for WriteOutputFile {
                     dest,
                     &rel,
                     Some(&unit),
-                    *fresh,
                     artifacts.get(&unit),
                 ) {
                     return Ok(reply::refused(err));
@@ -66,8 +64,7 @@ impl Tool for WriteOutputFile {
                 let dest = repair.dest;
                 let store = repair.store;
                 let rel = dest_rel(dest, arg_str(args, "path"))?;
-                if let Err(err) = provenance::authorize_write(store, dest, &rel, None, false, None)
-                {
+                if let Err(err) = provenance::authorize_write(store, dest, &rel, None, None) {
                     return Ok(reply::refused(err));
                 }
                 let path = output::write_file(dest, &rel, arg_str(args, "contents"))?;
@@ -111,7 +108,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut claims,
-                fresh: false,
                 toolchain: None,
             },
         );
@@ -145,7 +141,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut claims,
-                fresh: false,
                 toolchain: None,
             },
         );
@@ -177,7 +172,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut claims,
-                fresh: false,
                 toolchain: None,
             },
         );
@@ -229,7 +223,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut claims,
-                fresh: false,
                 toolchain: None,
             },
         );

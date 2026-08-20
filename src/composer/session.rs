@@ -69,7 +69,6 @@ impl Session<'_> {
                             store: &state.store,
                             artifacts,
                             dependencies,
-                            fresh: state.fresh,
                             toolchain,
                         },
                     )

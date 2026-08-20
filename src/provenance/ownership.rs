@@ -5,12 +5,18 @@ use crate::error::DreamError;
 
 use super::store::{reserved, Owner, Store};
 
+pub fn authorize_unit(store: &Store, unit: &str) -> Result<(), DreamError> {
+    if store.is_locked(unit) {
+        return Err(DreamError::runtime(format!("`{unit}` is locked")));
+    }
+    Ok(())
+}
+
 pub fn authorize_write(
     store: &Store,
     dest: &Path,
     rel: &str,
     unit: Option<&str>,
-    fresh: bool,
     this_job: Option<&HashSet<String>>,
 ) -> Result<(), DreamError> {
     if reserved(rel) {
@@ -19,7 +25,7 @@ pub fn authorize_write(
         ));
     }
     let owner = owner_including_job(store, rel, unit, this_job);
-    reject_if_locked(store, unit, &owner, fresh)?;
+    reject_if_locked(store, unit, &owner)?;
     match owner {
         Owner::Project => Err(DreamError::runtime(format!(
             "cannot write `{rel}`; Dream owns the manifest. Use set_dependencies."
@@ -32,11 +38,10 @@ pub fn authorize_write(
             ))),
         },
         Owner::Unmanaged => {
-            let exists = dest.join(rel).exists();
             if unit.is_none() {
                 return Err(DreamError::runtime(format!("repair cannot create `{rel}`")));
             }
-            if exists && !fresh {
+            if dest.join(rel).exists() {
                 return Err(DreamError::runtime(format!("output `{rel}` is user-owned")));
             }
             Ok(())
@@ -56,7 +61,7 @@ pub fn authorize_remove(
         ));
     }
     let owner = owner_including_job(store, rel, unit, this_job);
-    reject_if_locked(store, unit, &owner, false)?;
+    reject_if_locked(store, unit, &owner)?;
     match owner {
         Owner::Unit(owner) if unit == Some(owner.as_str()) => Ok(()),
         Owner::Unit(owner) => Err(DreamError::runtime(format!(
@@ -69,24 +74,12 @@ pub fn authorize_remove(
     }
 }
 
-fn reject_if_locked(
-    store: &Store,
-    unit: Option<&str>,
-    owner: &Owner,
-    fresh: bool,
-) -> Result<(), DreamError> {
-    if fresh {
-        return Ok(());
-    }
+fn reject_if_locked(store: &Store, unit: Option<&str>, owner: &Owner) -> Result<(), DreamError> {
     if let Some(unit) = unit {
-        if store.is_locked(unit) {
-            return Err(DreamError::runtime(format!("`{unit}` is locked")));
-        }
+        authorize_unit(store, unit)?;
     }
     if let Owner::Unit(owner) = owner {
-        if store.is_locked(owner) {
-            return Err(DreamError::runtime(format!("`{owner}` is locked")));
-        }
+        authorize_unit(store, owner)?;
     }
     Ok(())
 }
@@ -122,91 +115,37 @@ mod tests {
         std::fs::write(dest.path().join("src/main.rs"), "old").unwrap();
         std::fs::write(dest.path().join("README.md"), "keep").unwrap();
 
-        authorize_write(
-            &store,
-            dest.path(),
-            "src/main.rs",
-            Some("main.foo"),
-            false,
-            None,
-        )
-        .unwrap();
-        let err = authorize_write(
-            &store,
-            dest.path(),
-            "src/main.rs",
-            Some("other.foo"),
-            false,
-            None,
-        )
-        .unwrap_err();
+        authorize_write(&store, dest.path(), "src/main.rs", Some("main.foo"), None).unwrap();
+        let err = authorize_write(&store, dest.path(), "src/main.rs", Some("other.foo"), None)
+            .unwrap_err();
         assert!(err.to_string().contains("owned by `main.foo`"));
 
-        let unmanaged = authorize_write(
-            &store,
-            dest.path(),
-            "README.md",
-            Some("main.foo"),
-            false,
-            None,
-        )
-        .unwrap_err();
+        let unmanaged =
+            authorize_write(&store, dest.path(), "README.md", Some("main.foo"), None).unwrap_err();
         assert!(unmanaged.to_string().contains("user-owned"));
-        authorize_write(
-            &store,
-            dest.path(),
-            "README.md",
-            Some("main.foo"),
-            true,
-            None,
-        )
-        .unwrap();
 
         store.mark_project("Cargo.toml");
-        let manifest = authorize_write(
-            &store,
-            dest.path(),
-            "Cargo.toml",
-            Some("main.foo"),
-            true,
-            None,
-        )
-        .unwrap_err();
+        let manifest =
+            authorize_write(&store, dest.path(), "Cargo.toml", Some("main.foo"), None).unwrap_err();
         assert!(manifest.to_string().contains("set_dependencies"));
         assert!(manifest.to_string().contains("Cargo.toml"));
 
         let reserved_err =
-            authorize_write(&store, dest.path(), STORE_REL, Some("main.foo"), true, None)
-                .unwrap_err();
+            authorize_write(&store, dest.path(), STORE_REL, Some("main.foo"), None).unwrap_err();
         assert!(reserved_err.to_string().contains("project metadata"));
 
         let repair_new =
-            authorize_write(&store, dest.path(), "src/new.rs", None, false, None).unwrap_err();
+            authorize_write(&store, dest.path(), "src/new.rs", None, None).unwrap_err();
         assert!(repair_new.to_string().contains("repair cannot create"));
-        authorize_write(&store, dest.path(), "src/main.rs", None, false, None).unwrap();
+        authorize_write(&store, dest.path(), "src/main.rs", None, None).unwrap();
 
         store.set_lock("main.foo", "abc".into());
-        let locked = authorize_write(
-            &store,
-            dest.path(),
-            "src/main.rs",
-            Some("main.foo"),
-            false,
-            None,
-        )
-        .unwrap_err();
+        authorize_unit(&store, "main.foo").unwrap_err();
+        let locked = authorize_write(&store, dest.path(), "src/main.rs", Some("main.foo"), None)
+            .unwrap_err();
         assert!(locked.to_string().contains("`main.foo` is locked"));
         let repair_locked =
-            authorize_write(&store, dest.path(), "src/main.rs", None, false, None).unwrap_err();
+            authorize_write(&store, dest.path(), "src/main.rs", None, None).unwrap_err();
         assert!(repair_locked.to_string().contains("`main.foo` is locked"));
-        authorize_write(
-            &store,
-            dest.path(),
-            "src/main.rs",
-            Some("main.foo"),
-            true,
-            None,
-        )
-        .unwrap();
     }
 }

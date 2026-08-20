@@ -5,7 +5,7 @@ use crate::output;
 use crate::provenance;
 use crate::tools::{Compose, Mode};
 
-use super::composer::{claim_unit, dest_rel};
+use super::composer::{authorize, dest_rel};
 use super::reply;
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
@@ -29,7 +29,7 @@ impl Tool for RemoveOutputFile {
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
         let claimed = if matches!(ctx.mode, Mode::Compose(_)) {
-            match claim_unit(ctx, arg_str(args, "unit")) {
+            match authorize(ctx, arg_str(args, "unit")) {
                 Ok(unit) => Some(unit),
                 Err(err) => return Ok(reply::refused(err)),
             }
@@ -99,7 +99,6 @@ mod tests {
                 store: &store,
                 artifacts: &mut artifacts,
                 dependencies: &mut claims,
-                fresh: false,
                 toolchain: None,
             },
         );
