@@ -20,7 +20,7 @@ pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), Drea
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
     let registry = Registry::interpreter();
     let flags = ActiveFlags::new(strict);
-    let instructions = prompt::compose(&registry, &flags);
+    let instructions = prompt::lucid(&registry, &flags);
     let schemas = registry.schemas();
 
     let mut input = vec![json!({

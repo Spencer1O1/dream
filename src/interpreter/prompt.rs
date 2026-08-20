@@ -10,7 +10,7 @@ fn preamble() -> String {
     paragraphs(&[GOAL, FOOCODE, ENTRY, NO_CHAT])
 }
 
-pub fn compose(registry: &Registry, flags: &ActiveFlags) -> String {
+pub fn lucid(registry: &Registry, flags: &ActiveFlags) -> String {
     registry.instructions(&preamble(), flags)
 }
 
@@ -21,11 +21,11 @@ mod tests {
     #[test]
     fn includes_tools_and_only_active_flags() {
         let registry = Registry::interpreter();
-        let instructions = compose(&registry, &ActiveFlags::new(false));
+        let instructions = lucid(&registry, &ActiveFlags::new(false));
         assert!(instructions.contains(&preamble()));
         assert!(instructions.contains(&registry.prompt_catalog()));
         assert!(!instructions.contains("--strict"));
         assert!(!instructions.contains("--no-warn"));
-        assert!(compose(&registry, &ActiveFlags::new(true)).contains("--strict:"));
+        assert!(lucid(&registry, &ActiveFlags::new(true)).contains("--strict:"));
     }
 }

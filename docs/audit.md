@@ -25,6 +25,6 @@ Effect ownership, `Mode` isolation, in-place provenance, `--lucid` isolation, an
 
 ## Leftovers
 
-- [ ] **README contract** — Still says implemented contract is `MVP.md` and Artifact Ownership is next. The crate is Artifact Ownership through Phase 10. Update that sentence.
-- [ ] **`interpreter::prompt::compose`** — Lucid instructions are built by a function named `compose`. Rename to `lucid` / `interpret`.
-- [ ] **plan.md audit pointer** — Line 3 still points at the closed first punch list as current work.
+- [x] **README contract** — Still says implemented contract is `MVP.md` and Artifact Ownership is next. The crate is Artifact Ownership through Phase 10. Update that sentence.
+- [x] **`interpreter::prompt::compose`** — Lucid instructions are built by a function named `compose`. Rename to `lucid` / `interpret`.
+- [x] **plan.md audit pointer** — Line 3 still points at the closed first punch list as current work.

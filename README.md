@@ -2,7 +2,7 @@
 
 Executable pseudocode. A programmer writes foocode in `.foo` files. Dream interprets that notation.
 
-The implemented v0 contract is the [Dream vault](https://github.com/Spencer1O1/DreamVault): `MVP.md` and `Core Rules.md`. Next contract: `Artifact Ownership.md`. Implementation progress is [docs/plan.md](docs/plan.md).
+The implemented contract is the [Dream vault](https://github.com/Spencer1O1/DreamVault): `Core Rules.md` and `Artifact Ownership.md` through Phase 10. `--lucid` still matches `MVP.md` interpreter behavior. Implementation progress is [docs/plan.md](docs/plan.md).
 
 ```bash
 cp .env.example .env
