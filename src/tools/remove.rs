@@ -19,10 +19,7 @@ impl Tool for RemoveFile {
             name: "remove_file",
             family: Family::Composer,
             description: "Remove one dest file.",
-            parameters: with_unit(
-                &[("path", string_arg("Where the file is in the project"))],
-                &["path"],
-            ),
+            parameters: with_unit(&[("path", string_arg("Dest-relative path"))], &["path"]),
         }
     }
 
@@ -104,7 +101,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             crate::tools::reply::warning_of(&out).as_deref(),
-            Some("output file `src/gone.rs` does not exist")
+            Some("dest file `src/gone.rs` does not exist")
         );
     }
 
@@ -134,7 +131,7 @@ mod tests {
             .unwrap();
         assert_eq!(
             crate::tools::reply::warning_of(&out).as_deref(),
-            Some("output path `lib` is a directory")
+            Some("dest path `lib` is a directory")
         );
         assert!(dest.path().join("lib").is_dir());
     }
@@ -158,9 +155,11 @@ mod tests {
                 toolchain: None,
             },
         );
-        let err = RemoveFile::compose()
+        let out = RemoveFile::compose()
             .call(&mut ctx, &json!({ "unit": unit.rel, "path": "../secret" }))
-            .unwrap_err();
-        assert!(err.to_string().contains("output write escapes -o"));
+            .unwrap();
+        assert!(crate::tools::reply::warning_of(&out)
+            .unwrap()
+            .contains("dest write escapes -o"));
     }
 }

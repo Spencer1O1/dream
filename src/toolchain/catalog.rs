@@ -76,7 +76,7 @@ impl ToolchainSpec {
     }
 
     pub fn is_wipe(&self, rel: &str) -> bool {
-        self.project.contains(&rel)
+        self.project.iter().any(|path| path_covers(path, rel))
     }
 
     /// Dest paths this row owns: setup files, then lockfiles and build dirs.
@@ -359,7 +359,7 @@ pub static CATALOG: &[ToolchainSpec] = &[
     ),
     ToolchainSpec::row(
         "perl",
-        &[],
+        &["cpanm", "--installdeps", "."],
         &[],
         Run::Stem { program: "perl" },
         &["perl"],
@@ -409,6 +409,10 @@ pub static CATALOG: &[ToolchainSpec] = &[
 
 pub fn spec(name: &str) -> Option<&'static ToolchainSpec> {
     CATALOG.iter().find(|spec| spec.name == name)
+}
+
+pub(crate) fn path_covers(listed: &str, rel: &str) -> bool {
+    rel == listed || rel.starts_with(&format!("{listed}/"))
 }
 
 #[cfg(test)]
@@ -516,6 +520,12 @@ mod tests {
         assert_eq!(spec("make").unwrap().owned_dest(), ["Makefile", "target"]);
         assert!(spec("cargo").unwrap().is_setup("Cargo.toml"));
         assert!(spec("cargo").unwrap().is_wipe("target"));
+        assert!(spec("cargo").unwrap().is_wipe("target/foo.rs"));
+        assert!(!spec("cargo").unwrap().is_wipe("target2"));
         assert!(!spec("cargo").unwrap().is_setup("target"));
+        assert_eq!(
+            spec("perl").unwrap().configure,
+            &["cpanm", "--installdeps", "."]
+        );
     }
 }

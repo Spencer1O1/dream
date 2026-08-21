@@ -11,7 +11,7 @@ pub(crate) mod store;
 pub use artifacts::read_artifacts;
 pub use inspect::report as inspect;
 pub use lock::{check, lock, unlock};
-pub use open::open;
+pub use open::{accepts_target, open};
 pub use ownership::{authorize_read, authorize_remove, authorize_unit, authorize_write};
 pub use reconcile::reconcile;
 pub use require::{require_composed, require_source_root};

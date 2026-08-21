@@ -47,8 +47,8 @@ mod tests {
             "set_toolchain cargo"
         );
         assert_eq!(
-            line("set_dependencies", &json!({"unit": "main.foo"})),
-            "set_dependencies main.foo"
+            line("write_file", &json!({"unit": "main.foo"})),
+            "write_file main.foo"
         );
         assert_eq!(line("list_source_files", &json!({})), "list_source_files");
         assert_eq!(

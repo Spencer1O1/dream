@@ -34,11 +34,8 @@ impl Tool for ReadFile {
         ToolSpec {
             name: "read_file",
             family: Family::Composer,
-            description: "Read one dest file. Unit-owned files and this toolchain's setup files.",
-            parameters: object_params(
-                &[("path", string_arg("Dest-relative path to read"))],
-                &["path"],
-            ),
+            description: "Read one dest file.",
+            parameters: object_params(&[("path", string_arg("Dest-relative path"))], &["path"]),
         }
     }
 
@@ -52,7 +49,10 @@ impl Tool for ReadFile {
                 ));
             }
         };
-        let rel = dest_rel(dest, arg_str(args, "path"))?;
+        let rel = match dest_rel(dest, arg_str(args, "path")) {
+            Ok(rel) => rel,
+            Err(err) => return Ok(reply::refused(err)),
+        };
         if let Err(err) = provenance::authorize_read(store, dest, &rel, spec) {
             return Ok(reply::refused(err));
         }
@@ -64,7 +64,7 @@ impl Tool for ReadFile {
 pub(super) fn with_unit(fields: &[(&str, Value)], required: &[&str]) -> Value {
     let mut all = vec![(
         "unit",
-        string_arg("Project-relative path of the `.foo` file that owns this file"),
+        string_arg("Project-relative path of the `.foo` file that owns this dest file. For this toolchain's setup files, pass the entry `.foo` file"),
     )];
     all.extend(fields.iter().cloned());
     let mut names = vec!["unit"];
@@ -121,12 +121,15 @@ pub(super) fn mutate_output(
         Mode::Repair(repair) => repair.dest,
         Mode::Lucid | Mode::Pick(_) => unreachable!("mode checked above"),
     };
+    let rel = match dest_rel(dest, arg_str(args, "path")) {
+        Ok(rel) => rel,
+        Err(err) => return Ok(reply::refused(err)),
+    };
     let spec = match &ctx.mode {
         Mode::Compose(compose) => spec_of(compose.toolchain),
         Mode::Repair(repair) => spec_of(repair.toolchain),
         Mode::Lucid | Mode::Pick(_) => None,
     };
-    let rel = dest_rel(dest, arg_str(args, "path"))?;
     let setup = spec.is_some_and(|spec| spec.is_setup(&rel));
     let claimed = if matches!(ctx.mode, Mode::Compose(_)) && !setup {
         let Some(unit) = args.get("unit").and_then(Value::as_str) else {
@@ -196,12 +199,12 @@ fn apply(
                     }
                     Ok(json!({ "ok": true, "path": path }).to_string())
                 }
-                output::Removed::Missing(path) => Ok(reply::warning(format!(
-                    "output file `{path}` does not exist"
-                ))),
-                output::Removed::Directory(path) => Ok(reply::warning(format!(
-                    "output path `{path}` is a directory"
-                ))),
+                output::Removed::Missing(path) => {
+                    Ok(reply::warning(format!("dest file `{path}` does not exist")))
+                }
+                output::Removed::Directory(path) => {
+                    Ok(reply::warning(format!("dest path `{path}` is a directory")))
+                }
             }
         }
     }

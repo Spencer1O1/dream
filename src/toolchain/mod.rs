@@ -5,6 +5,7 @@ mod inherit;
 mod outcome;
 mod program;
 
+pub(crate) use catalog::path_covers;
 pub use catalog::{ToolchainSpec, CATALOG};
 pub use exec::after_compose;
 pub use outcome::Outcome;
@@ -87,6 +88,23 @@ impl Toolchain {
         Ok(reply)
     }
 
+    /// User message for the write loop. Not a tool result.
+    pub fn declared_user_blob(self, entry_rel: &str) -> Result<String, DreamError> {
+        let json = self.declared(entry_rel)?;
+        let Some(spec) = self.spec() else {
+            return Ok(format!(
+                "Toolchain {}:\nThis toolchain has no setup files. Dream will not build or run.\n{}",
+                self.as_str(),
+                json
+            ));
+        };
+        Ok(format!(
+            "Toolchain {}:\nsetup: write these. project: do not write. entrypoint: write that dest file. Dream runs configure, build, and run.\n{}",
+            spec.name,
+            json
+        ))
+    }
+
     pub fn schema_names() -> Vec<&'static str> {
         let mut names: Vec<&'static str> = CATALOG.iter().map(|spec| spec.name).collect();
         names.push(UNSUPPORTED);
@@ -124,6 +142,13 @@ mod tests {
             make.declared("limits.foo").unwrap()["entrypoint"]["path"],
             "limits.c"
         );
+        let blob = go.declared_user_blob("limits.foo").unwrap();
+        assert!(blob.contains("setup: write these"));
+        assert!(blob.contains("Dream runs configure"));
+        let unsupported = Toolchain::parse("unsupported").unwrap();
+        let thin = unsupported.declared_user_blob("limits.foo").unwrap();
+        assert!(thin.contains("no setup files"));
+        assert!(thin.contains("will not build or run"));
     }
 
     #[test]

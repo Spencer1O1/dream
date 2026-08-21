@@ -19,7 +19,7 @@ pub fn lock(dest: &Path, target: &str, source_file: &Path) -> Result<(), DreamEr
         .filter(|state| !state.artifacts.is_empty())
     else {
         return Err(DreamError::usage(format!(
-            "`{unit}` has no artifacts for target `{target}`"
+            "`{unit}` has no dest files for target `{target}`"
         )));
     };
     let artifacts = state.artifacts.clone();
@@ -79,12 +79,12 @@ pub fn check(store: &Store, dest: &Path, project: &Project) -> Result<(), DreamE
 fn require_store(dest: &Path, target: &str) -> Result<Store, DreamError> {
     let Some(store) = Store::load(dest)? else {
         return Err(DreamError::usage(
-            "output has no provenance store; compose first",
+            "dest has no provenance store; compose first",
         ));
     };
-    if store.target != target {
+    if !super::accepts_target(&store.target, target) {
         return Err(DreamError::usage(format!(
-            "output is for target `{}`; pass `-t {}` or --fresh to compose",
+            "dest is for target `{}`; pass `-t {}` or --fresh to compose",
             store.target, store.target
         )));
     }
@@ -96,7 +96,7 @@ fn require_artifacts(dest: &Path, unit: &str, artifacts: &[String]) -> Result<()
         let path = dest.join(rel);
         if !path.is_file() {
             return Err(DreamError::composer(format!(
-                "locked artifact `{rel}` for `{unit}` is missing; restore the file, unlock, or --fresh"
+                "locked dest `{rel}` for `{unit}` is missing; restore the file, unlock, or --fresh"
             )));
         }
     }
@@ -107,7 +107,7 @@ fn unit_from_root(store: &Store, source_file: &Path) -> Result<String, DreamErro
     let root = store
         .source_root
         .as_deref()
-        .ok_or_else(|| DreamError::usage("output has no project root; compose first"))?;
+        .ok_or_else(|| DreamError::usage("dest has no project root; compose first"))?;
     let root = PathBuf::from(root);
     let file = match source_file.canonicalize() {
         Ok(path) => path,
@@ -272,7 +272,7 @@ mod tests {
         store.set_source_root(src.path()).unwrap();
         store.save(dest.path()).unwrap();
         let err = lock(dest.path(), "rust", &src.path().join(&unit)).unwrap_err();
-        assert!(err.to_string().contains("no artifacts"));
+        assert!(err.to_string().contains("no dest files"));
     }
 
     #[test]

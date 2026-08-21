@@ -3,7 +3,7 @@ use std::path::Path;
 
 use crate::error::DreamError;
 use crate::output;
-use crate::toolchain::CATALOG;
+use crate::toolchain::{Toolchain, CATALOG};
 
 use super::scan::has_user_files;
 use super::store::Store;
@@ -11,10 +11,12 @@ use super::store::Store;
 pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), DreamError> {
     fs::create_dir_all(dest)?;
     match Store::load(dest)? {
-        Some(store) if store.target != target && !fresh => Err(DreamError::usage(format!(
-            "output is for target `{}`; pass --fresh to overwrite `-t {target}`",
-            store.target
-        ))),
+        Some(store) if !fresh && !accepts_target(&store.target, target) => {
+            Err(DreamError::usage(format!(
+                "dest is for target `{}`; pass --fresh to overwrite `-t {target}`",
+                store.target
+            )))
+        }
         Some(store) if fresh => {
             store.drop_owned(dest)?;
             drop_catalog_project(dest)?;
@@ -22,7 +24,7 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
         }
         Some(store) => Ok((store, false)),
         None if has_user_files(dest)? && !fresh => Err(DreamError::usage(
-            "output has files Dream does not own; pass --fresh to overwrite or use an empty directory",
+            "dest has files Dream does not own; pass --fresh to overwrite or use an empty directory",
         )),
         None => {
             if fresh {
@@ -31,6 +33,12 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
             Ok((Store::new(target), fresh))
         }
     }
+}
+
+/// Exact catalog name must match. A fuzzy `-t` may reuse a catalog store.
+pub fn accepts_target(store_target: &str, requested: &str) -> bool {
+    store_target == requested
+        || (Toolchain::parse(requested).is_err() && Toolchain::parse(store_target).is_ok())
 }
 
 fn drop_catalog_project(dest: &Path) -> Result<(), DreamError> {
@@ -95,6 +103,19 @@ mod tests {
             "keep"
         );
         assert!(!Store::path(dest.path()).exists());
+    }
+
+    #[test]
+    fn fuzzy_requested_reuses_a_catalog_store() {
+        let dest = tempfile::tempdir().unwrap();
+        let mut store = Store::new("cargo");
+        store.mark_project("Cargo.toml");
+        store.save(dest.path()).unwrap();
+        let (opened, fresh) = open(dest.path(), "rust", false).unwrap();
+        assert!(!fresh);
+        assert_eq!(opened.target, "cargo");
+        let err = open(dest.path(), "go", false).unwrap_err();
+        assert!(err.to_string().contains("`cargo`"));
     }
 
     #[test]

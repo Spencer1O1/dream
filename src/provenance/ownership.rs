@@ -28,7 +28,7 @@ pub fn authorize_write(
     }
     if spec.is_some_and(|spec| spec.is_wipe(rel)) {
         return Err(DreamError::composer(format!(
-            "cannot write `{rel}`; Dream owns that path"
+            "cannot write `{rel}`; wipe-only"
         )));
     }
     if spec.is_some_and(|spec| spec.is_setup(rel)) {
@@ -38,13 +38,13 @@ pub fn authorize_write(
     reject_if_locked(store, unit, &owner)?;
     match owner {
         Owner::Project => Err(DreamError::composer(format!(
-            "cannot write `{rel}`; Dream owns that path"
+            "cannot write `{rel}`; wipe-only"
         ))),
         Owner::Unit(owner) => match unit {
             Some(unit) if owner == unit => Ok(()),
             None => Ok(()),
             Some(_) => Err(DreamError::composer(format!(
-                "output `{rel}` is owned by `{owner}`"
+                "dest `{rel}` is owned by `{owner}`"
             ))),
         },
         Owner::Unmanaged => {
@@ -54,9 +54,7 @@ pub fn authorize_write(
                 )));
             }
             if dest.join(rel).exists() {
-                return Err(DreamError::composer(format!(
-                    "output `{rel}` is user-owned"
-                )));
+                return Err(DreamError::composer(format!("dest `{rel}` is user-owned")));
             }
             Ok(())
         }
@@ -66,11 +64,11 @@ pub fn authorize_write(
 fn authorize_setup(store: &Store, dest: &Path, rel: &str) -> Result<(), DreamError> {
     match store.owner(rel) {
         Owner::Unit(owner) => Err(DreamError::composer(format!(
-            "output `{rel}` is owned by `{owner}`"
+            "dest `{rel}` is owned by `{owner}`"
         ))),
-        Owner::Unmanaged if dest.join(rel).exists() => Err(DreamError::composer(format!(
-            "output `{rel}` is user-owned"
-        ))),
+        Owner::Unmanaged if dest.join(rel).exists() => {
+            Err(DreamError::composer(format!("dest `{rel}` is user-owned")))
+        }
         Owner::Project | Owner::Unmanaged => Ok(()),
     }
 }
@@ -92,7 +90,7 @@ pub fn authorize_read(
     if spec.is_some_and(|spec| spec.is_setup(rel)) {
         if !dest.join(rel).is_file() {
             return Err(DreamError::composer(format!(
-                "output file `{rel}` does not exist"
+                "dest file `{rel}` does not exist"
             )));
         }
         return Ok(());
@@ -101,15 +99,13 @@ pub fn authorize_read(
         Owner::Unit(_) => {
             if !dest.join(rel).is_file() {
                 return Err(DreamError::composer(format!(
-                    "output file `{rel}` does not exist"
+                    "dest file `{rel}` does not exist"
                 )));
             }
             Ok(())
         }
         Owner::Project => Err(DreamError::composer(format!("cannot read `{rel}`"))),
-        Owner::Unmanaged => Err(DreamError::composer(format!(
-            "output `{rel}` is user-owned"
-        ))),
+        Owner::Unmanaged => Err(DreamError::composer(format!("dest `{rel}` is user-owned"))),
     }
 }
 
@@ -127,13 +123,13 @@ pub fn authorize_remove(
     }
     if spec.is_some_and(|spec| spec.is_wipe(rel)) {
         return Err(DreamError::composer(format!(
-            "cannot remove `{rel}`; Dream owns that path"
+            "cannot remove `{rel}`; wipe-only"
         )));
     }
     if spec.is_some_and(|spec| spec.is_setup(rel)) {
         return match store.owner(rel) {
             Owner::Unit(owner) => Err(DreamError::composer(format!(
-                "output `{rel}` is owned by `{owner}`"
+                "dest `{rel}` is owned by `{owner}`"
             ))),
             Owner::Project | Owner::Unmanaged => Ok(()),
         };
@@ -143,14 +139,12 @@ pub fn authorize_remove(
     match owner {
         Owner::Unit(owner) if unit == Some(owner.as_str()) => Ok(()),
         Owner::Unit(owner) => Err(DreamError::composer(format!(
-            "output `{rel}` is owned by `{owner}`"
+            "dest `{rel}` is owned by `{owner}`"
         ))),
         Owner::Project => Err(DreamError::composer(format!(
-            "cannot remove `{rel}`; Dream owns that path"
+            "cannot remove `{rel}`; wipe-only"
         ))),
-        Owner::Unmanaged => Err(DreamError::composer(format!(
-            "output `{rel}` is user-owned"
-        ))),
+        Owner::Unmanaged => Err(DreamError::composer(format!("dest `{rel}` is user-owned"))),
     }
 }
 
@@ -240,7 +234,17 @@ mod tests {
         .unwrap();
         let wipe = authorize_write(&store, dest.path(), "target", Some("main.foo"), None, cargo)
             .unwrap_err();
-        assert!(wipe.to_string().contains("Dream owns that path"));
+        assert!(wipe.to_string().contains("wipe-only"));
+        let child = authorize_write(
+            &store,
+            dest.path(),
+            "target/foo.rs",
+            Some("main.foo"),
+            None,
+            cargo,
+        )
+        .unwrap_err();
+        assert!(child.to_string().contains("wipe-only"));
 
         let reserved_err = authorize_write(
             &store,

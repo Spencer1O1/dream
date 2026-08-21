@@ -19,29 +19,15 @@ pub struct Store {
     pub units: BTreeMap<String, UnitState>,
     #[serde(default)]
     pub project: Vec<String>,
-    #[serde(default)]
-    #[allow(dead_code)]
-    pub installed: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct UnitState {
     pub artifacts: Vec<String>,
-    #[serde(default)]
-    pub dependencies: Vec<Dependency>,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_hash: Option<String>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
-pub struct Dependency {
-    pub name: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub version: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub features: Vec<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -58,7 +44,6 @@ impl Store {
             source_root: None,
             units: BTreeMap::new(),
             project: Vec::new(),
-            installed: Vec::new(),
         }
     }
 
@@ -93,7 +78,12 @@ impl Store {
     }
 
     pub fn owner(&self, rel: &str) -> Owner {
-        if reserved(rel) || self.project.iter().any(|path| path == rel) {
+        if reserved(rel)
+            || self
+                .project
+                .iter()
+                .any(|path| crate::toolchain::path_covers(path, rel))
+        {
             return Owner::Project;
         }
         for (unit, state) in &self.units {
@@ -105,31 +95,15 @@ impl Store {
     }
 
     pub fn set_artifacts(&mut self, unit: &str, artifacts: HashSet<String>) {
-        let dependencies = self
-            .units
-            .get(unit)
-            .map(|state| state.dependencies.clone())
-            .unwrap_or_default();
-        write_unit(self, unit, sorted_paths(artifacts), dependencies);
-    }
-
-    #[allow(dead_code)]
-    pub fn set_dependencies(&mut self, unit: &str, dependencies: Vec<Dependency>) {
-        let artifacts = self
-            .units
-            .get(unit)
-            .map(|state| state.artifacts.clone())
-            .unwrap_or_default();
-        write_unit(self, unit, artifacts, dependencies);
+        write_unit(self, unit, sorted_paths(artifacts));
     }
 
     pub fn take_from_units(&mut self, rel: &str) {
         for state in self.units.values_mut() {
             state.artifacts.retain(|artifact| artifact != rel);
         }
-        self.units.retain(|_, state| {
-            !state.artifacts.is_empty() || !state.dependencies.is_empty() || state.locked
-        });
+        self.units
+            .retain(|_, state| !state.artifacts.is_empty() || state.locked);
     }
 
     pub fn mark_project(&mut self, rel: &str) {
@@ -160,11 +134,11 @@ impl Store {
 
     pub fn drop_owned(&self, dest: &Path) -> Result<(), DreamError> {
         for path in &self.project {
-            output::remove_file(dest, path)?;
+            output::remove_dest(dest, path)?;
         }
         for state in self.units.values() {
             for artifact in &state.artifacts {
-                output::remove_file(dest, artifact)?;
+                output::remove_dest(dest, artifact)?;
             }
         }
         let dream_dir = dest.join(".dream");
@@ -175,23 +149,17 @@ impl Store {
     }
 }
 
-fn write_unit(
-    store: &mut Store,
-    unit: &str,
-    artifacts: Vec<String>,
-    dependencies: Vec<Dependency>,
-) {
+fn write_unit(store: &mut Store, unit: &str, artifacts: Vec<String>) {
     let existing = store.units.get(unit);
     let locked = existing.is_some_and(|state| state.locked);
     let source_hash = existing.and_then(|state| state.source_hash.clone());
-    if artifacts.is_empty() && dependencies.is_empty() && !locked {
+    if artifacts.is_empty() && !locked {
         store.units.remove(unit);
     } else {
         store.units.insert(
             unit.to_string(),
             UnitState {
                 artifacts,
-                dependencies,
                 locked,
                 source_hash,
             },
@@ -234,6 +202,8 @@ mod tests {
             Owner::Unit("server.foo".into())
         );
         assert_eq!(store.owner("Cargo.toml"), Owner::Project);
+        store.mark_project("target");
+        assert_eq!(store.owner("target/foo.rs"), Owner::Project);
         assert_eq!(store.owner("README.md"), Owner::Unmanaged);
         assert_eq!(store.owner(".dream/provenance.json"), Owner::Project);
     }
@@ -249,21 +219,6 @@ mod tests {
         assert_eq!(store.units["main.foo"].artifacts, vec!["src/main.rs"]);
         assert_eq!(store.project, vec!["Cargo.toml"]);
         assert_eq!(store.owner("Cargo.toml"), Owner::Project);
-    }
-
-    #[test]
-    fn set_artifacts_keeps_dependencies() {
-        let mut store = Store::new("rust");
-        store.set_dependencies(
-            "main.foo",
-            vec![Dependency {
-                name: "serde".into(),
-                version: None,
-                features: vec!["derive".into()],
-            }],
-        );
-        store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
-        assert_eq!(store.units["main.foo"].dependencies[0].name, "serde");
     }
 
     #[test]

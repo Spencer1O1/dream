@@ -25,12 +25,12 @@ pub fn report(
 fn require_store(dest: &Path, target: &str) -> Result<Store, DreamError> {
     let Some(store) = Store::load(dest)? else {
         return Err(DreamError::usage(
-            "output has no provenance store; compose first",
+            "dest has no provenance store; compose first",
         ));
     };
-    if store.target != target {
+    if !super::accepts_target(&store.target, target) {
         return Err(DreamError::usage(format!(
-            "output is for target `{}`; pass `-t {}`",
+            "dest is for target `{}`; pass `-t {}`",
             store.target, store.target
         )));
     }
@@ -43,7 +43,7 @@ fn require_same_root(store: &Store, root: &Path) -> Result<(), DreamError> {
     };
     let root = root.canonicalize()?;
     if prev != root.to_string_lossy().as_ref() {
-        return Err(DreamError::usage("output is for another Dream project"));
+        return Err(DreamError::usage("dest is for another Dream project"));
     }
     Ok(())
 }
@@ -129,22 +129,8 @@ fn write_unit(
                 writeln!(out, "{inner}  {path}").expect("write");
             }
         }
-        if state.dependencies.is_empty() {
-            writeln!(out, "{inner}dependencies: none").expect("write");
-        } else {
-            writeln!(out, "{inner}dependencies:").expect("write");
-            for dep in &state.dependencies {
-                match &dep.version {
-                    Some(version) => {
-                        writeln!(out, "{inner}  {} {version}", dep.name).expect("write")
-                    }
-                    None => writeln!(out, "{inner}  {}", dep.name).expect("write"),
-                }
-            }
-        }
     } else {
         writeln!(out, "{inner}owned: none").expect("write");
-        writeln!(out, "{inner}dependencies: none").expect("write");
     }
     Ok(())
 }
@@ -196,7 +182,7 @@ mod tests {
         assert!(out.starts_with("main.foo\n"));
         assert!(out.contains("status: unlocked"));
         assert!(out.contains("owned:\n    src/main.rs"));
-        assert!(out.contains("dependencies: none"));
+        assert!(!out.contains("dependencies"));
         assert!(!out.contains("source:"));
     }
 

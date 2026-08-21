@@ -5,6 +5,7 @@ use crate::error::DreamError;
 use crate::provenance;
 use crate::tools::Mode;
 
+use super::reply;
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
 pub(super) struct ReadSourceFile {
@@ -42,7 +43,10 @@ impl Tool for ReadSourceFile {
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let unit = ctx.project.read_source_file(arg_str(args, "path"))?;
+        let unit = match ctx.project.read_source_file(arg_str(args, "path")) {
+            Ok(unit) => unit,
+            Err(err) => return Ok(reply::refused(err)),
+        };
         ctx.deps.record_read(&unit.rel);
         let dest_store = match &ctx.mode {
             Mode::Compose(compose) => Some((compose.dest, compose.store)),

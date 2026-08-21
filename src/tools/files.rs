@@ -4,6 +4,7 @@ use crate::error::DreamError;
 
 use crate::tools::Mode;
 
+use super::reply;
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
 pub fn tools() -> Vec<Box<dyn Tool>> {
@@ -48,7 +49,10 @@ impl Tool for ReadFile {
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
         require_lucid(&ctx.mode)?;
-        let (path, contents) = ctx.project.read_data_file(arg_str(args, "path"))?;
+        let (path, contents) = match ctx.project.read_data_file(arg_str(args, "path")) {
+            Ok(read) => read,
+            Err(err) => return Ok(reply::refused(err)),
+        };
         Ok(json!({ "path": path, "contents": contents }).to_string())
     }
 }
@@ -132,7 +136,9 @@ mod tests {
         );
         let foo = ReadFile
             .call(&mut ctx, &json!({"path": "main.foo"}))
-            .unwrap_err();
-        assert!(foo.to_string().contains("read_source_file"));
+            .unwrap();
+        assert!(crate::tools::reply::warning_of(&foo)
+            .unwrap()
+            .contains("read_source_file"));
     }
 }

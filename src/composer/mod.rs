@@ -64,19 +64,32 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         Ok(known) => {
             input.push(json!({
                 "role": "user",
-                "content": format!(
-                    "Toolchain {}:\n{}",
-                    known.as_str(),
-                    known.declared(&unit.rel)?
-                )
+                "content": known.declared_user_blob(&unit.rel)?
             }));
             Some(known)
         }
-        Err(_) => pick::ask_toolchain(&openai, &project, &mut deps, &mut input).await?,
+        Err(_) => {
+            if !state.fresh && Toolchain::parse(&state.store.target).is_ok() {
+                let known = Toolchain::parse(&state.store.target)?;
+                input.push(json!({
+                    "role": "user",
+                    "content": known.declared_user_blob(&unit.rel)?
+                }));
+                Some(known)
+            } else {
+                Some(
+                    pick::ask_toolchain(&openai, &project, &mut deps, &unit.rel, &mut input)
+                        .await?,
+                )
+            }
+        }
     };
+    if let Some(known) = toolchain {
+        state.store.target = known.as_str().to_string();
+    }
 
     let registry = Registry::composer_for(toolchain);
-    let instructions = prompt::compose(&registry, &flags);
+    let instructions = prompt::compose(&registry, &flags, toolchain);
     let schemas = registry.schemas();
     let session = Session {
         openai: &openai,
@@ -99,13 +112,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         .await?;
     if opts.build || opts.run_program {
         session
-            .build_and_repair(
-                toolchain,
-                &mut state,
-                &mut input,
-                &mut deps,
-                opts.run_program,
-            )
+            .build_and_repair(toolchain, &mut state, &mut deps, opts.run_program)
             .await?;
     }
     Ok(())

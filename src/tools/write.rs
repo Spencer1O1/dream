@@ -27,7 +27,7 @@ impl Tool for WriteFile {
             description: "Write one dest file. Overwrites if the file exists.",
             parameters: {
                 let fields = [
-                    ("path", string_arg("Where the file goes in the project")),
+                    ("path", string_arg("Dest-relative path")),
                     ("contents", string_arg("Exact file contents")),
                 ];
                 if self.repair {
@@ -143,10 +143,12 @@ mod tests {
                 toolchain: None,
             },
         );
-        let err = WriteFile::compose()
+        let out = WriteFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "../secret", "no"))
-            .unwrap_err();
-        assert!(err.to_string().contains("output write escapes -o"));
+            .unwrap();
+        assert!(reply::warning_of(&out)
+            .unwrap()
+            .contains("dest write escapes -o"));
     }
 
     #[test]
@@ -181,9 +183,7 @@ mod tests {
         let lock = WriteFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "go.sum", ""))
             .unwrap();
-        assert!(reply::warning_of(&lock)
-            .unwrap()
-            .contains("Dream owns that path"));
+        assert!(reply::warning_of(&lock).unwrap().contains("wipe-only"));
     }
 
     #[test]

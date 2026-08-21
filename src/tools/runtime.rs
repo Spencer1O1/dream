@@ -19,7 +19,7 @@ impl Tool for Stdout {
             family: Family::Runtime,
             description: "Write observable program output immediately. Multiple calls are the print stream, in order.",
             parameters: object_params(
-                &[("text", string_arg("Exact text (bytes) to write"))],
+                &[("text", string_arg("Exact text to write"))],
                 &["text"],
             ),
         }

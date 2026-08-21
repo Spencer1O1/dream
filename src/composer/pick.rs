@@ -13,31 +13,38 @@ pub(crate) async fn ask_toolchain(
     openai: &OpenAi,
     project: &Project,
     deps: &mut DepGraph,
+    entry_rel: &str,
     input: &mut Vec<serde_json::Value>,
-) -> Result<Option<Toolchain>, DreamError> {
+) -> Result<Toolchain, DreamError> {
     let registry = Registry::toolchain();
     let instructions = prompt::toolchain(&registry);
-    input.push(json!({
+    let mut pick_input = input.clone();
+    pick_input.push(json!({
         "role": "user",
         "content": "Declare the toolchain before writing files."
     }));
     let turn = openai
-        .respond(&instructions, input, &registry.schemas())
+        .respond(&instructions, &pick_input, &registry.schemas())
         .await?;
-    input.extend(turn.output);
     if turn.function_calls.is_empty() {
-        return Ok(None);
+        return Err(DreamError::composer(
+            "toolchain was not declared; call set_toolchain",
+        ));
     }
 
     let mut toolchain = None;
     for call in turn.function_calls {
         let mut ctx = ToolCtx::pick(project, deps, &mut toolchain);
-        let tool_output = dispatch(&registry, &mut ctx, &call)?;
-        input.push(json!({
-            "type": "function_call_output",
-            "call_id": call.call_id,
-            "output": tool_output,
-        }));
+        let _tool_output = dispatch(&registry, &mut ctx, &call)?;
     }
-    Ok(toolchain)
+    let Some(known) = toolchain else {
+        return Err(DreamError::composer(
+            "toolchain was not declared; call set_toolchain",
+        ));
+    };
+    input.push(json!({
+        "role": "user",
+        "content": known.declared_user_blob(entry_rel)?
+    }));
+    Ok(known)
 }

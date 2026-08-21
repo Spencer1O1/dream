@@ -38,6 +38,9 @@ impl Tool for SetToolchain {
                 "set_toolchain is only available when declaring a toolchain",
             ));
         };
+        if pick.toolchain.is_some() {
+            return Err(DreamError::composer("toolchain already declared"));
+        }
         let toolchain = Toolchain::parse(arg_str(args, "toolchain"))?;
         *pick.toolchain = Some(toolchain);
         Ok(toolchain.declared(ctx.deps.entry())?.to_string())
@@ -61,7 +64,7 @@ mod tests {
     }
 
     #[test]
-    fn last_call_wins() {
+    fn second_call_is_refused() {
         let project_dir = tempfile::tempdir().unwrap();
         std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
@@ -71,17 +74,11 @@ mod tests {
         SetToolchain
             .call(&mut ctx, &json!({ "toolchain": "python" }))
             .unwrap();
-        let cargo = SetToolchain
+        let err = SetToolchain
             .call(&mut ctx, &json!({ "toolchain": "cargo" }))
-            .unwrap();
-        assert_eq!(toolchain.unwrap().as_str(), "cargo");
-        let cargo: Value = serde_json::from_str(&cargo).unwrap();
-        assert_eq!(cargo["run"], json!(["cargo", "run"]));
-        assert_eq!(cargo["build"], json!(["cargo", "build"]));
-        assert_eq!(cargo["setup"], json!(["Cargo.toml"]));
-        assert_eq!(cargo["project"], json!(["Cargo.lock", "target"]));
-        assert_eq!(cargo["entrypoint"], json!({ "path": "src/main.rs" }));
-        assert_eq!(cargo["docs"], "https://doc.rust-lang.org/cargo/");
+            .unwrap_err();
+        assert!(err.to_string().contains("already declared"));
+        assert_eq!(toolchain.unwrap().as_str(), "python");
     }
 
     #[test]

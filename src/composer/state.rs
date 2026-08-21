@@ -48,7 +48,7 @@ impl ComposeState {
                 },
             )
             .await?;
-        provenance::require_composed(&artifacts)?;
+        provenance::require_composed(&artifacts, &self.store)?;
         self.settle(artifacts, toolchain)
     }
 

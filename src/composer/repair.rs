@@ -15,11 +15,11 @@ impl Session<'_> {
         &self,
         toolchain: Option<Toolchain>,
         state: &mut ComposeState,
-        input: &mut Vec<serde_json::Value>,
         deps: &mut DepGraph,
         run_program: bool,
     ) -> Result<(), DreamError> {
-        for attempt in 0..=self.repair_cap {
+        let mut attempt = 0;
+        loop {
             match crate::toolchain::after_compose(
                 toolchain,
                 &state.dest,
@@ -32,18 +32,25 @@ impl Session<'_> {
                     if should_repair(attempt, step, self.repair_cap) =>
                 {
                     progress::repair();
-                    input.push(json!({
+                    let mut repair_input = Vec::new();
+                    if let Some(known) = toolchain {
+                        repair_input.push(json!({
+                            "role": "user",
+                            "content": known.declared_user_blob(self.entry_rel)?,
+                        }));
+                    }
+                    repair_input.push(json!({
                         "role": "user",
                         "content": repair_message(&diagnostics),
                     }));
                     let mut artifacts = std::collections::HashMap::new();
                     let registry = Registry::repair();
-                    let instructions = prompt::repair(&registry, self.flags);
+                    let instructions = prompt::repair(&registry, self.flags, toolchain);
                     let schemas = registry.schemas();
                     self.write_until_settled(
                         state,
                         deps,
-                        input,
+                        &mut repair_input,
                         super::session::WriteLoop {
                             artifacts: &mut artifacts,
                             repair: true,
@@ -54,11 +61,11 @@ impl Session<'_> {
                         },
                     )
                     .await?;
+                    attempt += 1;
                 }
                 outcome => return outcome.into_error(),
             }
         }
-        Err(DreamError::composer("build failed"))
     }
 }
 
@@ -69,9 +76,11 @@ fn should_repair(attempt: usize, step: &str, cap: usize) -> bool {
 fn repair_message(diagnostics: &str) -> String {
     let diagnostics = diagnostics.trim();
     if diagnostics.is_empty() {
-        "Build failed. Repair the project.".to_string()
+        "Build failed. Repair dest files. Write this toolchain's setup files if that is what the diagnostics need.".to_string()
     } else {
-        format!("Build failed. Repair the project.\n\n{diagnostics}")
+        format!(
+            "Build failed. Repair dest files. Write this toolchain's setup files if that is what the diagnostics need.\n\n{diagnostics}"
+        )
     }
 }
 
@@ -91,7 +100,7 @@ mod tests {
 
     #[test]
     fn repair_message_includes_diagnostics() {
-        assert_eq!(repair_message("   "), "Build failed. Repair the project.");
+        assert!(repair_message("   ").contains("Repair dest files"));
         assert!(repair_message("error: nope").contains("error: nope"));
     }
 }
