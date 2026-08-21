@@ -12,7 +12,9 @@ pub const STORE_REL: &str = ".dream/provenance.json";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Store {
-    pub target: String,
+    /// Catalog row Dream execs. Not the `-t` target.
+    #[serde(alias = "target")]
+    pub toolchain: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source_root: Option<String>,
     #[serde(default)]
@@ -40,9 +42,9 @@ pub enum Owner {
 }
 
 impl Store {
-    pub fn new(target: impl Into<String>) -> Self {
+    pub fn new(toolchain: impl Into<String>) -> Self {
         Self {
-            target: target.into(),
+            toolchain: toolchain.into(),
             source_root: None,
             units: BTreeMap::new(),
             project: Vec::new(),
@@ -204,7 +206,7 @@ mod tests {
 
     #[test]
     fn owner_prefers_project_then_unit_then_unmanaged() {
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_artifacts(
             "server.foo",
             HashSet::from(["src/server.rs".into(), "src/routes.rs".into()]),
@@ -223,7 +225,7 @@ mod tests {
 
     #[test]
     fn mark_project_steals_from_units() {
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_artifacts(
             "main.foo",
             HashSet::from(["Cargo.toml".into(), "src/main.rs".into()]),
@@ -236,7 +238,7 @@ mod tests {
 
     #[test]
     fn set_artifacts_keeps_a_lock() {
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
         store.set_lock("main.foo", "abc".into());
         store.set_artifacts("main.foo", HashSet::from(["src/lib.rs".into()]));
@@ -255,7 +257,7 @@ mod tests {
         std::fs::create_dir_all(dest.path().join("src")).unwrap();
         std::fs::write(dest.path().join("src/main.rs"), "fn main() {}").unwrap();
         std::fs::write(dest.path().join("README.md"), "keep").unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.mark_project("Cargo.toml");
         store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
         store.save(dest.path()).unwrap();
@@ -264,5 +266,19 @@ mod tests {
         assert!(!dest.path().join("src/main.rs").exists());
         assert!(dest.path().join("README.md").exists());
         assert!(!Store::path(dest.path()).exists());
+    }
+
+    #[test]
+    fn load_accepts_legacy_target_key() {
+        let dest = tempfile::tempdir().unwrap();
+        let path = Store::path(dest.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, r#"{"target":"cargo","units":{},"project":[]}"#).unwrap();
+        let store = Store::load(dest.path()).unwrap().unwrap();
+        assert_eq!(store.toolchain, "cargo");
+        store.save(dest.path()).unwrap();
+        let text = std::fs::read_to_string(Store::path(dest.path())).unwrap();
+        assert!(text.contains("\"toolchain\""));
+        assert!(!text.contains("\"target\""));
     }
 }

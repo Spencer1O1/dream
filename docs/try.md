@@ -23,7 +23,7 @@ cargo run -- examples/multifile/multifile.foo -t rust -o ./try
 | `fun/fun.foo` | informal mutation / odd control flow |
 | `funky/funky.foo` | nonsense the interpreter must refuse |
 
-There is no golden target tree. Look at stderr tool lines, `-o/.dream/provenance.json`, and whether the program runs.
+There is no golden output tree. Look at stderr tool lines, `-o/.dream/provenance.json`, and whether the program runs.
 
 ## Lucid
 

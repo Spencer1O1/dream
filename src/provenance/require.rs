@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn missing_source_root_is_ok() {
-        let store = Store::new("rust");
+        let store = Store::new("cargo");
         let dir = tempfile::tempdir().unwrap();
         require_source_root(&store, dir.path()).unwrap();
     }
@@ -70,7 +70,7 @@ mod tests {
     #[test]
     fn same_root_is_ok() {
         let dir = tempfile::tempdir().unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_source_root(dir.path()).unwrap();
         require_source_root(&store, dir.path()).unwrap();
     }
@@ -79,7 +79,7 @@ mod tests {
     fn other_root_is_a_usage_error() {
         let dest_project = tempfile::tempdir().unwrap();
         let other = tempfile::tempdir().unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_source_root(dest_project.path()).unwrap();
         let err = require_source_root(&store, other.path()).unwrap_err();
         assert!(err.to_string().starts_with("UsageError:"));

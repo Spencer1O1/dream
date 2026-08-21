@@ -33,14 +33,16 @@ DREAM_REPAIR_CAP=3
 
 ```bash
 dream [--lucid] [--strict] <file.foo|.>
-dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <hint> -o <dir>
-dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <hint> -o <dir> --build
-dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <hint> -o <dir> --run
-dream lock <file.foo|.> -t <hint> -o <dir>
-dream unlock <file.foo|.> -t <hint> -o <dir>
-dream inspect <file.foo|.> -t <hint> -o <dir>
+dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <target> -o <dir>
+dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <target> -o <dir> --build
+dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <target> -o <dir> --run
+dream lock <file.foo|.> -t <target> -o <dir>
+dream unlock <file.foo|.> -t <target> -o <dir>
+dream inspect <file.foo|.> -t <target> -o <dir>
 ```
 
-A directory needs `dream.toml` with `[project] entry` (`name` is optional). `dream inspect .` summarizes every unit for that dest. `--lucid` can read and write sandboxed data files and make HTTP requests; it cannot write `.foo` files.
+`-t` is the target: a language, a catalog name, or any string. Dream execs a catalog toolchain (`cargo`, `go`, …). The store and `dream inspect` record that toolchain, not the hint.
+
+A directory needs `dream.toml` with `[project] entry` (`name` is optional). `dream inspect .` summarizes every unit. `--lucid` can read and write sandboxed data files and make HTTP requests; it cannot write `.foo` files.
 
 Live checks (corpus + lock walkthrough): [docs/try.md](docs/try.md).

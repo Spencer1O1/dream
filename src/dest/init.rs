@@ -36,7 +36,7 @@ mod tests {
     fn marks_setup_and_wipe_without_writing_the_manifest() {
         let dest = tempfile::tempdir().unwrap();
         let spec = Toolchain::parse("cargo").unwrap().spec().unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         init(dest.path(), spec, &mut store).unwrap();
         assert!(!dest.path().join("Cargo.toml").exists());
         assert!(!dest.path().join("target").exists());

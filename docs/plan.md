@@ -107,7 +107,7 @@ Normal `dream` must not clear `-o`. Persist a minimal target-specific map in a D
 
 Reject overwrite of another unit, project-owned, or unmanaged path. After the session settles, delete only each writing unit’s previous paths that are gone from its new set.
 
-`-o` has files but no store → error (use `--fresh` or an empty dir). Any file outside `.dream/` counts, including leftover `target/`. Do not skip toolchain dirs by name. Store target ≠ `-t` → error unless `--fresh`.
+`-o` has files but no store → error (use `--fresh` or an empty dir). Any file outside `.dream/` counts, including leftover `target/`. Do not skip toolchain dirs by name. Store toolchain ≠ `-t` → error unless `--fresh` (fuzzy `-t rust` may reuse a `cargo` store).
 
 Repair after Phase 8: stack is empty; only overwrite existing unlocked unit-owned paths; no new files, no `set_dependencies`.
 
@@ -123,7 +123,7 @@ Do not invent lock CLI, project tools, or a formal IR in this phase. Do not requ
 - [x] One composition session; no nested job
 - [x] Enforce write / delete against provenance
 - [x] Preserve unmanaged paths
-- [x] No-store-with-files and target-mismatch errors
+- [x] No-store-with-files and toolchain-mismatch errors
 - [x] `--fresh` drops Dream-owned only
 
 ## Phase 9 — Project layer
@@ -148,7 +148,7 @@ dream unlock <file.foo> -t <target> -o <dir>
 
 Freezes that unit’s current artifact **set** and the `.foo` source hash for that dest. Contents stay on disk; Dream does not snapshot file bodies. Writes, removes, and `set_dependencies` for a locked unit are rejected. Unreached locked units stay. No `redream` command. Unlock, then `dream`, to recompose. `--fresh` ignores locks.
 
-- [x] Lock / unlock a unit for a target (store source hash)
+- [x] Lock / unlock a unit for a dest + toolchain (store source hash)
 - [x] Normal reconcile skips locked units
 - [x] Compose `read_source_file` of a locked unit returns foocode plus frozen artifacts
 - [x] `--lucid` reads stay `{ path, source }` only

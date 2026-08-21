@@ -175,7 +175,7 @@ mod tests {
     #[test]
     fn write_policy() {
         let dest = tempfile::tempdir().unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_artifacts(
             "main.foo",
             HashSet::from(["src/main.rs".into(), "src/old.rs".into()]),

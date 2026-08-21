@@ -17,7 +17,7 @@ pub(super) struct Raw {
     #[arg(long)]
     pub lucid: bool,
 
-    /// Toolchain hint. A catalog name, or any string.
+    /// Target. Language, catalog name, or any string.
     #[arg(short = 't', long = "target")]
     pub target: Option<String>,
 

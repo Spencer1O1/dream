@@ -71,13 +71,13 @@ mod tests {
     fn render_is_instructions_then_user_cards() {
         let input = vec![
             json!({"role": "user", "content": "Entry `.foo` file: limits.foo\n\nprint"}),
-            json!({"role": "user", "content": "Target toolchain: cargo\n\n{}"}),
+            json!({"role": "user", "content": "Toolchain cargo\n\n{}"}),
             json!({"type": "function_call_output", "output": "secret"}),
         ];
         let dump = render("compose", "Write source files.", &input);
         assert!(dump.starts_with("=== instructions (compose) ===\nWrite source files.\n\n"));
         assert!(dump.contains("=== user ===\nEntry `.foo` file: limits.foo\n\nprint\n\n"));
-        assert!(dump.contains("=== user ===\nTarget toolchain: cargo\n\n{}\n\n"));
+        assert!(dump.contains("=== user ===\nToolchain cargo\n\n{}\n\n"));
         assert!(!dump.contains("secret"));
         assert!(!dump.contains("function_call_output"));
     }

@@ -106,7 +106,7 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         fs::create_dir_all(dest.path().join("src")).unwrap();
         fs::write(dest.path().join("src/main.rs"), "fn main() {}").unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
         store.set_lock("main.foo", "abc".into());
         let mut artifacts = std::collections::HashMap::new();

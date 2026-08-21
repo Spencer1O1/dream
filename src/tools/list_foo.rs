@@ -88,7 +88,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
         let dest = tempfile::tempdir().unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_artifacts("utils.foo", HashSet::from(["src/utils.rs".into()]));
         store.set_lock("utils.foo", "abc".into());
         let mut artifacts = std::collections::HashMap::new();

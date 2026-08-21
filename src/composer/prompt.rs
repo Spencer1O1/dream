@@ -14,10 +14,10 @@ use crate::toolchain::Toolchain;
 use crate::tools::Registry;
 
 const COMPOSE: &str = "\
-Your goal is to compose this Dream program, implementing it for the target toolchain.";
+Your goal is to compose this Dream program, implementing it for the requested target.";
 
 const REPAIR: &str = "\
-Your goal is to repair this Dream program, implementing it for the target toolchain.";
+Your goal is to repair this Dream program, implementing it for the requested target.";
 
 const WRITE: &str = "\
 Write the source files of each `.foo` file you read.";
@@ -28,7 +28,7 @@ Do not mix source from different `.foo` files in the same source file.";
 const READ_FIRST: &str = "\
 Always read a non-entry `.foo` file before writing the source files it produces.";
 
-const TARGET: &str = "\
+const LIBRARIES: &str = "\
 Use ordinary libraries when that is how the program would be written.";
 
 const SETUP: &str = "\
@@ -56,7 +56,7 @@ fn preamble(goal: &str, toolchain: Option<Toolchain>) -> String {
         WRITE,
         NO_MIX,
         READ_FIRST,
-        TARGET,
+        LIBRARIES,
         setup_rule(toolchain),
         LOCKED,
         NO_CHAT,
@@ -108,7 +108,7 @@ pub fn push_toolchain(
 pub fn push_requested(input: &mut Vec<Value>, hint: &str) {
     input.push(json!({
         "role": "user",
-        "content": crate::prompt::requested_toolchain(hint),
+        "content": crate::prompt::requested_target(hint),
     }));
 }
 
@@ -158,7 +158,7 @@ mod tests {
         assert!(stack[1]["content"]
             .as_str()
             .unwrap()
-            .starts_with("Target toolchain: cargo"));
+            .starts_with("Toolchain cargo"));
         assert_eq!(this_run("limits.foo", "print far", None).unwrap().len(), 1);
     }
 
@@ -168,7 +168,7 @@ mod tests {
         push_requested(&mut input, "whatever runs on arduino nano");
         assert_eq!(
             input[1]["content"].as_str().unwrap(),
-            "Requested toolchain: whatever runs on arduino nano"
+            "Requested target: whatever runs on arduino nano"
         );
     }
 

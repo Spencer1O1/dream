@@ -52,7 +52,7 @@ near
 - COMPOSE_FAIL: 0
 - TIMEOUT: 0
 
-Every row composed. Store `target` is the catalog name on all of them.
+Every row composed. Store `toolchain` is the catalog name on all of them.
 
 ## Fix cluster
 

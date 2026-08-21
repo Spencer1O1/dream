@@ -59,8 +59,8 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
             Some(known)
         }
         Err(_) => {
-            if !state.fresh && Toolchain::parse(&state.store.target).is_ok() {
-                let known = Toolchain::parse(&state.store.target)?;
+            if !state.fresh && Toolchain::parse(&state.store.toolchain).is_ok() {
+                let known = Toolchain::parse(&state.store.toolchain)?;
                 prompt::push_toolchain(&mut input, known, &unit.rel)?;
                 Some(known)
             } else {
@@ -73,7 +73,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         }
     };
     if let Some(known) = toolchain {
-        state.store.target = known.as_str().to_string();
+        state.store.toolchain = known.as_str().to_string();
     }
 
     let registry = Registry::composer_for(toolchain);
@@ -167,7 +167,7 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         fs::create_dir_all(dest.path().join("src")).unwrap();
         fs::write(dest.path().join("src/active.rs"), "fn active() {}").unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_source_root(src.path()).unwrap();
         store.set_artifacts("users/active.foo", HashSet::from(["src/active.rs".into()]));
         store.save(dest.path()).unwrap();

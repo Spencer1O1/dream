@@ -11,15 +11,16 @@ use super::store::Store;
 pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), DreamError> {
     fs::create_dir_all(dest)?;
     match Store::load(dest)? {
-        Some(store) if !fresh && !accepts_target(&store.target, target) => {
+        Some(store) if !fresh && !accepts_target(&store.toolchain, target) => {
             Err(DreamError::usage(format!(
                 "output is for toolchain `{}`; pass --fresh to overwrite `-t {target}`",
-                store.target
+                store.toolchain
             )))
         }
         Some(store) if fresh => {
             store.drop_owned(dest)?;
             drop_catalog_project(dest)?;
+            // Seed. Compose overwrites with the catalog row after bind/pick.
             Ok((Store::new(target), true))
         }
         Some(store) => Ok((store, false)),
@@ -41,19 +42,19 @@ pub fn require_store(dest: &Path, target: &str) -> Result<Store, DreamError> {
             "output has no provenance store; compose first",
         ));
     };
-    if !accepts_target(&store.target, target) {
+    if !accepts_target(&store.toolchain, target) {
         return Err(DreamError::usage(format!(
             "output is for toolchain `{}`; pass `-t {}`",
-            store.target, store.target
+            store.toolchain, store.toolchain
         )));
     }
     Ok(store)
 }
 
 /// Exact catalog name must match. A fuzzy `-t` may reuse a catalog store.
-pub fn accepts_target(store_target: &str, requested: &str) -> bool {
-    store_target == requested
-        || (Toolchain::parse(requested).is_err() && Toolchain::parse(store_target).is_ok())
+pub fn accepts_target(store_toolchain: &str, requested: &str) -> bool {
+    store_toolchain == requested
+        || (Toolchain::parse(requested).is_err() && Toolchain::parse(store_toolchain).is_ok())
 }
 
 fn drop_catalog_project(dest: &Path) -> Result<(), DreamError> {
@@ -94,7 +95,7 @@ mod tests {
     #[test]
     fn open_rejects_target_mismatch_unless_fresh() {
         let dest = tempfile::tempdir().unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
         store.mark_project("Cargo.toml");
         fs::create_dir_all(dest.path().join("src")).unwrap();
@@ -109,7 +110,7 @@ mod tests {
 
         let (fresh_store, is_fresh) = open(dest.path(), "go", true).unwrap();
         assert!(is_fresh);
-        assert_eq!(fresh_store.target, "go");
+        assert_eq!(fresh_store.toolchain, "go");
         assert!(!dest.path().join("src/main.rs").exists());
         assert!(!dest.path().join("Cargo.toml").exists());
         assert!(!dest.path().join("Cargo.lock").exists());
@@ -128,7 +129,7 @@ mod tests {
         store.save(dest.path()).unwrap();
         let (opened, fresh) = open(dest.path(), "rust", false).unwrap();
         assert!(!fresh);
-        assert_eq!(opened.target, "cargo");
+        assert_eq!(opened.toolchain, "cargo");
         let err = open(dest.path(), "go", false).unwrap_err();
         assert!(err.to_string().contains("`cargo`"));
     }

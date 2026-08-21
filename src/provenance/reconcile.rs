@@ -35,7 +35,7 @@ mod tests {
     #[test]
     fn reconcile_deletes_only_stale_owned_files() {
         let dest = tempfile::tempdir().unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_artifacts(
             "main.foo",
             HashSet::from(["src/main.rs".into(), "src/old.rs".into()]),

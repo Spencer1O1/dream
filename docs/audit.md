@@ -10,9 +10,9 @@ Scratch. From the three auditors after composer-owned setup.
 - [x] `perl` configure fetches from `cpanfile`
 - [x] No `installed` / `Dependency` / `set_dependencies` leftovers
 
-## Store target and pick
+## Store toolchain and pick
 
-- [x] Store target is the catalog name (`cargo`), not the `-t` hint (`rust`)
+- [x] Store toolchain is the catalog name (`cargo`), not the `-t` target (`rust`)
 - [x] Exact `-t` must match the store row (`-t go` vs store `cargo` fails)
 - [x] Fuzzy `-t` on an existing catalog store reuses that row (no pick)
 - [x] Silent pick (no `set_toolchain`) is an error, not compose with no toolchain

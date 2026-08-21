@@ -20,7 +20,7 @@ pub fn lock(dest: &Path, target: &str, named: &Path) -> Result<(), DreamError> {
             }
             store.lock_file(&rel);
         }
-        Name::Unit(unit) => lock_unit(&mut store, dest, target, &unit, named)?,
+        Name::Unit(unit) => lock_unit(&mut store, dest, &unit, named)?,
     }
     store.save(dest)
 }
@@ -72,20 +72,15 @@ fn resolve(store: &Store, dest: &Path, named: &Path) -> Result<Name, DreamError>
     Ok(Name::Setup(rel))
 }
 
-fn lock_unit(
-    store: &mut Store,
-    dest: &Path,
-    target: &str,
-    unit: &str,
-    named: &Path,
-) -> Result<(), DreamError> {
+fn lock_unit(store: &mut Store, dest: &Path, unit: &str, named: &Path) -> Result<(), DreamError> {
     let Some(state) = store
         .units
         .get(unit)
         .filter(|state| !state.artifacts.is_empty())
     else {
         return Err(DreamError::usage(format!(
-            "`{unit}` has no output files for toolchain `{target}`"
+            "`{unit}` has no output files for toolchain `{}`",
+            store.toolchain
         )));
     };
     let artifacts = state.artifacts.clone();
@@ -136,7 +131,7 @@ fn dest_name(dest: &Path, named: &Path) -> String {
 }
 
 fn is_setup(store: &Store, rel: &str) -> bool {
-    Toolchain::parse(&store.target)
+    Toolchain::parse(&store.toolchain)
         .ok()
         .and_then(Toolchain::spec)
         .is_some_and(|spec| spec.is_setup(rel))
@@ -202,7 +197,7 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         fs::create_dir_all(dest.path().join("src")).unwrap();
         fs::write(dest.path().join("src/main.rs"), "fn main() {}").unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_source_root(src.path()).unwrap();
         store.set_artifacts(&unit.rel, HashSet::from(["src/main.rs".into()]));
         store.save(dest.path()).unwrap();
@@ -236,7 +231,7 @@ mod tests {
         let (src, dest, _, unit) = composed("main.foo", "print hi");
         fs::write(dest.path().join("go.mod"), "module x\n").unwrap();
         let mut store = Store::load(dest.path()).unwrap().unwrap();
-        store.target = "go".into();
+        store.toolchain = "go".into();
         store.mark_project("go.mod");
         store.save(dest.path()).unwrap();
 

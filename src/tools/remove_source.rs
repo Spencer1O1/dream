@@ -63,7 +63,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
         let dest = tempfile::tempdir().unwrap();
-        let store = Store::new("rust");
+        let store = Store::new("cargo");
         let mut artifacts = HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,

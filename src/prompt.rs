@@ -30,14 +30,14 @@ pub fn entry(entry_rel: &str, source: &str) -> String {
     format!("Entry `.foo` file: {entry_rel}\n\n{source}")
 }
 
-/// Chosen catalog row. Compose and repair. Not the `-t` hint.
+/// Chosen catalog row. Compose and repair. Not the `-t` target.
 pub fn toolchain_card(name: &str, declared: impl std::fmt::Display) -> String {
-    format!("Target toolchain: {name}\n\n{declared}")
+    format!("Toolchain {name}\n\n{declared}")
 }
 
-/// User's `-t` hint. Pick only. Not the chosen row.
-pub fn requested_toolchain(hint: &str) -> String {
-    format!("Requested toolchain: {hint}")
+/// User's `-t` target. Pick only. Not the chosen row.
+pub fn requested_target(target: &str) -> String {
+    format!("Requested target: {target}")
 }
 
 #[cfg(test)]
@@ -64,15 +64,15 @@ mod tests {
     fn toolchain_card_is_name_then_json() {
         assert_eq!(
             toolchain_card("go", r#"{"ok":true}"#),
-            "Target toolchain: go\n\n{\"ok\":true}"
+            "Toolchain go\n\n{\"ok\":true}"
         );
     }
 
     #[test]
-    fn requested_toolchain_is_the_hint() {
+    fn requested_target_is_the_minus_t() {
         assert_eq!(
-            requested_toolchain("whatever runs on arduino nano"),
-            "Requested toolchain: whatever runs on arduino nano"
+            requested_target("whatever runs on arduino nano"),
+            "Requested target: whatever runs on arduino nano"
         );
     }
 }

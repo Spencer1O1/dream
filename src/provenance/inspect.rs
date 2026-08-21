@@ -35,7 +35,7 @@ fn require_same_root(store: &Store, root: &Path) -> Result<(), DreamError> {
 
 fn project_report(store: &Store, dest: &Path, project: &Project) -> Result<String, DreamError> {
     let mut out = String::new();
-    writeln!(out, "toolchain: {}", store.target).expect("write");
+    writeln!(out, "toolchain: {}", store.toolchain).expect("write");
     if let Some(name) = project.name() {
         writeln!(out, "name: {name}").expect("write");
     }
@@ -153,7 +153,7 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         fs::create_dir_all(dest.path().join("src")).unwrap();
         fs::write(dest.path().join(rel), "fn main() {}").unwrap();
-        let mut store = Store::new("rust");
+        let mut store = Store::new("cargo");
         store.set_source_root(root).unwrap();
         store.set_artifacts(unit, HashSet::from([rel.to_string()]));
         store.mark_project("Cargo.toml");
@@ -206,7 +206,7 @@ mod tests {
         let dest = composed(src.path(), "main.foo", "src/main.rs");
         let project = Project::from_root(src.path()).unwrap();
         let out = report(dest.path(), "rust", &project, None).unwrap();
-        assert!(out.contains("toolchain: rust"));
+        assert!(out.contains("toolchain: cargo"));
         assert!(out.contains("name: demo"));
         assert!(out.contains("entry: main.foo"));
         assert!(out.contains("project:\n  Cargo.toml"));
