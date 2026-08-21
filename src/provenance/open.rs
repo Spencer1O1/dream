@@ -20,7 +20,7 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
         Some(store) if fresh => {
             store.drop_owned(dest)?;
             drop_catalog_project(dest)?;
-            // Seed. Compose overwrites with the catalog row after bind/pick.
+            // Seed. Compose overwrites with the catalog row after resolve.
             Ok((Store::new(target), true))
         }
         Some(store) => Ok((store, false)),
@@ -59,7 +59,7 @@ pub fn accepts_target(store_toolchain: &str, requested: &str) -> bool {
             && Toolchain::parse(requested).is_err())
 }
 
-/// Already-bound exec for this dest. `None` means pick (or a first catalog bind).
+/// Already-bound exec for this dest. `None` means resolve (or a first catalog bind).
 pub fn existing_bind(store_toolchain: &str, requested: &str, fresh: bool) -> Option<Toolchain> {
     if fresh || !accepts_target(store_toolchain, requested) {
         return None;

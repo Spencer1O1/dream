@@ -52,7 +52,7 @@ pub(super) fn authorize(ctx: &ToolCtx<'_>, requested: &str) -> Result<String, Dr
 fn store_of<'a>(ctx: &'a ToolCtx<'a>) -> Option<&'a Store> {
     match &ctx.mode {
         Mode::Compose(compose) => Some(compose.store),
-        Mode::Lucid | Mode::Pick(_) => None,
+        Mode::Lucid | Mode::Resolve(_) => None,
     }
 }
 
@@ -82,14 +82,14 @@ pub(super) fn mutate_output(
     op: OutputOp<'_>,
     slot: Slot,
 ) -> Result<String, DreamError> {
-    if matches!(ctx.mode, Mode::Lucid | Mode::Pick(_)) {
+    if matches!(ctx.mode, Mode::Lucid | Mode::Resolve(_)) {
         return Err(DreamError::composer(format!(
             "{name} is only available while composing"
         )));
     }
     let dest = match &ctx.mode {
         Mode::Compose(compose) => compose.dest,
-        Mode::Lucid | Mode::Pick(_) => unreachable!("mode checked above"),
+        Mode::Lucid | Mode::Resolve(_) => unreachable!("mode checked above"),
     };
     let rel = match dest_rel(dest, arg_str(args, "path")) {
         Ok(rel) => rel,
@@ -97,7 +97,7 @@ pub(super) fn mutate_output(
     };
     let spec = match &ctx.mode {
         Mode::Compose(compose) => spec_of(compose.toolchain),
-        Mode::Lucid | Mode::Pick(_) => None,
+        Mode::Lucid | Mode::Resolve(_) => None,
     };
     let setup = spec.is_some_and(|spec| spec.is_setup(&rel));
     let claimed = match slot {
@@ -146,7 +146,7 @@ pub(super) fn mutate_output(
             spec,
             op,
         ),
-        Mode::Lucid | Mode::Pick(_) => unreachable!("mode checked above"),
+        Mode::Lucid | Mode::Resolve(_) => unreachable!("mode checked above"),
     }
 }
 
@@ -158,7 +158,7 @@ pub(super) fn read_dest(
 ) -> Result<String, DreamError> {
     let (dest, store, spec) = match &ctx.mode {
         Mode::Compose(compose) => (compose.dest, compose.store, spec_of(compose.toolchain)),
-        Mode::Lucid | Mode::Pick(_) => {
+        Mode::Lucid | Mode::Resolve(_) => {
             return Err(DreamError::composer(format!(
                 "{name} is only available while composing"
             )));

@@ -1,4 +1,4 @@
-//! Compose, repair, and pick instructions.
+//! Compose and repair instructions.
 //!
 //! Standing law for those modes, plus the this-run user stack
 //! (entry card, optional toolchain card).
@@ -69,13 +69,6 @@ pub fn compose(registry: &Registry, flags: &ActiveFlags, toolchain: Option<Toolc
 
 pub fn repair(registry: &Registry, flags: &ActiveFlags, toolchain: Option<Toolchain>) -> String {
     registry.instructions(&preamble(REPAIR, toolchain), flags)
-}
-
-pub fn toolchain(registry: &Registry) -> String {
-    paragraphs(&[
-        "Choose the toolchain for the project",
-        &registry.tool_list(),
-    ])
 }
 
 pub fn this_run(
@@ -149,14 +142,6 @@ pub fn push_requested(input: &mut Vec<Value>, hint: &str) {
     }));
 }
 
-/// Pick sees only the `-t` target. Not the entry `.foo` file.
-pub fn pick_stack(target: &str) -> Vec<Value> {
-    vec![json!({
-        "role": "user",
-        "content": crate::prompt::requested_target(target),
-    })]
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -218,16 +203,6 @@ mod tests {
     }
 
     #[test]
-    fn pick_stack_is_only_the_target() {
-        let stack = pick_stack("cobol");
-        assert_eq!(stack.len(), 1);
-        assert_eq!(
-            stack[0]["content"].as_str().unwrap(),
-            "Requested target: cobol"
-        );
-    }
-
-    #[test]
     fn no_row_bind_is_the_requested_target() {
         let mut input = this_run("limits.foo", "print far", None).unwrap();
         push_bind(&mut input, Toolchain::Unsupported, "monkey_c", "limits.foo").unwrap();
@@ -244,14 +219,6 @@ mod tests {
             store_name(Toolchain::parse("cargo").unwrap(), "rust"),
             "cargo"
         );
-    }
-
-    #[test]
-    fn toolchain_prompt_is_the_pick_turn() {
-        let registry = Registry::toolchain();
-        let instructions = toolchain(&registry);
-        assert!(instructions.contains(&registry.tool_list()));
-        assert!(!instructions.contains("write_source_file"));
     }
 
     #[test]

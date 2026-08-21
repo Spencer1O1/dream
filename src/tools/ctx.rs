@@ -5,7 +5,7 @@ use crate::provenance::Store;
 use crate::source::{DepGraph, Project};
 use crate::toolchain::Toolchain;
 
-pub struct Pick<'a> {
+pub struct Resolve<'a> {
     pub toolchain: &'a mut Option<Toolchain>,
 }
 
@@ -18,7 +18,7 @@ pub struct Compose<'a> {
 
 pub enum Mode<'a> {
     Lucid,
-    Pick(Pick<'a>),
+    Resolve(Resolve<'a>),
     Compose(Compose<'a>),
 }
 
@@ -37,7 +37,7 @@ impl<'a> ToolCtx<'a> {
         }
     }
 
-    pub fn pick(
+    pub fn resolve(
         project: &'a Project,
         deps: &'a mut DepGraph,
         toolchain: &'a mut Option<Toolchain>,
@@ -45,7 +45,7 @@ impl<'a> ToolCtx<'a> {
         Self {
             project,
             deps,
-            mode: Mode::Pick(Pick { toolchain }),
+            mode: Mode::Resolve(Resolve { toolchain }),
         }
     }
 

@@ -31,7 +31,7 @@ impl Tool for DreamErrorTool {
         };
         Err(match ctx.mode {
             Mode::Lucid => DreamError::interpreter(error),
-            Mode::Pick(_) | Mode::Compose(_) => DreamError::composer(error),
+            Mode::Resolve(_) | Mode::Compose(_) => DreamError::composer(error),
         })
     }
 }

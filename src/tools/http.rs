@@ -198,7 +198,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
         let mut toolchain = None;
-        let mut ctx = ToolCtx::pick(&project, &mut deps, &mut toolchain);
+        let mut ctx = ToolCtx::resolve(&project, &mut deps, &mut toolchain);
         let err = HttpRequest
             .call(
                 &mut ctx,

@@ -1,5 +1,4 @@
 mod dispatch;
-mod pick;
 mod progress;
 mod prompt;
 mod repair;
@@ -17,7 +16,6 @@ use crate::provenance;
 use crate::source::paths;
 use crate::source::DepGraph;
 use crate::source::Project;
-use crate::toolchain::Toolchain;
 use crate::tools::Registry;
 
 use session::Session;
@@ -53,33 +51,18 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
 
     let mut input = prompt::this_run(&unit.rel, &unit.source, None)?;
 
-    let toolchain = match Toolchain::parse(opts.target) {
-        Ok(known) => {
-            prompt::push_bind(&mut input, known, opts.target, &unit.rel)?;
-            Some(known)
-        }
-        Err(_) => {
-            if let Some(known) =
-                provenance::existing_bind(&state.store.toolchain, opts.target, state.fresh)
-            {
-                prompt::push_bind(&mut input, known, opts.target, &unit.rel)?;
-                Some(known)
-            } else {
-                let known = pick::ask_toolchain(
-                    &openai,
-                    &project,
-                    &mut deps,
-                    &prompt::pick_stack(opts.target),
-                )
-                .await?;
-                prompt::push_bind(&mut input, known, opts.target, &unit.rel)?;
-                Some(known)
-            }
-        }
-    };
-    if let Some(known) = toolchain {
-        state.store.toolchain = prompt::store_name(known, opts.target);
-    }
+    let known = crate::toolchain_resolver::resolve(
+        opts.target,
+        &state.store.toolchain,
+        state.fresh,
+        &openai,
+        &project,
+        &mut deps,
+    )
+    .await?;
+    prompt::push_bind(&mut input, known, opts.target, &unit.rel)?;
+    state.store.toolchain = prompt::store_name(known, opts.target);
+    let toolchain = Some(known);
 
     let registry = Registry::composer_for(toolchain);
     let instructions = prompt::compose(&registry, &flags, toolchain);

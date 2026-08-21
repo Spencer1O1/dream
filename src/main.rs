@@ -11,6 +11,7 @@ mod prompt;
 mod provenance;
 mod source;
 mod toolchain;
+mod toolchain_resolver;
 mod tools;
 mod trace;
 

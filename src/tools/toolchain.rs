@@ -35,16 +35,16 @@ impl Tool for SetToolchain {
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let Mode::Pick(pick) = &mut ctx.mode else {
+        let Mode::Resolve(resolve) = &mut ctx.mode else {
             return Err(DreamError::composer(
                 "set_toolchain is only available when declaring a toolchain",
             ));
         };
-        if pick.toolchain.is_some() {
+        if resolve.toolchain.is_some() {
             return Err(DreamError::composer("toolchain already declared"));
         }
         let toolchain = Toolchain::parse(arg_str(args, "toolchain"))?;
-        *pick.toolchain = Some(toolchain);
+        *resolve.toolchain = Some(toolchain);
         Ok(toolchain.declared(ctx.deps.entry())?.to_string())
     }
 }
@@ -62,7 +62,7 @@ mod tests {
         deps: &'a mut DepGraph,
         toolchain: &'a mut Option<Toolchain>,
     ) -> ToolCtx<'a> {
-        ToolCtx::pick(project, deps, toolchain)
+        ToolCtx::resolve(project, deps, toolchain)
     }
 
     #[test]

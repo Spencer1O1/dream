@@ -40,7 +40,7 @@ impl Tool for ListFooFiles {
         let files = ctx.project.list_foo_files()?;
         let store = match &ctx.mode {
             Mode::Compose(compose) => Some(compose.store),
-            Mode::Lucid | Mode::Pick(_) => None,
+            Mode::Lucid | Mode::Resolve(_) => None,
         };
         if let Some(store) = store {
             let files: Vec<Value> = files

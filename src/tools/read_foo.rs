@@ -52,7 +52,7 @@ impl Tool for ReadFooFile {
         ctx.deps.record_read(&unit.rel);
         let dest_store = match &ctx.mode {
             Mode::Compose(compose) => Some((compose.dest, compose.store)),
-            Mode::Lucid | Mode::Pick(_) => None,
+            Mode::Lucid | Mode::Resolve(_) => None,
         };
         if let Some((dest, store)) = dest_store {
             let (artifacts, locked) = store
