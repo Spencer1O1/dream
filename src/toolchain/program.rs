@@ -3,7 +3,7 @@ use std::io;
 use super::ToolchainSpec;
 
 pub(super) fn names<'a>(spec: &'a ToolchainSpec, requested: &'a str) -> Vec<&'a str> {
-    if spec.programs.first().copied() == Some(requested) {
+    if is_language(spec, requested) {
         spec.programs.to_vec()
     } else {
         vec![requested]
@@ -25,8 +25,12 @@ pub(super) fn launch<T>(
     Ok(None)
 }
 
+pub(super) fn is_language(spec: &ToolchainSpec, requested: &str) -> bool {
+    spec.programs.first().copied() == Some(requested)
+}
+
 pub(super) fn missing_hint(spec: &ToolchainSpec, requested: &str) -> String {
-    if spec.programs.first().copied() == Some(requested) {
+    if is_language(spec, requested) {
         spec.install_hint.to_string()
     } else {
         format!("{requested} is not installed")

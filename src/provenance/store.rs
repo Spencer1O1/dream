@@ -12,7 +12,7 @@ pub const STORE_REL: &str = ".dream/provenance.json";
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct Store {
-    /// Catalog row Dream execs. Not the `-t` target.
+    /// Catalog row Dream execs, or the `-t` string when there is no row.
     #[serde(alias = "target")]
     pub toolchain: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]

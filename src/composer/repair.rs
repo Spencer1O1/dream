@@ -38,8 +38,13 @@ impl Session<'_> {
                 {
                     progress::repair();
                     let entry = self.project.read_foo_file(self.entry_rel)?;
-                    let mut repair_input =
-                        repair_stack(&entry.rel, &entry.source, toolchain, &diagnostics)?;
+                    let mut repair_input = repair_stack(
+                        &entry.rel,
+                        &entry.source,
+                        toolchain,
+                        self.target,
+                        &diagnostics,
+                    )?;
                     let mut artifacts = std::collections::HashMap::new();
                     let registry = Registry::composer_for(toolchain);
                     let instructions = prompt::repair(&registry, self.flags, toolchain);
@@ -72,9 +77,10 @@ fn repair_stack(
     entry_rel: &str,
     source: &str,
     toolchain: Option<Toolchain>,
+    requested: &str,
     diagnostics: &str,
 ) -> Result<Vec<serde_json::Value>, DreamError> {
-    let mut input = prompt::this_run(entry_rel, source, toolchain)?;
+    let mut input = prompt::this_run_for(entry_rel, source, toolchain, Some(requested))?;
     input.push(json!({
         "role": "user",
         "content": repair_message(diagnostics),
@@ -122,6 +128,7 @@ mod tests {
             "limits.foo",
             "print far origin near",
             Some(cargo),
+            "cargo",
             "error: missing Cargo.toml",
         )
         .unwrap();
@@ -136,5 +143,20 @@ mod tests {
         let last = stack[2]["content"].as_str().unwrap();
         assert!(last.contains("Configure or build failed"));
         assert!(last.contains("error: missing Cargo.toml"));
+        let unsupported = repair_stack(
+            "limits.foo",
+            "print far",
+            Some(Toolchain::Unsupported),
+            "monkey_c",
+            "error: nope",
+        )
+        .unwrap();
+        assert!(unsupported[1]["content"]
+            .as_str()
+            .unwrap()
+            .starts_with("Requested target: monkey_c"));
+        assert!(!unsupported.iter().any(|card| card["content"]
+            .as_str()
+            .is_some_and(|text| text.starts_with("Toolchain unsupported"))));
     }
 }

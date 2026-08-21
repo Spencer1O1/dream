@@ -30,6 +30,11 @@ fn invoke(
     crate::dest::ensure_output_dirs(dir, spec)?;
     match capture_step("configure", spec, spec.configure, dir, no_warn)? {
         Outcome::Ok => {}
+        Outcome::MissingToolchain(_)
+            if spec
+                .configure
+                .first()
+                .is_some_and(|program| !super::program::is_language(spec, program)) => {}
         other => return Ok(other),
     }
     match capture_step("build", spec, spec.build, dir, no_warn)? {
@@ -135,6 +140,51 @@ mod tests {
         .unwrap()
         .into_error()
         .unwrap();
+    }
+
+    #[test]
+    fn missing_configure_helper_is_skipped() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = ToolchainSpec {
+            configure: &["dream-no-such-bundle-7f3a", "install"],
+            programs: &["true"],
+            ..spec(&[], Run::Argv(&["true"]))
+        };
+        assert!(matches!(
+            invoke(&spec, dir.path(), ENTRY, true, false).unwrap(),
+            Outcome::Ok
+        ));
+    }
+
+    #[test]
+    fn missing_configure_language_is_not_skipped() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = ToolchainSpec {
+            configure: &["dream-no-such-ruby-7f3a"],
+            programs: &["dream-no-such-ruby-7f3a"],
+            ..spec(&[], Run::Argv(&["true"]))
+        };
+        match invoke(&spec, dir.path(), ENTRY, false, false).unwrap() {
+            Outcome::MissingToolchain(hint) => {
+                assert!(hint.contains("Install the test toolchain"));
+            }
+            other => panic!("expected missing toolchain, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn missing_build_helper_is_not_skipped() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = ToolchainSpec {
+            programs: &["true"],
+            ..spec(&["dream-no-such-shards-7f3a"], Run::Argv(&["true"]))
+        };
+        match invoke(&spec, dir.path(), ENTRY, false, false).unwrap() {
+            Outcome::MissingToolchain(hint) => {
+                assert_eq!(hint, "dream-no-such-shards-7f3a is not installed");
+            }
+            other => panic!("expected missing toolchain, got {other:?}"),
+        }
     }
 
     #[test]

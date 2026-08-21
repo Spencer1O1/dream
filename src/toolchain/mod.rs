@@ -6,7 +6,7 @@ mod outcome;
 mod program;
 
 pub(crate) use catalog::path_covers;
-pub use catalog::{ToolchainSpec, CATALOG};
+pub use catalog::{spec, ToolchainSpec, CATALOG};
 pub use exec::after_compose;
 pub use outcome::Outcome;
 

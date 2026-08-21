@@ -51,10 +51,23 @@ pub fn require_store(dest: &Path, target: &str) -> Result<Store, DreamError> {
     Ok(store)
 }
 
-/// Exact catalog name must match. A fuzzy `-t` may reuse a catalog store.
+/// A catalog store may reuse a fuzzy `-t`. A non-row store (`monkey_c`) is exact only.
+/// The word `unsupported` is not a catalog row and does not fuzzy-match.
 pub fn accepts_target(store_toolchain: &str, requested: &str) -> bool {
     store_toolchain == requested
-        || (Toolchain::parse(requested).is_err() && Toolchain::parse(store_toolchain).is_ok())
+        || (crate::toolchain::spec(store_toolchain).is_some()
+            && Toolchain::parse(requested).is_err())
+}
+
+/// Already-bound exec for this dest. `None` means pick (or a first catalog bind).
+pub fn existing_bind(store_toolchain: &str, requested: &str, fresh: bool) -> Option<Toolchain> {
+    if fresh || !accepts_target(store_toolchain, requested) {
+        return None;
+    }
+    match Toolchain::parse(store_toolchain) {
+        Ok(known) if known.spec().is_some() => Some(known),
+        _ => Some(Toolchain::Unsupported),
+    }
 }
 
 fn drop_catalog_project(dest: &Path) -> Result<(), DreamError> {
@@ -161,5 +174,38 @@ mod tests {
             fs::read_to_string(dest.path().join("README.md")).unwrap(),
             "keep"
         );
+    }
+
+    #[test]
+    fn non_row_store_is_exact_only() {
+        assert!(accepts_target("monkey_c", "monkey_c"));
+        assert!(!accepts_target("monkey_c", "cobol"));
+        assert!(!accepts_target("unsupported", "monkey_c"));
+        assert!(accepts_target("unsupported", "unsupported"));
+        assert!(accepts_target("cargo", "rust"));
+        assert!(!accepts_target("cargo", "go"));
+    }
+
+    #[test]
+    fn existing_bind_reuses_a_row_or_a_matching_target() {
+        assert!(existing_bind("cargo", "rust", true).is_none());
+        assert_eq!(
+            existing_bind("cargo", "rust", false)
+                .unwrap()
+                .spec()
+                .unwrap()
+                .name,
+            "cargo"
+        );
+        assert!(matches!(
+            existing_bind("monkey_c", "monkey_c", false),
+            Some(Toolchain::Unsupported)
+        ));
+        assert!(existing_bind("monkey_c", "cobol", false).is_none());
+        assert!(existing_bind("unsupported", "monkey_c", false).is_none());
+        assert!(matches!(
+            existing_bind("unsupported", "unsupported", false),
+            Some(Toolchain::Unsupported)
+        ));
     }
 }

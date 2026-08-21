@@ -73,7 +73,7 @@ pub fn repair(registry: &Registry, flags: &ActiveFlags, toolchain: Option<Toolch
 
 pub fn toolchain(registry: &Registry) -> String {
     paragraphs(&[
-        "Choose the toolchain for the project:",
+        "Choose the toolchain for the project",
         &registry.tool_list(),
     ])
 }
@@ -83,14 +83,51 @@ pub fn this_run(
     source: &str,
     toolchain: Option<Toolchain>,
 ) -> Result<Vec<Value>, DreamError> {
+    this_run_for(entry_rel, source, toolchain, None)
+}
+
+pub fn this_run_for(
+    entry_rel: &str,
+    source: &str,
+    toolchain: Option<Toolchain>,
+    requested: Option<&str>,
+) -> Result<Vec<Value>, DreamError> {
     let mut input = vec![json!({
         "role": "user",
         "content": crate::prompt::entry(entry_rel, source),
     })];
     if let Some(known) = toolchain {
-        push_toolchain(&mut input, known, entry_rel)?;
+        push_bind(
+            &mut input,
+            known,
+            requested.unwrap_or(known.as_str()),
+            entry_rel,
+        )?;
     }
     Ok(input)
+}
+
+/// Catalog row → toolchain card. No row → requested-target card. Never `Toolchain unsupported`.
+pub fn push_bind(
+    input: &mut Vec<Value>,
+    toolchain: Toolchain,
+    requested: &str,
+    entry_rel: &str,
+) -> Result<(), DreamError> {
+    if toolchain.spec().is_some() {
+        push_toolchain(input, toolchain, entry_rel)
+    } else {
+        push_requested(input, requested);
+        Ok(())
+    }
+}
+
+pub fn store_name(toolchain: Toolchain, requested: &str) -> String {
+    if toolchain.spec().is_some() {
+        toolchain.as_str().to_string()
+    } else {
+        requested.to_string()
+    }
 }
 
 pub fn push_toolchain(
@@ -110,6 +147,14 @@ pub fn push_requested(input: &mut Vec<Value>, hint: &str) {
         "role": "user",
         "content": crate::prompt::requested_target(hint),
     }));
+}
+
+/// Pick sees only the `-t` target. Not the entry `.foo` file.
+pub fn pick_stack(target: &str) -> Vec<Value> {
+    vec![json!({
+        "role": "user",
+        "content": crate::prompt::requested_target(target),
+    })]
 }
 
 #[cfg(test)]
@@ -169,6 +214,35 @@ mod tests {
         assert_eq!(
             input[1]["content"].as_str().unwrap(),
             "Requested target: whatever runs on arduino nano"
+        );
+    }
+
+    #[test]
+    fn pick_stack_is_only_the_target() {
+        let stack = pick_stack("cobol");
+        assert_eq!(stack.len(), 1);
+        assert_eq!(
+            stack[0]["content"].as_str().unwrap(),
+            "Requested target: cobol"
+        );
+    }
+
+    #[test]
+    fn no_row_bind_is_the_requested_target() {
+        let mut input = this_run("limits.foo", "print far", None).unwrap();
+        push_bind(&mut input, Toolchain::Unsupported, "monkey_c", "limits.foo").unwrap();
+        assert_eq!(
+            input[1]["content"].as_str().unwrap(),
+            "Requested target: monkey_c"
+        );
+        assert!(!input[1]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Toolchain unsupported"));
+        assert_eq!(store_name(Toolchain::Unsupported, "monkey_c"), "monkey_c");
+        assert_eq!(
+            store_name(Toolchain::parse("cargo").unwrap(), "rust"),
+            "cargo"
         );
     }
 

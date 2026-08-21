@@ -55,25 +55,30 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
 
     let toolchain = match Toolchain::parse(opts.target) {
         Ok(known) => {
-            prompt::push_toolchain(&mut input, known, &unit.rel)?;
+            prompt::push_bind(&mut input, known, opts.target, &unit.rel)?;
             Some(known)
         }
         Err(_) => {
-            if !state.fresh && Toolchain::parse(&state.store.toolchain).is_ok() {
-                let known = Toolchain::parse(&state.store.toolchain)?;
-                prompt::push_toolchain(&mut input, known, &unit.rel)?;
+            if let Some(known) =
+                provenance::existing_bind(&state.store.toolchain, opts.target, state.fresh)
+            {
+                prompt::push_bind(&mut input, known, opts.target, &unit.rel)?;
                 Some(known)
             } else {
-                let mut pick_input = input.clone();
-                prompt::push_requested(&mut pick_input, opts.target);
-                let known = pick::ask_toolchain(&openai, &project, &mut deps, &pick_input).await?;
-                prompt::push_toolchain(&mut input, known, &unit.rel)?;
+                let known = pick::ask_toolchain(
+                    &openai,
+                    &project,
+                    &mut deps,
+                    &prompt::pick_stack(opts.target),
+                )
+                .await?;
+                prompt::push_bind(&mut input, known, opts.target, &unit.rel)?;
                 Some(known)
             }
         }
     };
     if let Some(known) = toolchain {
-        state.store.toolchain = known.as_str().to_string();
+        state.store.toolchain = prompt::store_name(known, opts.target);
     }
 
     let registry = Registry::composer_for(toolchain);
@@ -90,6 +95,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         repair_cap: config.repair_cap,
         no_warn: opts.no_warn,
         entry_rel: &unit.rel,
+        target: opts.target,
     };
 
     if let Some(spec) = toolchain.and_then(crate::toolchain::Toolchain::spec) {

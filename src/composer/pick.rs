@@ -1,7 +1,8 @@
 //! Pick turn: declare a catalog row for the `-t` target.
 //!
-//! The pick stack is the entry plus the requested-target card.
-//! The compose stack gets the chosen toolchain as a fact, not the target.
+//! The pick stack is only the requested-target card.
+//! The compose stack gets the chosen toolchain as a fact, or the requested
+//! target when there is no catalog row.
 //! Instructions come from `prompt::toolchain`. No standing law of its own.
 
 use crate::error::DreamError;
