@@ -50,12 +50,12 @@ fn setup_rule(toolchain: Option<Toolchain>) -> &'static str {
 
 fn preamble(goal: &str, toolchain: Option<Toolchain>) -> String {
     paragraphs(&[
+        FOOCODE,
+        ENTRY,
         goal,
         WRITE,
         NO_MIX,
         READ_FIRST,
-        FOOCODE,
-        ENTRY,
         TARGET,
         setup_rule(toolchain),
         LOCKED,
@@ -72,10 +72,10 @@ pub fn repair(registry: &Registry, flags: &ActiveFlags, toolchain: Option<Toolch
 }
 
 pub fn toolchain(registry: &Registry) -> String {
-    format!(
-        "Choose the toolchain for the project:\n\n{}",
-        registry.tool_list()
-    )
+    paragraphs(&[
+        "Choose the toolchain for the project:",
+        &registry.tool_list(),
+    ])
 }
 
 pub fn this_run(
@@ -114,13 +114,19 @@ mod tests {
         let registry = Registry::composer();
         let cargo = Some(Toolchain::parse("cargo").unwrap());
         let instructions = compose(&registry, &ActiveFlags::new(false), cargo);
-        assert!(instructions.contains(&preamble(COMPOSE, cargo)));
-        assert!(instructions.contains(&registry.prompt_catalog()));
+        let law = preamble(COMPOSE, cargo);
+        assert!(law.starts_with(FOOCODE));
+        assert!(law.find(ENTRY).unwrap() < law.find(COMPOSE).unwrap());
+        assert!(instructions.contains(&law));
+        assert!(instructions.contains(&registry.tool_list()));
         assert!(!instructions.contains("set_toolchain"));
         assert!(!instructions.contains("stdout"));
         assert!(!compose(&registry, &ActiveFlags::new(false), cargo).contains("--strict:"));
-        assert!(compose(&registry, &ActiveFlags::new(true), cargo).contains("--strict:"));
-        assert!(!compose(&registry, &ActiveFlags::new(true), cargo).contains("--no-warn"));
+        let strict = compose(&registry, &ActiveFlags::new(true), cargo);
+        assert!(strict.contains("--strict:"));
+        assert!(!strict.contains("--no-warn"));
+        assert!(strict.find("Running with flags:").unwrap() < strict.find("Tools:").unwrap());
+        assert!(!strict.contains("\n\n\n"));
     }
 
     #[test]
@@ -163,7 +169,7 @@ mod tests {
         let cargo = Some(Toolchain::parse("cargo").unwrap());
         let instructions = repair(&registry, &ActiveFlags::new(false), cargo);
         assert!(instructions.contains(&preamble(REPAIR, cargo)));
-        assert!(instructions.contains(&registry.prompt_catalog()));
+        assert!(instructions.contains(&registry.tool_list()));
         assert!(!instructions.contains(COMPOSE));
         assert!(!compose(&Registry::composer(), &ActiveFlags::new(false), cargo).contains(REPAIR));
         assert!(repair(&registry, &ActiveFlags::new(true), cargo).contains("--strict:"));

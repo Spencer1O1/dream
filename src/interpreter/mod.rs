@@ -27,6 +27,7 @@ pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), Drea
         "role": "user",
         "content": crate::prompt::entry(&unit.rel, &unit.source)
     })];
+    crate::trace::job("lucid", &instructions, &input);
 
     Session {
         openai: &openai,

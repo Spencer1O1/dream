@@ -33,6 +33,7 @@ impl ComposeState {
         toolchain: Option<Toolchain>,
     ) -> Result<(), DreamError> {
         let mut artifacts = HashMap::new();
+        crate::trace::job("compose", session.instructions, input);
         session
             .write_until_settled(
                 self,

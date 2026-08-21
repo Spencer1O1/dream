@@ -44,6 +44,7 @@ impl Session<'_> {
                     let registry = Registry::composer_for(toolchain);
                     let instructions = prompt::repair(&registry, self.flags, toolchain);
                     let schemas = registry.schemas();
+                    crate::trace::job("repair", &instructions, &repair_input);
                     self.write_until_settled(
                         state,
                         deps,

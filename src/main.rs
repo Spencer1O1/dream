@@ -12,6 +12,7 @@ mod provenance;
 mod source;
 mod toolchain;
 mod tools;
+mod trace;
 
 use cli::Command;
 use error::DreamError;

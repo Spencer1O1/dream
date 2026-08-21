@@ -10,19 +10,13 @@ use super::{Family, Registry, Tool};
 
 impl Registry {
     pub fn instructions(&self, preamble: &str, flags: &ActiveFlags) -> String {
-        let tools = self.prompt_catalog();
-        match flags.prompt_catalog() {
-            Some(catalog) => format!("{preamble}\n\n{tools}\n{catalog}"),
-            None => format!("{preamble}\n\n{tools}"),
-        }
-    }
-
-    pub fn prompt_catalog(&self) -> String {
-        self.tool_list()
+        let flags = flags.prompt_catalog().unwrap_or_default();
+        let tools = self.tool_list();
+        crate::prompt::paragraphs(&[preamble, &flags, &tools])
     }
 
     pub(crate) fn tool_list(&self) -> String {
-        let mut out = String::from("Tools:\n");
+        let mut sections = Vec::new();
         for family in Family::ORDER {
             let members: Vec<&dyn Tool> = self
                 .tools()
@@ -33,14 +27,15 @@ impl Registry {
             if members.is_empty() {
                 continue;
             }
-            writeln!(out, "\n{family}").expect("write to String");
+            let mut section = family.to_string();
             for tool in members {
                 let spec = tool.spec();
-                writeln!(out, "- {}: {}", spec.name, spec.description).expect("write to String");
+                write!(section, "\n- {}: {}", spec.name, spec.description)
+                    .expect("write to String");
             }
+            sections.push(section);
         }
-        out.push('\n');
-        out
+        format!("Tools:\n\n{}", sections.join("\n\n"))
     }
 }
 
@@ -96,5 +91,17 @@ mod tests {
     #[test]
     fn toolchain_is_set_toolchain_only() {
         assert_eq!(Registry::toolchain().names(), vec!["set_toolchain"]);
+    }
+
+    #[test]
+    fn instructions_are_law_then_flags_then_tools() {
+        let registry = Registry::composer();
+        let dump = registry.instructions("law", &crate::flags::ActiveFlags::new(true));
+        assert!(dump.find("law").unwrap() < dump.find("Running with flags:").unwrap());
+        assert!(dump.find("Running with flags:").unwrap() < dump.find("Tools:").unwrap());
+        assert!(!dump.contains("\n\n\n"));
+        assert!(!registry
+            .instructions("law", &crate::flags::ActiveFlags::new(false))
+            .contains("\n\n\n"));
     }
 }

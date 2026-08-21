@@ -20,6 +20,7 @@ pub fn paragraphs(parts: &[&str]) -> String {
     parts
         .iter()
         .copied()
+        .map(str::trim)
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join("\n\n")
@@ -41,6 +42,8 @@ mod tests {
     fn paragraphs_are_blank_line_separated() {
         assert_eq!(paragraphs(&["a", "b"]), "a\n\nb");
         assert_eq!(paragraphs(&["a", "", "b"]), "a\n\nb");
+        assert_eq!(paragraphs(&["a\n", "\nb\n"]), "a\n\nb");
+        assert!(!paragraphs(&["a\n\n", "b"]).contains("\n\n\n"));
     }
 
     #[test]

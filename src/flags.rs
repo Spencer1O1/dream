@@ -26,15 +26,11 @@ impl ActiveFlags {
         if self.flags.is_empty() {
             return None;
         }
-        let mut out = String::from("Running with flags:\n");
+        let mut lines = vec!["Running with flags:".to_string()];
         for flag in &self.flags {
-            out.push_str("--");
-            out.push_str(flag.name);
-            out.push_str(": ");
-            out.push_str(flag.description);
-            out.push('\n');
+            lines.push(format!("--{}: {}", flag.name, flag.description));
         }
-        Some(out)
+        Some(lines.join("\n"))
     }
 }
 

@@ -66,6 +66,7 @@ impl Session<'_> {
                     Ok(()) => return Ok(()),
                     Err(err) if !missing_units_nudge => {
                         missing_units_nudge = true;
+                        crate::trace::user(err.detail());
                         input.push(json!({
                             "role": "user",
                             "content": err.detail(),

@@ -20,6 +20,7 @@ pub(crate) async fn ask_toolchain(
 ) -> Result<Toolchain, DreamError> {
     let registry = Registry::toolchain();
     let instructions = prompt::toolchain(&registry);
+    crate::trace::job("pick", &instructions, input);
     let turn = openai
         .respond(&instructions, input, &registry.schemas())
         .await?;
