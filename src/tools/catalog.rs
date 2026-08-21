@@ -1,3 +1,7 @@
+//! Staple a preamble to the tool list and active flags.
+//!
+//! No Dream law of its own.
+
 use std::fmt::Write;
 
 use crate::flags::ActiveFlags;
@@ -45,77 +49,52 @@ mod tests {
     use super::*;
 
     #[test]
-    fn interpreter_lists_each_family() {
-        let catalog = Registry::interpreter().prompt_catalog();
-        assert!(catalog.contains("Source"));
-        assert!(catalog.contains("Runtime"));
-        assert!(!catalog.contains("Composer"));
-        assert!(catalog.contains("Control"));
-        assert!(catalog.contains("- list_source_files:"));
-        assert!(catalog.contains("- stdout:"));
-        assert!(catalog.contains("- list_files:"));
-        assert!(catalog.contains("- read_file:"));
-        assert!(catalog.contains("- write_file:"));
-        assert!(catalog.contains("- http_request:"));
-        assert!(catalog.contains("- dream_error:"));
-        assert!(!catalog.contains("contiguous"));
-        assert!(!catalog.contains("--strict"));
-        assert!(!catalog.contains("locked"));
-        assert!(!catalog.contains("artifacts"));
+    fn interpreter_lists_runtime_not_composer() {
+        let names = Registry::interpreter().names();
+        assert!(names.contains(&"list_foo_files"));
+        assert!(names.contains(&"read_foo_file"));
+        assert!(names.contains(&"stdout"));
+        assert!(names.contains(&"write_file"));
+        assert!(!names.contains(&"write_source_file"));
+        assert!(!names.contains(&"write_setup_file"));
+        assert!(!names.iter().any(|name| name.contains("set_toolchain")));
     }
 
     #[test]
-    fn composer_has_source_and_write_not_runtime() {
-        let catalog = Registry::composer().prompt_catalog();
-        assert!(catalog.contains("Composer"));
-        assert!(catalog.contains("- write_file:"));
-        assert!(catalog.contains("- read_file:"));
-        assert!(catalog.contains("- remove_file:"));
-        assert!(!catalog.contains("set_dependencies"));
-        assert!(!catalog.contains("set_toolchain"));
-        assert!(!catalog.contains("Runtime"));
-        assert!(!catalog.contains("stdout"));
-        assert!(catalog.contains("owned files"));
-        assert!(!catalog.contains("artifacts"));
-        let with_project =
+    fn composer_lists_source_and_dest_not_runtime() {
+        let names = Registry::composer().names();
+        assert!(names.contains(&"list_foo_files"));
+        assert!(names.contains(&"read_foo_file"));
+        assert!(names.contains(&"read_source_file"));
+        assert!(names.contains(&"write_source_file"));
+        assert!(names.contains(&"remove_source_file"));
+        assert!(!names.contains(&"write_file"));
+        assert!(!names.contains(&"read_file"));
+        assert!(!names.contains(&"remove_file"));
+        assert!(!names.contains(&"write_setup_file"));
+        assert!(!names.contains(&"read_setup_file"));
+        assert!(!names.contains(&"remove_setup_file"));
+        assert!(!names.contains(&"stdout"));
+        assert!(!names.contains(&"set_toolchain"));
+
+        let cargo =
             Registry::composer_for(Some(crate::toolchain::Toolchain::parse("cargo").unwrap()))
-                .prompt_catalog();
-        assert!(!with_project.contains("set_dependencies"));
-        for name in ["write_file", "remove_file", "read_file"] {
-            let description = with_project
-                .lines()
-                .find(|line| line.contains(&format!("- {name}:")))
-                .unwrap();
-            assert!(
-                !description.contains("locked"),
-                "{name} description repeats the lock rule: {description}"
-            );
-        }
-    }
-
-    #[test]
-    fn repair_has_write_without_unit_or_deps() {
-        let registry = Registry::repair();
-        let catalog = registry.prompt_catalog();
-        assert!(catalog.contains("- write_file:"));
-        assert!(catalog.contains("- read_file:"));
-        assert!(!catalog.contains("remove_file"));
-        assert!(!catalog.contains("set_dependencies"));
-        let write = registry
+                .names();
+        assert!(cargo.contains(&"write_setup_file"));
+        assert!(cargo.contains(&"read_setup_file"));
+        assert!(cargo.contains(&"remove_setup_file"));
+        let write = Registry::composer()
             .tools()
             .iter()
-            .find(|tool| tool.spec().name == "write_file")
+            .find(|tool| tool.spec().name == "write_source_file")
             .unwrap()
             .spec();
-        assert!(write.parameters["properties"].get("unit").is_none());
+        assert!(write.parameters["properties"].get("unit").is_some());
         assert!(!write.description.contains("unit"));
     }
 
     #[test]
     fn toolchain_is_set_toolchain_only() {
-        let catalog = Registry::toolchain().prompt_catalog();
-        assert!(catalog.contains("- set_toolchain:"));
-        assert!(!catalog.contains("write_file"));
-        assert!(!catalog.contains("dream_error"));
+        assert_eq!(Registry::toolchain().names(), vec!["set_toolchain"]);
     }
 }

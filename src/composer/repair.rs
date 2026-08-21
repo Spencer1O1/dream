@@ -1,3 +1,8 @@
+//! Repair job: when to retry, a new stack, merge writes.
+//!
+//! Calls `prompt::repair` for standing law. Owns the this-run failure card.
+//! Does not continue the compose transcript. No standing law of its own.
+
 use serde_json::json;
 
 use crate::error::DreamError;
@@ -32,19 +37,11 @@ impl Session<'_> {
                     if should_repair(attempt, step, self.repair_cap) =>
                 {
                     progress::repair();
-                    let mut repair_input = Vec::new();
-                    if let Some(known) = toolchain {
-                        repair_input.push(json!({
-                            "role": "user",
-                            "content": known.declared_user_blob(self.entry_rel)?,
-                        }));
-                    }
-                    repair_input.push(json!({
-                        "role": "user",
-                        "content": repair_message(&diagnostics),
-                    }));
+                    let entry = self.project.read_foo_file(self.entry_rel)?;
+                    let mut repair_input =
+                        repair_stack(&entry.rel, &entry.source, toolchain, &diagnostics)?;
                     let mut artifacts = std::collections::HashMap::new();
-                    let registry = Registry::repair();
+                    let registry = Registry::composer_for(toolchain);
                     let instructions = prompt::repair(&registry, self.flags, toolchain);
                     let schemas = registry.schemas();
                     self.write_until_settled(
@@ -61,12 +58,27 @@ impl Session<'_> {
                         },
                     )
                     .await?;
+                    state.merge_writes(artifacts)?;
                     attempt += 1;
                 }
                 outcome => return outcome.into_error(),
             }
         }
     }
+}
+
+fn repair_stack(
+    entry_rel: &str,
+    source: &str,
+    toolchain: Option<Toolchain>,
+    diagnostics: &str,
+) -> Result<Vec<serde_json::Value>, DreamError> {
+    let mut input = prompt::this_run(entry_rel, source, toolchain)?;
+    input.push(json!({
+        "role": "user",
+        "content": repair_message(diagnostics),
+    }));
+    Ok(input)
 }
 
 fn should_repair(attempt: usize, step: &str, cap: usize) -> bool {
@@ -76,11 +88,9 @@ fn should_repair(attempt: usize, step: &str, cap: usize) -> bool {
 fn repair_message(diagnostics: &str) -> String {
     let diagnostics = diagnostics.trim();
     if diagnostics.is_empty() {
-        "Build failed. Repair dest files. Write this toolchain's setup files if that is what the diagnostics need.".to_string()
+        "Configure or build failed.".to_string()
     } else {
-        format!(
-            "Build failed. Repair dest files. Write this toolchain's setup files if that is what the diagnostics need.\n\n{diagnostics}"
-        )
+        format!("Configure or build failed.\n\n{diagnostics}")
     }
 }
 
@@ -100,7 +110,30 @@ mod tests {
 
     #[test]
     fn repair_message_includes_diagnostics() {
-        assert!(repair_message("   ").contains("Repair dest files"));
+        assert_eq!(repair_message("   "), "Configure or build failed.");
         assert!(repair_message("error: nope").contains("error: nope"));
+    }
+
+    #[test]
+    fn repair_stack_has_the_entry_and_the_diagnostics() {
+        let cargo = Toolchain::parse("cargo").unwrap();
+        let stack = repair_stack(
+            "limits.foo",
+            "print far origin near",
+            Some(cargo),
+            "error: missing Cargo.toml",
+        )
+        .unwrap();
+        let first = stack[0]["content"].as_str().unwrap();
+        assert!(!first.contains("Compose this Dream program"));
+        assert!(first.contains("Entry `.foo` file: limits.foo"));
+        assert!(first.contains("print far origin near"));
+        assert!(stack[1]["content"]
+            .as_str()
+            .unwrap()
+            .contains("Toolchain cargo"));
+        let last = stack[2]["content"].as_str().unwrap();
+        assert!(last.contains("Configure or build failed"));
+        assert!(last.contains("error: missing Cargo.toml"));
     }
 }

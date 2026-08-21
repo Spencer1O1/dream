@@ -90,18 +90,9 @@ impl Toolchain {
 
     /// User message for the write loop. Not a tool result.
     pub fn declared_user_blob(self, entry_rel: &str) -> Result<String, DreamError> {
-        let json = self.declared(entry_rel)?;
-        let Some(spec) = self.spec() else {
-            return Ok(format!(
-                "Toolchain {}:\nThis toolchain has no setup files. Dream will not build or run.\n{}",
-                self.as_str(),
-                json
-            ));
-        };
-        Ok(format!(
-            "Toolchain {}:\nsetup: write these. project: do not write. entrypoint: write that dest file. Dream runs configure, build, and run.\n{}",
-            spec.name,
-            json
+        Ok(crate::prompt::toolchain_card(
+            self.as_str(),
+            self.declared(entry_rel)?,
         ))
     }
 
@@ -143,12 +134,13 @@ mod tests {
             "limits.c"
         );
         let blob = go.declared_user_blob("limits.foo").unwrap();
-        assert!(blob.contains("setup: write these"));
-        assert!(blob.contains("Dream runs configure"));
+        assert!(blob.starts_with("Toolchain go\n\n"));
+        assert!(blob.contains("\"toolchain\":\"go\""));
+        assert!(!blob.contains("setup: write these"));
         let unsupported = Toolchain::parse("unsupported").unwrap();
         let thin = unsupported.declared_user_blob("limits.foo").unwrap();
-        assert!(thin.contains("no setup files"));
-        assert!(thin.contains("will not build or run"));
+        assert!(thin.starts_with("Toolchain unsupported\n\n"));
+        assert!(!thin.contains("no setup files"));
     }
 
     #[test]

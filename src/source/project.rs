@@ -111,28 +111,28 @@ impl Project {
         self.entry.as_deref()
     }
 
-    pub fn list_source_files(&self) -> Result<Vec<String>, DreamError> {
+    pub fn list_foo_files(&self) -> Result<Vec<String>, DreamError> {
         let mut files = Vec::new();
         collect_foo_files(&self.root, &self.root, &mut files)?;
         files.sort();
         Ok(files)
     }
 
-    pub fn read_source_file(&self, requested: &str) -> Result<Unit, DreamError> {
+    pub fn read_foo_file(&self, requested: &str) -> Result<Unit, DreamError> {
         let resolved = resolve_inside(&self.root, requested)?;
         if !resolved.exists() {
             return Err(DreamError::runtime(format!(
-                "requested source `{requested}` does not exist"
+                "requested `.foo` file `{requested}` does not exist"
             )));
         }
         if resolved.extension().and_then(|ext| ext.to_str()) != Some("foo") {
             return Err(DreamError::runtime(format!(
-                "requested source `{requested}` is not a .foo file"
+                "requested file `{requested}` is not a `.foo` file"
             )));
         }
         let canon = resolved.canonicalize()?;
         if !canon.starts_with(&self.root) {
-            return Err(DreamError::runtime("source request escapes project root"));
+            return Err(DreamError::runtime("`.foo` request escapes project root"));
         }
         let rel = rel_path(&self.root, &canon)?;
         let source = fs::read_to_string(&canon)?;
@@ -191,7 +191,7 @@ fn reject_source_or_dream(requested: &str, write: bool) -> Result<(), DreamError
         return Err(DreamError::runtime(if write {
             "cannot write a `.foo` file"
         } else {
-            "use read_source_file for a `.foo` file"
+            "use read_foo_file for a `.foo` file"
         }));
     }
     let first = path
@@ -265,7 +265,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&tmp.path().join("main.foo")).unwrap();
         assert_eq!(unit.rel, "main.foo");
         assert_eq!(
-            project.list_source_files().unwrap(),
+            project.list_foo_files().unwrap(),
             vec![
                 ".hidden/secret.foo".to_string(),
                 "main.foo".to_string(),
@@ -281,7 +281,7 @@ mod tests {
         write_foo(tmp.path(), "main.foo", "entry");
         write_foo(tmp.path(), "users/active.foo", "active users");
         let (project, _) = Project::from_entry(&tmp.path().join("main.foo")).unwrap();
-        let unit = project.read_source_file("users/active.foo").unwrap();
+        let unit = project.read_foo_file("users/active.foo").unwrap();
         assert_eq!(unit.rel, "users/active.foo");
         assert_eq!(unit.source, "active users");
     }
@@ -291,9 +291,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         write_foo(tmp.path(), "main.foo", "entry");
         let (project, _) = Project::from_entry(&tmp.path().join("main.foo")).unwrap();
-        let missing = project.read_source_file("nope.foo").unwrap_err();
+        let missing = project.read_foo_file("nope.foo").unwrap_err();
         assert!(missing.to_string().contains("does not exist"));
-        let escape = project.read_source_file("../secret.foo").unwrap_err();
+        let escape = project.read_foo_file("../secret.foo").unwrap_err();
         assert!(escape.to_string().contains("escapes project root"));
     }
 
@@ -312,7 +312,7 @@ mod tests {
         assert_eq!(unit.source, "from toml");
         assert_eq!(project.name(), Some("demo"));
         assert_eq!(
-            project.list_source_files().unwrap(),
+            project.list_foo_files().unwrap(),
             vec!["other.foo".to_string(), "src/app.foo".to_string()]
         );
     }
@@ -343,7 +343,7 @@ mod tests {
             "hi"
         );
         let foo = project.read_data_file("main.foo").unwrap_err();
-        assert!(foo.to_string().contains("read_source_file"));
+        assert!(foo.to_string().contains("read_foo_file"));
         let dream = project.write_data_file(".dream/x", "no").unwrap_err();
         assert!(dream.to_string().contains(".dream"));
     }

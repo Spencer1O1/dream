@@ -10,70 +10,36 @@ use crate::source::paths;
 use crate::toolchain::{Toolchain, ToolchainSpec};
 use crate::tools::{Compose, Mode};
 
-use super::remove::RemoveFile;
+use super::read_setup::ReadSetupFile;
+use super::read_source::ReadSourceFile;
+use super::remove_setup::RemoveSetupFile;
+use super::remove_source::RemoveSourceFile;
 use super::reply;
-use super::write::WriteFile;
-use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
+use super::write_setup::WriteSetupFile;
+use super::write_source::WriteSourceFile;
+use super::{arg_str, Tool, ToolCtx};
 
-pub fn tools() -> Vec<Box<dyn Tool>> {
-    vec![
-        Box::new(ReadFile),
-        Box::new(WriteFile::compose()),
-        Box::new(RemoveFile::compose()),
-    ]
-}
-
-pub fn repair_tools() -> Vec<Box<dyn Tool>> {
-    vec![Box::new(ReadFile), Box::new(WriteFile::repair())]
-}
-
-struct ReadFile;
-
-impl Tool for ReadFile {
-    fn spec(&self) -> ToolSpec {
-        ToolSpec {
-            name: "read_file",
-            family: Family::Composer,
-            description: "Read one dest file.",
-            parameters: object_params(&[("path", string_arg("Dest-relative path"))], &["path"]),
-        }
+pub fn tools(toolchain: Option<Toolchain>) -> Vec<Box<dyn Tool>> {
+    let setup = toolchain
+        .and_then(Toolchain::spec)
+        .is_some_and(|spec| !spec.setup.is_empty());
+    let mut tools: Vec<Box<dyn Tool>> = vec![Box::new(ReadSourceFile)];
+    if setup {
+        tools.push(Box::new(ReadSetupFile));
     }
-
-    fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let (dest, store, spec) = match &ctx.mode {
-            Mode::Compose(compose) => (compose.dest, compose.store, spec_of(compose.toolchain)),
-            Mode::Repair(repair) => (repair.dest, repair.store, spec_of(repair.toolchain)),
-            Mode::Lucid | Mode::Pick(_) => {
-                return Err(DreamError::composer(
-                    "read_file is only available while composing",
-                ));
-            }
-        };
-        let rel = match dest_rel(dest, arg_str(args, "path")) {
-            Ok(rel) => rel,
-            Err(err) => return Ok(reply::refused(err)),
-        };
-        if let Err(err) = provenance::authorize_read(store, dest, &rel, spec) {
-            return Ok(reply::refused(err));
-        }
-        let contents = output::read_file(dest, &rel)?;
-        Ok(json!({ "ok": true, "path": rel, "contents": contents }).to_string())
+    tools.push(Box::new(WriteSourceFile));
+    if setup {
+        tools.push(Box::new(WriteSetupFile));
     }
-}
-
-pub(super) fn with_unit(fields: &[(&str, Value)], required: &[&str]) -> Value {
-    let mut all = vec![(
-        "unit",
-        string_arg("Project-relative path of the `.foo` file that owns this dest file. For this toolchain's setup files, pass the entry `.foo` file"),
-    )];
-    all.extend(fields.iter().cloned());
-    let mut names = vec!["unit"];
-    names.extend(required.iter().copied());
-    object_params(&all, &names)
+    tools.push(Box::new(RemoveSourceFile::compose()));
+    if setup {
+        tools.push(Box::new(RemoveSetupFile));
+    }
+    tools
 }
 
 pub(super) fn authorize(ctx: &ToolCtx<'_>, requested: &str) -> Result<String, DreamError> {
-    let unit = ctx.project.read_source_file(requested)?;
+    let unit = ctx.project.read_foo_file(requested)?;
     if !ctx.deps.reached(&unit.rel) {
         return Err(DreamError::composer(format!("read `{}` first", unit.rel)));
     }
@@ -86,12 +52,11 @@ pub(super) fn authorize(ctx: &ToolCtx<'_>, requested: &str) -> Result<String, Dr
 fn store_of<'a>(ctx: &'a ToolCtx<'a>) -> Option<&'a Store> {
     match &ctx.mode {
         Mode::Compose(compose) => Some(compose.store),
-        Mode::Repair(repair) => Some(repair.store),
         Mode::Lucid | Mode::Pick(_) => None,
     }
 }
 
-fn spec_of(toolchain: Option<Toolchain>) -> Option<&'static ToolchainSpec> {
+pub(super) fn spec_of(toolchain: Option<Toolchain>) -> Option<&'static ToolchainSpec> {
     toolchain.and_then(Toolchain::spec)
 }
 
@@ -105,11 +70,17 @@ pub(super) enum OutputOp<'a> {
     Remove,
 }
 
+pub(super) enum Slot {
+    Source,
+    Setup,
+}
+
 pub(super) fn mutate_output(
     ctx: &mut ToolCtx<'_>,
     args: &Value,
     name: &str,
     op: OutputOp<'_>,
+    slot: Slot,
 ) -> Result<String, DreamError> {
     if matches!(ctx.mode, Mode::Lucid | Mode::Pick(_)) {
         return Err(DreamError::composer(format!(
@@ -118,7 +89,6 @@ pub(super) fn mutate_output(
     }
     let dest = match &ctx.mode {
         Mode::Compose(compose) => compose.dest,
-        Mode::Repair(repair) => repair.dest,
         Mode::Lucid | Mode::Pick(_) => unreachable!("mode checked above"),
     };
     let rel = match dest_rel(dest, arg_str(args, "path")) {
@@ -127,22 +97,39 @@ pub(super) fn mutate_output(
     };
     let spec = match &ctx.mode {
         Mode::Compose(compose) => spec_of(compose.toolchain),
-        Mode::Repair(repair) => spec_of(repair.toolchain),
         Mode::Lucid | Mode::Pick(_) => None,
     };
     let setup = spec.is_some_and(|spec| spec.is_setup(&rel));
-    let claimed = if matches!(ctx.mode, Mode::Compose(_)) && !setup {
-        let Some(unit) = args.get("unit").and_then(Value::as_str) else {
-            return Ok(reply::refused(DreamError::composer(format!(
-                "{name} requires a `.foo` file"
-            ))));
-        };
-        match authorize(ctx, unit) {
-            Ok(unit) => Some(unit),
-            Err(err) => return Ok(reply::refused(err)),
+    let claimed = match slot {
+        Slot::Setup => {
+            if !spec.is_some_and(|spec| !spec.setup.is_empty()) {
+                return Ok(reply::refused(DreamError::composer(
+                    "this toolchain has no setup files",
+                )));
+            }
+            if !setup {
+                return Ok(reply::refused(DreamError::composer(format!(
+                    "`{rel}` is not a setup file"
+                ))));
+            }
+            None
         }
-    } else {
-        None
+        Slot::Source => {
+            if setup {
+                return Ok(reply::refused(DreamError::composer(format!(
+                    "`{rel}` is a setup file"
+                ))));
+            }
+            let Some(unit) = args.get("unit").and_then(Value::as_str) else {
+                return Ok(reply::refused(DreamError::composer(format!(
+                    "{name} requires a `.foo` file"
+                ))));
+            };
+            match authorize(ctx, unit) {
+                Ok(unit) => Some(unit),
+                Err(err) => return Ok(reply::refused(err)),
+            }
+        }
     };
     match &mut ctx.mode {
         Mode::Compose(Compose {
@@ -159,9 +146,59 @@ pub(super) fn mutate_output(
             spec,
             op,
         ),
-        Mode::Repair(repair) => apply(repair.dest, repair.store, &rel, None, None, spec, op),
         Mode::Lucid | Mode::Pick(_) => unreachable!("mode checked above"),
     }
+}
+
+pub(super) fn read_dest(
+    ctx: &ToolCtx<'_>,
+    args: &Value,
+    name: &str,
+    slot: Slot,
+) -> Result<String, DreamError> {
+    let (dest, store, spec) = match &ctx.mode {
+        Mode::Compose(compose) => (compose.dest, compose.store, spec_of(compose.toolchain)),
+        Mode::Lucid | Mode::Pick(_) => {
+            return Err(DreamError::composer(format!(
+                "{name} is only available while composing"
+            )));
+        }
+    };
+    let rel = match dest_rel(dest, arg_str(args, "path")) {
+        Ok(rel) => rel,
+        Err(err) => return Ok(reply::refused(err)),
+    };
+    let setup = spec.is_some_and(|spec| spec.is_setup(&rel));
+    match slot {
+        Slot::Setup => {
+            if !spec.is_some_and(|spec| !spec.setup.is_empty()) {
+                return Ok(reply::refused(DreamError::composer(
+                    "this toolchain has no setup files",
+                )));
+            }
+            if !setup {
+                return Ok(reply::refused(DreamError::composer(format!(
+                    "`{rel}` is not a setup file"
+                ))));
+            }
+        }
+        Slot::Source => {
+            if setup {
+                return Ok(reply::refused(DreamError::composer(format!(
+                    "`{rel}` is a setup file"
+                ))));
+            }
+        }
+    }
+    if let Err(err) = provenance::authorize_read(store, dest, &rel, spec) {
+        return Ok(reply::refused(err));
+    }
+    let contents = output::read_file(dest, &rel)?;
+    let mut reply = json!({ "ok": true, "path": rel, "contents": contents });
+    if matches!(slot, Slot::Setup) {
+        reply["locked"] = json!(store.is_locked(&rel));
+    }
+    Ok(reply.to_string())
 }
 
 fn apply(
@@ -189,7 +226,7 @@ fn apply(
             Ok(json!({ "ok": true, "path": path }).to_string())
         }
         OutputOp::Remove => {
-            if let Err(err) = provenance::authorize_remove(store, rel, unit, this_job, spec) {
+            if let Err(err) = provenance::authorize_remove(store, dest, rel, unit, this_job, spec) {
                 return Ok(reply::refused(err));
             }
             match output::remove_file(dest, rel)? {
@@ -200,10 +237,10 @@ fn apply(
                     Ok(json!({ "ok": true, "path": path }).to_string())
                 }
                 output::Removed::Missing(path) => {
-                    Ok(reply::warning(format!("dest file `{path}` does not exist")))
+                    Ok(reply::warning(format!("file `{path}` does not exist")))
                 }
                 output::Removed::Directory(path) => {
-                    Ok(reply::warning(format!("dest path `{path}` is a directory")))
+                    Ok(reply::warning(format!("path `{path}` is a directory")))
                 }
             }
         }

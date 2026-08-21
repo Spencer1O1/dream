@@ -44,17 +44,17 @@ pub fn authorize_write(
             Some(unit) if owner == unit => Ok(()),
             None => Ok(()),
             Some(_) => Err(DreamError::composer(format!(
-                "dest `{rel}` is owned by `{owner}`"
+                "`{rel}` was produced by `{owner}`"
             ))),
         },
         Owner::Unmanaged => {
+            if dest.join(rel).exists() {
+                return Err(DreamError::composer(format!("`{rel}` is a user file")));
+            }
             if unit.is_none() {
                 return Err(DreamError::composer(format!(
-                    "repair cannot create `{rel}`"
+                    "write `{rel}` requires a `.foo` file"
                 )));
-            }
-            if dest.join(rel).exists() {
-                return Err(DreamError::composer(format!("dest `{rel}` is user-owned")));
             }
             Ok(())
         }
@@ -62,12 +62,15 @@ pub fn authorize_write(
 }
 
 fn authorize_setup(store: &Store, dest: &Path, rel: &str) -> Result<(), DreamError> {
+    if store.is_locked(rel) {
+        return Err(DreamError::composer(format!("`{rel}` is locked")));
+    }
     match store.owner(rel) {
         Owner::Unit(owner) => Err(DreamError::composer(format!(
-            "dest `{rel}` is owned by `{owner}`"
+            "`{rel}` was produced by `{owner}`"
         ))),
         Owner::Unmanaged if dest.join(rel).exists() => {
-            Err(DreamError::composer(format!("dest `{rel}` is user-owned")))
+            Err(DreamError::composer(format!("`{rel}` is a user file")))
         }
         Owner::Project | Owner::Unmanaged => Ok(()),
     }
@@ -89,28 +92,25 @@ pub fn authorize_read(
     }
     if spec.is_some_and(|spec| spec.is_setup(rel)) {
         if !dest.join(rel).is_file() {
-            return Err(DreamError::composer(format!(
-                "dest file `{rel}` does not exist"
-            )));
+            return Err(DreamError::composer(format!("file `{rel}` does not exist")));
         }
         return Ok(());
     }
     match store.owner(rel) {
         Owner::Unit(_) => {
             if !dest.join(rel).is_file() {
-                return Err(DreamError::composer(format!(
-                    "dest file `{rel}` does not exist"
-                )));
+                return Err(DreamError::composer(format!("file `{rel}` does not exist")));
             }
             Ok(())
         }
         Owner::Project => Err(DreamError::composer(format!("cannot read `{rel}`"))),
-        Owner::Unmanaged => Err(DreamError::composer(format!("dest `{rel}` is user-owned"))),
+        Owner::Unmanaged => Err(DreamError::composer(format!("`{rel}` is a user file"))),
     }
 }
 
 pub fn authorize_remove(
     store: &Store,
+    dest: &Path,
     rel: &str,
     unit: Option<&str>,
     this_job: Option<&HashSet<String>>,
@@ -127,24 +127,19 @@ pub fn authorize_remove(
         )));
     }
     if spec.is_some_and(|spec| spec.is_setup(rel)) {
-        return match store.owner(rel) {
-            Owner::Unit(owner) => Err(DreamError::composer(format!(
-                "dest `{rel}` is owned by `{owner}`"
-            ))),
-            Owner::Project | Owner::Unmanaged => Ok(()),
-        };
+        return authorize_setup(store, dest, rel);
     }
     let owner = owner_including_job(store, rel, unit, this_job);
     reject_if_locked(store, unit, &owner)?;
     match owner {
         Owner::Unit(owner) if unit == Some(owner.as_str()) => Ok(()),
         Owner::Unit(owner) => Err(DreamError::composer(format!(
-            "dest `{rel}` is owned by `{owner}`"
+            "`{rel}` was produced by `{owner}`"
         ))),
         Owner::Project => Err(DreamError::composer(format!(
             "cannot remove `{rel}`; wipe-only"
         ))),
-        Owner::Unmanaged => Err(DreamError::composer(format!("dest `{rel}` is user-owned"))),
+        Owner::Unmanaged => Err(DreamError::composer(format!("`{rel}` is a user file"))),
     }
 }
 
@@ -208,7 +203,7 @@ mod tests {
             cargo,
         )
         .unwrap_err();
-        assert!(err.to_string().contains("owned by `main.foo`"));
+        assert!(err.to_string().contains("produced by `main.foo`"));
 
         let unmanaged = authorize_write(
             &store,
@@ -219,7 +214,7 @@ mod tests {
             cargo,
         )
         .unwrap_err();
-        assert!(unmanaged.to_string().contains("user-owned"));
+        assert!(unmanaged.to_string().contains("user file"));
 
         store.mark_project("Cargo.toml");
         store.mark_project("target");
@@ -257,13 +252,52 @@ mod tests {
         .unwrap_err();
         assert!(reserved_err.to_string().contains("project metadata"));
 
-        let repair_new =
-            authorize_write(&store, dest.path(), "src/new.rs", None, None, cargo).unwrap_err();
-        assert!(repair_new.to_string().contains("repair cannot create"));
+        authorize_write(
+            &store,
+            dest.path(),
+            "src/new.rs",
+            Some("main.foo"),
+            None,
+            cargo,
+        )
+        .unwrap();
+        let no_unit =
+            authorize_write(&store, dest.path(), "src/other.rs", None, None, cargo).unwrap_err();
+        assert!(no_unit.to_string().contains("requires a `.foo` file"));
         authorize_write(&store, dest.path(), "src/main.rs", None, None, cargo).unwrap();
 
         store.set_lock("main.foo", "abc".into());
         authorize_unit(&store, "main.foo").unwrap_err();
+        authorize_write(
+            &store,
+            dest.path(),
+            "Cargo.toml",
+            Some("main.foo"),
+            None,
+            cargo,
+        )
+        .unwrap();
+        store.locked_setup.push("Cargo.toml".into());
+        let setup_locked = authorize_write(
+            &store,
+            dest.path(),
+            "Cargo.toml",
+            Some("main.foo"),
+            None,
+            cargo,
+        )
+        .unwrap_err();
+        assert!(setup_locked.to_string().contains("`Cargo.toml` is locked"));
+        store.locked_setup.clear();
+        authorize_write(
+            &store,
+            dest.path(),
+            "Cargo.toml",
+            Some("main.foo"),
+            None,
+            cargo,
+        )
+        .unwrap();
         let locked = authorize_write(
             &store,
             dest.path(),

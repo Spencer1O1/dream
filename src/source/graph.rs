@@ -25,6 +25,12 @@ impl DepGraph {
         self.read.contains(unit)
     }
 
+    pub fn reached_units(&self) -> Vec<&str> {
+        let mut units: Vec<&str> = self.read.iter().map(String::as_str).collect();
+        units.sort_unstable();
+        units
+    }
+
     pub fn record_read(&mut self, path: &str) {
         self.read.insert(path.to_string());
     }
@@ -60,5 +66,6 @@ mod tests {
         graph.record_read("utils.foo");
         assert!(graph.reached("utils.foo"));
         assert!(graph.reached("main.foo"));
+        assert_eq!(graph.reached_units(), ["main.foo", "utils.foo"]);
     }
 }

@@ -2,12 +2,16 @@ use std::path::{Component, Path, PathBuf};
 
 use crate::error::DreamError;
 
+pub fn is_foo(path: &Path) -> bool {
+    path.extension().and_then(|ext| ext.to_str()) == Some("foo")
+}
+
 pub fn resolve_inside(root: &Path, requested: &str) -> Result<PathBuf, DreamError> {
     resolve_under(
         root,
         requested,
-        "source request is empty",
-        "source request escapes project root",
+        "`.foo` request is empty",
+        "`.foo` request escapes project root",
     )
     .map_err(DreamError::runtime)
 }
@@ -34,12 +38,12 @@ pub fn resolve_output(root: &Path, requested: &str) -> Result<PathBuf, DreamErro
     let dest = resolve_under(
         root,
         requested,
-        "dest write is empty",
-        "dest write escapes -o",
+        "output write is empty",
+        "output write escapes -o",
     )
     .map_err(DreamError::composer)?;
     if dest == root {
-        return Err(DreamError::composer("dest write escapes -o"));
+        return Err(DreamError::composer("output write escapes -o"));
     }
     Ok(dest)
 }
@@ -71,7 +75,7 @@ pub fn rel_path(root: &Path, path: &Path) -> Result<String, DreamError> {
 }
 
 pub fn rel_output(root: &Path, path: &Path) -> Result<String, DreamError> {
-    rel_under(root, path).map_err(|_| DreamError::composer("dest write escapes -o"))
+    rel_under(root, path).map_err(|_| DreamError::composer("output write escapes -o"))
 }
 
 fn rel_under(root: &Path, path: &Path) -> Result<String, ()> {
@@ -109,13 +113,13 @@ mod tests {
         let root = Path::new("/tmp/stage");
         let escape = resolve_output(root, "../secret").unwrap_err();
         assert!(escape.to_string().starts_with("ComposerError:"));
-        assert!(escape.to_string().contains("dest write escapes -o"));
+        assert!(escape.to_string().contains("output write escapes -o"));
         let abs = resolve_output(root, "/etc/passwd").unwrap_err();
-        assert!(abs.to_string().contains("dest write escapes -o"));
+        assert!(abs.to_string().contains("output write escapes -o"));
         let root_write = resolve_output(root, ".").unwrap_err();
-        assert!(root_write.to_string().contains("dest write escapes -o"));
+        assert!(root_write.to_string().contains("output write escapes -o"));
         let empty = resolve_output(root, "  ").unwrap_err();
-        assert!(empty.to_string().contains("dest write is empty"));
+        assert!(empty.to_string().contains("output write is empty"));
     }
 
     #[test]
@@ -140,6 +144,6 @@ mod tests {
         assert!(err.to_string().starts_with("RuntimeError:"));
         assert!(err
             .to_string()
-            .contains("source request escapes project root"));
+            .contains("`.foo` request escapes project root"));
     }
 }

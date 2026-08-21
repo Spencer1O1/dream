@@ -15,15 +15,15 @@ Each parameter has its own `description`. That is where the argument is defined.
 description: "Write a file. `unit` is the `.foo` that owns it."
 
 // Good
-description: "Write one source file in the project."
-// unit: "Project-relative path of the `.foo` file that owns this file"
-// path: "Where the file goes in the project"
+description: "Write one file."
+// unit: "Project-relative path of the `.foo` file that produced this file"
+// path: "Path of the file"
 ```
 
 Do not mention a parameter by name in the tool description (no `` `unit` ``, no "`path` is …").
 
 Call it a `` `.foo` file ``. Not a bare `` `.foo` ``, not a `` `.foo` path ``.
 
-Dest files a `.foo` file owns are **owned files**, not artifacts. A read returns `owned`.
+Files a `.foo` file produces are source files, not artifacts. A compose `read_foo_file` returns `source_files`.
 
 A tool description may say what the tool returns. A parameter description says what to write. If the locator matters, say "project-relative path" on the return or on the argument — do not rename the thing.

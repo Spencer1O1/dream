@@ -26,7 +26,9 @@ pub(super) fn inherit_step(
             .status()
     })?
     else {
-        return Ok(Outcome::MissingToolchain(spec.install_hint));
+        return Ok(Outcome::MissingToolchain(program::missing_hint(
+            spec, program,
+        )));
     };
     if status.success() {
         Ok(Outcome::Ok)

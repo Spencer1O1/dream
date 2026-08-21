@@ -28,7 +28,9 @@ pub(super) fn capture_step(
             .output()
     })?
     else {
-        return Ok(Outcome::MissingToolchain(spec.install_hint));
+        return Ok(Outcome::MissingToolchain(program::missing_hint(
+            spec, program,
+        )));
     };
     forward(&output)?;
     let text = diagnostics(&output);

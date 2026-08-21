@@ -25,6 +25,14 @@ pub(super) fn launch<T>(
     Ok(None)
 }
 
+pub(super) fn missing_hint(spec: &ToolchainSpec, requested: &str) -> String {
+    if spec.programs.first().copied() == Some(requested) {
+        spec.install_hint.to_string()
+    } else {
+        format!("{requested} is not installed")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -74,6 +82,16 @@ mod tests {
         })
         .unwrap_err();
         assert!(err.to_string().contains("exists but cannot spawn"));
+    }
+
+    #[test]
+    fn missing_hint_names_a_helper() {
+        let perl = spec(&["perl"]);
+        assert_eq!(missing_hint(&perl, "cpanm"), "cpanm is not installed");
+        assert_eq!(
+            missing_hint(&perl, "perl"),
+            "Install the test toolchain from somewhere."
+        );
     }
 
     #[test]

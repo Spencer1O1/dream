@@ -39,18 +39,18 @@ mod tests {
     #[test]
     fn line_is_name_and_path_or_toolchain() {
         assert_eq!(
-            line("write_file", &json!({"path": "src/main.rs"})),
-            "write_file src/main.rs"
+            line("write_source_file", &json!({"path": "src/main.rs"})),
+            "write_source_file src/main.rs"
         );
         assert_eq!(
             line("set_toolchain", &json!({"toolchain": "cargo"})),
             "set_toolchain cargo"
         );
         assert_eq!(
-            line("write_file", &json!({"unit": "main.foo"})),
-            "write_file main.foo"
+            line("write_source_file", &json!({"unit": "main.foo"})),
+            "write_source_file main.foo"
         );
-        assert_eq!(line("list_source_files", &json!({})), "list_source_files");
+        assert_eq!(line("list_foo_files", &json!({})), "list_foo_files");
         assert_eq!(
             line("dream_error", &json!({"error": "nope"})),
             "dream_error"
@@ -63,18 +63,18 @@ mod tests {
         assert_eq!(
             format!(
                 "{}: {}",
-                line("write_file", &json!({"path": "src/utils.rs"})),
+                line("write_source_file", &json!({"path": "src/utils.rs"})),
                 err.detail()
             ),
-            "write_file src/utils.rs: `utils.foo` is locked"
+            "write_source_file src/utils.rs: `utils.foo` is locked"
         );
         assert_eq!(
             format!(
                 "warning: {}: {}",
-                line("write_file", &json!({"path": "src/utils.rs"})),
+                line("write_source_file", &json!({"path": "src/utils.rs"})),
                 "`utils.foo` is locked"
             ),
-            "warning: write_file src/utils.rs: `utils.foo` is locked"
+            "warning: write_source_file src/utils.rs: `utils.foo` is locked"
         );
     }
 }

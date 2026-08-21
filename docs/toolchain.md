@@ -48,7 +48,7 @@ Composer writes setup. `--fresh` drops setup and wipe. Init marks those paths an
 - cargo / go: `build` fetches.
 - node / bun / ruby / php: `configure` is `npm install` / `bun install` / `bundle install` / `composer install`.
 - cmake: existing `cmake -S . -B build`.
-- make / lua: empty configure.
+- python / perl / make / lua: empty configure. `cpanfile` is setup, not a fetch.
 
 ## Loop
 

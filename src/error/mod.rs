@@ -2,7 +2,7 @@
 //!
 //! | Type | When |
 //! |------|------|
-//! | [`UsageError`] | This invocation does not apply: flags, not a `.foo`, dest occupied, lock with no store. |
+//! | [`UsageError`] | This invocation does not apply: flags, not a `.foo`, output occupied, lock with no store. |
 //! | [`ConfigError`] | Dream cannot start: environment or settings. |
 //! | [`InterpreterError`] | The dreamed program stopped (`dream_error`, lucid turn cap). Not compose. |
 //! | [`ComposerError`] | Composition, lock, repair, or build stopped. |

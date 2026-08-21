@@ -19,6 +19,8 @@ pub struct Store {
     pub units: BTreeMap<String, UnitState>,
     #[serde(default)]
     pub project: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub locked_setup: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -44,6 +46,7 @@ impl Store {
             source_root: None,
             units: BTreeMap::new(),
             project: Vec::new(),
+            locked_setup: Vec::new(),
         }
     }
 
@@ -114,8 +117,9 @@ impl Store {
         }
     }
 
-    pub fn is_locked(&self, unit: &str) -> bool {
-        self.units.get(unit).is_some_and(|state| state.locked)
+    pub fn is_locked(&self, name: &str) -> bool {
+        self.units.get(name).is_some_and(|state| state.locked)
+            || self.locked_setup.iter().any(|path| path == name)
     }
 
     pub fn set_lock(&mut self, unit: &str, source_hash: String) {
@@ -125,11 +129,20 @@ impl Store {
         }
     }
 
-    pub fn clear_lock(&mut self, unit: &str) {
-        if let Some(state) = self.units.get_mut(unit) {
+    pub fn lock_file(&mut self, name: &str) {
+        if self.units.contains_key(name) || self.is_locked(name) {
+            return;
+        }
+        self.locked_setup.push(name.to_string());
+        self.locked_setup.sort();
+    }
+
+    pub fn clear_lock(&mut self, name: &str) {
+        if let Some(state) = self.units.get_mut(name) {
             state.locked = false;
             state.source_hash = None;
         }
+        self.locked_setup.retain(|path| path != name);
     }
 
     pub fn drop_owned(&self, dest: &Path) -> Result<(), DreamError> {

@@ -16,17 +16,10 @@ pub struct Compose<'a> {
     pub toolchain: Option<Toolchain>,
 }
 
-pub struct Repair<'a> {
-    pub dest: &'a Path,
-    pub store: &'a Store,
-    pub toolchain: Option<Toolchain>,
-}
-
 pub enum Mode<'a> {
     Lucid,
     Pick(Pick<'a>),
     Compose(Compose<'a>),
-    Repair(Repair<'a>),
 }
 
 pub struct ToolCtx<'a> {
@@ -61,24 +54,6 @@ impl<'a> ToolCtx<'a> {
             project,
             deps,
             mode: Mode::Compose(compose),
-        }
-    }
-
-    pub fn repair(
-        project: &'a Project,
-        deps: &'a mut DepGraph,
-        dest: &'a Path,
-        store: &'a Store,
-        toolchain: Option<Toolchain>,
-    ) -> Self {
-        Self {
-            project,
-            deps,
-            mode: Mode::Repair(Repair {
-                dest,
-                store,
-                toolchain,
-            }),
         }
     }
 }

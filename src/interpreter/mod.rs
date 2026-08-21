@@ -25,10 +25,7 @@ pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), Drea
 
     let mut input = vec![json!({
         "role": "user",
-        "content": format!(
-            "Execute this Dream program.\n\nEntry: {}\n\n{}",
-            unit.rel, unit.source
-        )
+        "content": crate::prompt::entry(&unit.rel, &unit.source)
     })];
 
     Session {

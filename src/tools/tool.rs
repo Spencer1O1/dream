@@ -8,7 +8,7 @@ use super::ctx::ToolCtx;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Family {
-    Source,
+    Foo,
     Runtime,
     Composer,
     Project,
@@ -17,7 +17,7 @@ pub enum Family {
 
 impl Family {
     pub(crate) const ORDER: [Self; 5] = [
-        Self::Source,
+        Self::Foo,
         Self::Runtime,
         Self::Composer,
         Self::Project,
@@ -28,7 +28,7 @@ impl Family {
 impl fmt::Display for Family {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(match self {
-            Self::Source => "Source",
+            Self::Foo => "Foo",
             Self::Runtime => "Runtime",
             Self::Composer => "Composer",
             Self::Project => "Project",

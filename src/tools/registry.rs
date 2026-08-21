@@ -14,7 +14,7 @@ pub struct Registry {
 impl Registry {
     pub fn interpreter() -> Self {
         Self::gather(&[
-            super::source::lucid_tools,
+            super::foo::lucid_tools,
             super::runtime::tools,
             super::files::tools,
             super::http::tools,
@@ -27,24 +27,20 @@ impl Registry {
         Self::composer_for(None)
     }
 
-    pub fn composer_for(_toolchain: Option<crate::toolchain::Toolchain>) -> Self {
-        Self::gather(&[
-            super::source::compose_tools,
-            super::composer::tools,
-            super::control::tools,
-        ])
+    pub fn composer_for(toolchain: Option<crate::toolchain::Toolchain>) -> Self {
+        let mut tools = super::foo::compose_tools();
+        tools.extend(super::composer::tools(toolchain));
+        tools.extend(super::control::tools());
+        Self { tools }
     }
 
     pub fn toolchain() -> Self {
         Self::gather(&[super::toolchain::tools])
     }
 
+    #[cfg(test)]
     pub fn repair() -> Self {
-        Self::gather(&[
-            super::source::compose_tools,
-            super::composer::repair_tools,
-            super::control::tools,
-        ])
+        Self::composer_for(None)
     }
 
     fn gather(families: &[FamilyTools]) -> Self {
@@ -90,8 +86,8 @@ mod tests {
         assert_eq!(
             Registry::interpreter().names(),
             vec![
-                "list_source_files",
-                "read_source_file",
+                "list_foo_files",
+                "read_foo_file",
                 "stdout",
                 "stdin",
                 "list_files",
@@ -108,11 +104,11 @@ mod tests {
         assert_eq!(
             Registry::composer().names(),
             vec![
-                "list_source_files",
+                "list_foo_files",
+                "read_foo_file",
                 "read_source_file",
-                "read_file",
-                "write_file",
-                "remove_file",
+                "write_source_file",
+                "remove_source_file",
                 "dream_error"
             ]
         );
@@ -120,11 +116,14 @@ mod tests {
             Registry::composer_for(Some(crate::toolchain::Toolchain::parse("cargo").unwrap()))
                 .names(),
             vec![
-                "list_source_files",
+                "list_foo_files",
+                "read_foo_file",
                 "read_source_file",
-                "read_file",
-                "write_file",
-                "remove_file",
+                "read_setup_file",
+                "write_source_file",
+                "write_setup_file",
+                "remove_source_file",
+                "remove_setup_file",
                 "dream_error"
             ]
         );
@@ -132,11 +131,11 @@ mod tests {
             Registry::composer_for(Some(crate::toolchain::Toolchain::parse("lua").unwrap()))
                 .names(),
             vec![
-                "list_source_files",
+                "list_foo_files",
+                "read_foo_file",
                 "read_source_file",
-                "read_file",
-                "write_file",
-                "remove_file",
+                "write_source_file",
+                "remove_source_file",
                 "dream_error"
             ]
         );
@@ -187,7 +186,7 @@ mod tests {
         );
         if parameter {
             assert!(
-                text.contains("path"),
+                text.to_ascii_lowercase().contains("path"),
                 "{tool} parameter names a `.foo` file without path: {text}"
             );
         }
@@ -281,26 +280,5 @@ mod tests {
         if let Some(items) = schema.get("items") {
             assert_required_covers_properties(items, &format!("{path}.items"));
         }
-    }
-
-    #[test]
-    fn repair_names() {
-        assert_eq!(
-            Registry::repair().names(),
-            vec![
-                "list_source_files",
-                "read_source_file",
-                "read_file",
-                "write_file",
-                "dream_error"
-            ]
-        );
-        let write = Registry::repair()
-            .tools()
-            .iter()
-            .find(|tool| tool.spec().name == "write_file")
-            .unwrap()
-            .spec();
-        assert!(write.parameters["properties"].get("unit").is_none());
     }
 }

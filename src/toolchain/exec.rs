@@ -82,6 +82,21 @@ mod tests {
         let spec = spec(&["dream-no-such-toolchain-7f3a"], Run::Argv(&["true"]));
         match invoke(&spec, dir.path(), ENTRY, false, false).unwrap() {
             Outcome::MissingToolchain(hint) => {
+                assert_eq!(hint, "dream-no-such-toolchain-7f3a is not installed");
+            }
+            other => panic!("expected missing toolchain, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn missing_language_binary_uses_install_hint() {
+        let dir = tempfile::tempdir().unwrap();
+        let spec = ToolchainSpec {
+            programs: &["dream-no-such-toolchain-7f3a"],
+            ..spec(&["dream-no-such-toolchain-7f3a"], Run::Argv(&["true"]))
+        };
+        match invoke(&spec, dir.path(), ENTRY, false, false).unwrap() {
+            Outcome::MissingToolchain(hint) => {
                 assert!(hint.contains("Install the test toolchain"));
             }
             other => panic!("expected missing toolchain, got {other:?}"),

@@ -13,7 +13,7 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
     match Store::load(dest)? {
         Some(store) if !fresh && !accepts_target(&store.target, target) => {
             Err(DreamError::usage(format!(
-                "dest is for target `{}`; pass --fresh to overwrite `-t {target}`",
+                "output is for target `{}`; pass --fresh to overwrite `-t {target}`",
                 store.target
             )))
         }
@@ -24,7 +24,7 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
         }
         Some(store) => Ok((store, false)),
         None if has_user_files(dest)? && !fresh => Err(DreamError::usage(
-            "dest has files Dream does not own; pass --fresh to overwrite or use an empty directory",
+            "output has files Dream does not own; pass --fresh to overwrite or use an empty directory",
         )),
         None => {
             if fresh {
@@ -33,6 +33,21 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
             Ok((Store::new(target), fresh))
         }
     }
+}
+
+pub fn require_store(dest: &Path, target: &str) -> Result<Store, DreamError> {
+    let Some(store) = Store::load(dest)? else {
+        return Err(DreamError::usage(
+            "output has no provenance store; compose first",
+        ));
+    };
+    if !accepts_target(&store.target, target) {
+        return Err(DreamError::usage(format!(
+            "output is for target `{}`; pass `-t {}`",
+            store.target, store.target
+        )));
+    }
+    Ok(store)
 }
 
 /// Exact catalog name must match. A fuzzy `-t` may reuse a catalog store.

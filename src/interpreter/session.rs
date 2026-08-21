@@ -1,3 +1,7 @@
+//! Lucid turn loop: respond, dispatch, settle.
+//!
+//! No copy.
+
 use serde_json::{json, Value};
 
 use crate::error::DreamError;

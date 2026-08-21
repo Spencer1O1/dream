@@ -8,7 +8,7 @@ pub fn read_file(dest: &Path, path: &str) -> Result<String, DreamError> {
     let abs = resolve_output(dest, path)?;
     if !abs.is_file() {
         return Err(DreamError::composer(format!(
-            "dest file `{path}` does not exist"
+            "file `{path}` does not exist"
         )));
     }
     Ok(fs::read_to_string(abs)?)
@@ -92,7 +92,7 @@ mod tests {
     fn write_file_rejects_escape() {
         let dest = tempfile::tempdir().unwrap();
         let err = write_file(dest.path(), "../outside.rs", "no").unwrap_err();
-        assert!(err.to_string().contains("dest write escapes -o"));
+        assert!(err.to_string().contains("output write escapes -o"));
         assert!(!dest.path().join("outside.rs").exists());
     }
 
@@ -131,7 +131,7 @@ mod tests {
         assert!(dest.path().join("lib").is_dir());
 
         let escape = remove_file(dest.path(), "../secret").unwrap_err();
-        assert!(escape.to_string().contains("dest write escapes -o"));
+        assert!(escape.to_string().contains("output write escapes -o"));
     }
 
     #[test]
@@ -148,6 +148,6 @@ mod tests {
         );
         remove_dest(dest.path(), "missing.lock").unwrap();
         let escape = remove_dest(dest.path(), "../secret").unwrap_err();
-        assert!(escape.to_string().contains("dest write escapes -o"));
+        assert!(escape.to_string().contains("output write escapes -o"));
     }
 }

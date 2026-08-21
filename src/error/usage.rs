@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-/// This invocation does not apply: flags, not a `.foo`, dest occupied, lock with no store.
+/// This invocation does not apply: flags, not a `.foo`, output occupied, lock with no store.
 #[derive(Debug, Error)]
 #[error("UsageError: {error}")]
 pub struct UsageError {

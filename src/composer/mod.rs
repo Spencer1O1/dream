@@ -8,14 +8,13 @@ mod state;
 
 use std::path::Path;
 
-use serde_json::json;
-
 use crate::config::Config;
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
 use crate::llm::OpenAi;
 use crate::output;
 use crate::provenance;
+use crate::source::paths;
 use crate::source::DepGraph;
 use crate::source::Project;
 use crate::toolchain::Toolchain;
@@ -52,29 +51,17 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
     let flags = ActiveFlags::new(opts.strict);
 
-    let mut input = vec![json!({
-        "role": "user",
-        "content": format!(
-            "Compose this Dream program to {}.\n\nEntry: {}\n\n{}",
-            opts.target, unit.rel, unit.source
-        )
-    })];
+    let mut input = prompt::this_run(&unit.rel, &unit.source, None)?;
 
     let toolchain = match Toolchain::parse(opts.target) {
         Ok(known) => {
-            input.push(json!({
-                "role": "user",
-                "content": known.declared_user_blob(&unit.rel)?
-            }));
+            prompt::push_toolchain(&mut input, known, &unit.rel)?;
             Some(known)
         }
         Err(_) => {
             if !state.fresh && Toolchain::parse(&state.store.target).is_ok() {
                 let known = Toolchain::parse(&state.store.target)?;
-                input.push(json!({
-                    "role": "user",
-                    "content": known.declared_user_blob(&unit.rel)?
-                }));
+                prompt::push_toolchain(&mut input, known, &unit.rel)?;
                 Some(known)
             } else {
                 Some(
@@ -118,22 +105,30 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     Ok(())
 }
 
-pub fn lock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
-    if target.trim().is_empty() {
-        return Err(DreamError::usage("lock requires -t <target>"));
-    }
-    let (project, unit) = Project::from_path(entry)?;
-    let output = output::resolve_output_dir(project.root(), output)?;
-    provenance::lock(&output, target, &project.root().join(&unit.rel))
+pub fn lock(path: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
+    run_lock(path, target, output, "lock", provenance::lock)
 }
 
-pub fn unlock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
+pub fn unlock(path: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
+    run_lock(path, target, output, "unlock", provenance::unlock)
+}
+
+fn run_lock(
+    path: &Path,
+    target: &str,
+    output: &Path,
+    verb: &str,
+    op: fn(&Path, &str, &Path) -> Result<(), DreamError>,
+) -> Result<(), DreamError> {
     if target.trim().is_empty() {
-        return Err(DreamError::usage("unlock requires -t <target>"));
+        return Err(DreamError::usage(format!("{verb} requires -t <target>")));
     }
-    let (project, unit) = Project::from_path(entry)?;
-    let output = output::resolve_output_dir(project.root(), output)?;
-    provenance::unlock(&output, target, &project.root().join(&unit.rel))
+    let root = if paths::is_foo(path) {
+        Project::from_path(path)?.0.root().to_path_buf()
+    } else {
+        std::env::current_dir()?
+    };
+    op(&output::resolve_output_dir(&root, output)?, target, path)
 }
 
 pub fn inspect(path: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
@@ -185,5 +180,29 @@ mod tests {
         unlock(&src.path().join("users/active.foo"), "rust", dest.path()).unwrap();
         let store = Store::load(dest.path()).unwrap().unwrap();
         assert!(!store.is_locked("users/active.foo"));
+    }
+
+    #[test]
+    fn lock_names_a_setup_file() {
+        let src = tempfile::tempdir().unwrap();
+        fs::write(src.path().join("main.foo"), "entry").unwrap();
+        let dest = tempfile::tempdir().unwrap();
+        fs::write(dest.path().join("go.mod"), "module x\n").unwrap();
+        fs::create_dir_all(dest.path().join("src")).unwrap();
+        fs::write(dest.path().join("src/main.go"), "package main\n").unwrap();
+        let mut store = Store::new("go");
+        store.set_source_root(src.path()).unwrap();
+        store.set_artifacts("main.foo", HashSet::from(["src/main.go".into()]));
+        store.mark_project("go.mod");
+        store.save(dest.path()).unwrap();
+
+        lock(Path::new("go.mod"), "go", dest.path()).unwrap();
+        let store = Store::load(dest.path()).unwrap().unwrap();
+        assert!(store.is_locked("go.mod"));
+        assert!(!store.is_locked("main.foo"));
+
+        unlock(Path::new("go.mod"), "go", dest.path()).unwrap();
+        let store = Store::load(dest.path()).unwrap().unwrap();
+        assert!(!store.is_locked("go.mod"));
     }
 }

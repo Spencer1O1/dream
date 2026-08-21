@@ -1,3 +1,5 @@
+//! Catalog tool. Description says what it does; parameters say what to write. No Dream law.
+
 use serde_json::{json, Value};
 
 use crate::error::DreamError;
@@ -8,11 +10,11 @@ use crate::tools::Mode;
 use super::reply;
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
-pub(super) struct ReadSourceFile {
+pub(super) struct ReadFooFile {
     compose: bool,
 }
 
-impl ReadSourceFile {
+impl ReadFooFile {
     pub(super) fn lucid() -> Self {
         Self { compose: false }
     }
@@ -22,15 +24,15 @@ impl ReadSourceFile {
     }
 }
 
-impl Tool for ReadSourceFile {
+impl Tool for ReadFooFile {
     fn spec(&self) -> ToolSpec {
         ToolSpec {
-            name: "read_source_file",
-            family: Family::Source,
+            name: "read_foo_file",
+            family: Family::Foo,
             description: if self.compose {
-                "Read one `.foo` file. Returns the project-relative path, the source, whether it is locked, and owned files if any."
+                "Read one `.foo` file. Returns the path, the contents, whether it is locked, and any source files that it has produced."
             } else {
-                "Read one `.foo` file. Returns the project-relative path and the source."
+                "Read one `.foo` file. Returns the path and the contents."
             },
             parameters: object_params(
                 &[(
@@ -43,14 +45,13 @@ impl Tool for ReadSourceFile {
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
-        let unit = match ctx.project.read_source_file(arg_str(args, "path")) {
+        let unit = match ctx.project.read_foo_file(arg_str(args, "path")) {
             Ok(unit) => unit,
             Err(err) => return Ok(reply::refused(err)),
         };
         ctx.deps.record_read(&unit.rel);
         let dest_store = match &ctx.mode {
             Mode::Compose(compose) => Some((compose.dest, compose.store)),
-            Mode::Repair(repair) => Some((repair.dest, repair.store)),
             Mode::Lucid | Mode::Pick(_) => None,
         };
         if let Some((dest, store)) = dest_store {
@@ -61,13 +62,13 @@ impl Tool for ReadSourceFile {
                 .unwrap_or((Vec::new(), false));
             return Ok(json!({
                 "path": unit.rel,
-                "source": unit.source,
+                "contents": unit.source,
                 "locked": locked,
-                "owned": provenance::read_artifacts(dest, &artifacts),
+                "source_files": provenance::read_artifacts(dest, &artifacts),
             })
             .to_string());
         }
-        Ok(json!({ "path": unit.rel, "source": unit.source }).to_string())
+        Ok(json!({ "path": unit.rel, "contents": unit.source }).to_string())
     }
 }
 
@@ -82,55 +83,22 @@ mod tests {
     use std::fs;
 
     #[test]
-    fn interpreter_read_is_source_only() {
+    fn interpreter_read_is_foo_only() {
         let project_dir = tempfile::tempdir().unwrap();
         fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
         let mut ctx = ToolCtx::lucid(&project, &mut deps);
-        let out = ReadSourceFile::lucid()
+        let out = ReadFooFile::lucid()
             .call(&mut ctx, &json!({ "path": "main.foo" }))
             .unwrap();
         assert!(out.contains("print hi"));
-        assert!(!out.contains("artifacts"));
-        assert!(!out.contains("owned"));
+        assert!(!out.contains("source_files"));
+        assert!(!out.contains("produced"));
     }
 
     #[test]
-    fn compose_read_attaches_owned_files() {
-        let project_dir = tempfile::tempdir().unwrap();
-        fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
-        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
-        let mut deps = DepGraph::new(&unit.rel);
-        let dest = tempfile::tempdir().unwrap();
-        fs::create_dir_all(dest.path().join("src")).unwrap();
-        fs::write(dest.path().join("src/main.rs"), "fn main() {}").unwrap();
-        let mut store = Store::new("rust");
-        store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
-        let mut artifacts = std::collections::HashMap::new();
-        let mut ctx = ToolCtx::compose(
-            &project,
-            &mut deps,
-            Compose {
-                dest: dest.path(),
-                store: &store,
-                artifacts: &mut artifacts,
-                toolchain: None,
-            },
-        );
-        let out = ReadSourceFile::compose()
-            .call(&mut ctx, &json!({ "path": "main.foo" }))
-            .unwrap();
-        assert!(out.contains("print hi"));
-        assert!(out.contains("\"owned\""));
-        assert!(out.contains("src/main.rs"));
-        assert!(out.contains("fn main()"));
-        assert!(out.contains("\"locked\":false"));
-        assert!(!out.contains("artifacts"));
-    }
-
-    #[test]
-    fn compose_read_reports_a_lock() {
+    fn compose_read_attaches_source_files() {
         let project_dir = tempfile::tempdir().unwrap();
         fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
@@ -152,10 +120,13 @@ mod tests {
                 toolchain: None,
             },
         );
-        let out = ReadSourceFile::compose()
+        let out = ReadFooFile::compose()
             .call(&mut ctx, &json!({ "path": "main.foo" }))
             .unwrap();
-        assert!(out.contains("\"locked\":true"));
+        assert!(out.contains("print hi"));
+        assert!(out.contains("\"source_files\""));
         assert!(out.contains("src/main.rs"));
+        assert!(out.contains("fn main()"));
+        assert!(out.contains("\"locked\":true"));
     }
 }

@@ -1,3 +1,5 @@
+//! Catalog tool. Description says what it does; parameters say what to write. No Dream law.
+
 use serde_json::{json, Value};
 
 use crate::error::DreamError;
@@ -139,6 +141,6 @@ mod tests {
             .unwrap();
         assert!(crate::tools::reply::warning_of(&foo)
             .unwrap()
-            .contains("read_source_file"));
+            .contains("read_foo_file"));
     }
 }

@@ -1,4 +1,6 @@
-use serde_json::json;
+//! Pick turn: declare a toolchain, then append the toolchain card.
+//!
+//! Instructions come from `prompt::toolchain`. No standing law of its own.
 
 use crate::error::DreamError;
 use crate::llm::OpenAi;
@@ -18,13 +20,8 @@ pub(crate) async fn ask_toolchain(
 ) -> Result<Toolchain, DreamError> {
     let registry = Registry::toolchain();
     let instructions = prompt::toolchain(&registry);
-    let mut pick_input = input.clone();
-    pick_input.push(json!({
-        "role": "user",
-        "content": "Declare the toolchain before writing files."
-    }));
     let turn = openai
-        .respond(&instructions, &pick_input, &registry.schemas())
+        .respond(&instructions, input, &registry.schemas())
         .await?;
     if turn.function_calls.is_empty() {
         return Err(DreamError::composer(
@@ -42,9 +39,6 @@ pub(crate) async fn ask_toolchain(
             "toolchain was not declared; call set_toolchain",
         ));
     };
-    input.push(json!({
-        "role": "user",
-        "content": known.declared_user_blob(entry_rel)?
-    }));
+    prompt::push_toolchain(input, known, entry_rel)?;
     Ok(known)
 }

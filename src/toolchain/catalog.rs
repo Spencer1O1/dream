@@ -359,7 +359,7 @@ pub static CATALOG: &[ToolchainSpec] = &[
     ),
     ToolchainSpec::row(
         "perl",
-        &["cpanm", "--installdeps", "."],
+        &[],
         &[],
         Run::Stem { program: "perl" },
         &["perl"],
@@ -523,9 +523,6 @@ mod tests {
         assert!(spec("cargo").unwrap().is_wipe("target/foo.rs"));
         assert!(!spec("cargo").unwrap().is_wipe("target2"));
         assert!(!spec("cargo").unwrap().is_setup("target"));
-        assert_eq!(
-            spec("perl").unwrap().configure,
-            &["cpanm", "--installdeps", "."]
-        );
+        assert!(spec("perl").unwrap().configure.is_empty());
     }
 }

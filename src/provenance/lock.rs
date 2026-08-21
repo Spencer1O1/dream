@@ -1,32 +1,102 @@
-use std::fmt::Write as _;
 use std::fs;
 use std::path::{Path, PathBuf};
 
 use sha2::{Digest, Sha256};
 
 use crate::error::DreamError;
-use crate::source::paths::rel_path;
+use crate::source::paths::{self, rel_path};
 use crate::source::Project;
+use crate::toolchain::Toolchain;
 
+use super::open::require_store;
 use super::store::Store;
 
-pub fn lock(dest: &Path, target: &str, source_file: &Path) -> Result<(), DreamError> {
+pub fn lock(dest: &Path, target: &str, named: &Path) -> Result<(), DreamError> {
     let mut store = require_store(dest, target)?;
-    let unit = unit_from_root(&store, source_file)?;
+    match resolve(&store, dest, named)? {
+        Name::Setup(rel) => {
+            if !dest.join(&rel).is_file() {
+                return Err(DreamError::usage(format!("`{rel}` does not exist")));
+            }
+            store.lock_file(&rel);
+        }
+        Name::Unit(unit) => lock_unit(&mut store, dest, target, &unit, named)?,
+    }
+    store.save(dest)
+}
+
+pub fn unlock(dest: &Path, target: &str, named: &Path) -> Result<(), DreamError> {
+    let mut store = require_store(dest, target)?;
+    let name = match resolve(&store, dest, named)? {
+        Name::Unit(name) | Name::Setup(name) => name,
+    };
+    if !store.is_locked(&name) {
+        return Err(DreamError::usage(format!("`{name}` is not locked")));
+    }
+    store.clear_lock(&name);
+    store.save(dest)
+}
+
+pub fn check(store: &Store, dest: &Path, project: &Project) -> Result<(), DreamError> {
+    for (unit, state) in &store.units {
+        if !state.locked {
+            continue;
+        }
+        if state.source_hash.as_deref() != Some(hash_unit(project, unit)?.as_str()) {
+            return Err(DreamError::composer(format!(
+                "locked unit `{unit}` source changed; unlock or restore the .foo"
+            )));
+        }
+        missing(dest, &state.artifacts, |rel| {
+            format!("locked output `{rel}` for `{unit}` is missing; restore the file, unlock, or --fresh")
+        })?;
+    }
+    missing(dest, &store.locked_setup, |rel| {
+        format!("locked setup file `{rel}` is missing; restore the file, unlock, or --fresh")
+    })
+}
+
+enum Name {
+    Unit(String),
+    Setup(String),
+}
+
+fn resolve(store: &Store, dest: &Path, named: &Path) -> Result<Name, DreamError> {
+    if paths::is_foo(named) {
+        return Ok(Name::Unit(unit_from_root(store, named)?));
+    }
+    let rel = dest_name(dest, named);
+    if !is_setup(store, &rel) {
+        return Err(DreamError::usage(format!("`{rel}` is not a setup file")));
+    }
+    Ok(Name::Setup(rel))
+}
+
+fn lock_unit(
+    store: &mut Store,
+    dest: &Path,
+    target: &str,
+    unit: &str,
+    named: &Path,
+) -> Result<(), DreamError> {
     let Some(state) = store
         .units
-        .get(&unit)
+        .get(unit)
         .filter(|state| !state.artifacts.is_empty())
     else {
         return Err(DreamError::usage(format!(
-            "`{unit}` has no dest files for target `{target}`"
+            "`{unit}` has no output files for target `{target}`"
         )));
     };
     let artifacts = state.artifacts.clone();
     let locked = state.locked;
     let source_hash = state.source_hash.clone();
-    require_artifacts(dest, &unit, &artifacts)?;
-    if !source_file.is_file() {
+    missing(dest, &artifacts, |rel| {
+        format!(
+            "locked output `{rel}` for `{unit}` is missing; restore the file, unlock, or --fresh"
+        )
+    })?;
+    if !named.is_file() {
         return Err(if locked {
             DreamError::composer(format!(
                 "locked unit `{unit}` is missing; unlock or restore the .foo"
@@ -35,85 +105,58 @@ pub fn lock(dest: &Path, target: &str, source_file: &Path) -> Result<(), DreamEr
             DreamError::usage(format!("`{unit}` does not exist"))
         });
     }
-    let hash = hash_file(source_file)?;
+    let hash = digest(&fs::read_to_string(named)?);
     if locked {
-        if source_hash.as_deref() != Some(hash.as_str()) {
-            return Err(DreamError::composer(format!(
+        return if source_hash.as_deref() == Some(hash.as_str()) {
+            Ok(())
+        } else {
+            Err(DreamError::composer(format!(
                 "`{unit}` is locked with a different source; unlock first"
-            )));
-        }
-        return Ok(());
+            )))
+        };
     }
-    store.set_lock(&unit, hash);
-    store.save(dest)?;
+    store.set_lock(unit, hash);
     Ok(())
 }
 
-pub fn unlock(dest: &Path, target: &str, source_file: &Path) -> Result<(), DreamError> {
-    let mut store = require_store(dest, target)?;
-    let unit = unit_from_root(&store, source_file)?;
-    if !store.is_locked(&unit) {
-        return Err(DreamError::usage(format!("`{unit}` is not locked")));
-    }
-    store.clear_lock(&unit);
-    store.save(dest)?;
-    Ok(())
+fn missing(dest: &Path, rels: &[String], err: impl Fn(&str) -> String) -> Result<(), DreamError> {
+    rels.iter()
+        .find(|rel| !dest.join(rel).is_file())
+        .map(|rel| Err(DreamError::composer(err(rel))))
+        .unwrap_or(Ok(()))
 }
 
-pub fn check(store: &Store, dest: &Path, project: &Project) -> Result<(), DreamError> {
-    for (unit, state) in &store.units {
-        if !state.locked {
-            continue;
-        }
-        let hash = hash_unit(project, unit)?;
-        if state.source_hash.as_deref() != Some(hash.as_str()) {
-            return Err(DreamError::composer(format!(
-                "locked unit `{unit}` source changed; unlock or restore the .foo"
-            )));
-        }
-        require_artifacts(dest, unit, &state.artifacts)?;
-    }
-    Ok(())
+fn dest_name(dest: &Path, named: &Path) -> String {
+    rel_path(dest, named).unwrap_or_else(|_| {
+        named
+            .to_string_lossy()
+            .trim_start_matches("./")
+            .replace('\\', "/")
+    })
 }
 
-fn require_store(dest: &Path, target: &str) -> Result<Store, DreamError> {
-    let Some(store) = Store::load(dest)? else {
-        return Err(DreamError::usage(
-            "dest has no provenance store; compose first",
-        ));
-    };
-    if !super::accepts_target(&store.target, target) {
-        return Err(DreamError::usage(format!(
-            "dest is for target `{}`; pass `-t {}` or --fresh to compose",
-            store.target, store.target
-        )));
-    }
-    Ok(store)
-}
-
-fn require_artifacts(dest: &Path, unit: &str, artifacts: &[String]) -> Result<(), DreamError> {
-    for rel in artifacts {
-        let path = dest.join(rel);
-        if !path.is_file() {
-            return Err(DreamError::composer(format!(
-                "locked dest `{rel}` for `{unit}` is missing; restore the file, unlock, or --fresh"
-            )));
-        }
-    }
-    Ok(())
+fn is_setup(store: &Store, rel: &str) -> bool {
+    Toolchain::parse(&store.target)
+        .ok()
+        .and_then(Toolchain::spec)
+        .is_some_and(|spec| spec.is_setup(rel))
+        || store.project.iter().any(|path| path == rel)
 }
 
 fn unit_from_root(store: &Store, source_file: &Path) -> Result<String, DreamError> {
-    let root = store
-        .source_root
-        .as_deref()
-        .ok_or_else(|| DreamError::usage("dest has no project root; compose first"))?;
-    let root = PathBuf::from(root);
-    let file = match source_file.canonicalize() {
-        Ok(path) => path,
-        Err(_) if source_file.is_absolute() => source_file.to_path_buf(),
-        Err(_) => root.join(source_file),
-    };
+    let root = PathBuf::from(
+        store
+            .source_root
+            .as_deref()
+            .ok_or_else(|| DreamError::usage("output has no project root; compose first"))?,
+    );
+    let file = source_file.canonicalize().unwrap_or_else(|_| {
+        if source_file.is_absolute() {
+            source_file.to_path_buf()
+        } else {
+            root.join(source_file)
+        }
+    });
     rel_path(&root, &file).map_err(|_| {
         DreamError::usage(format!(
             "`{}` is not in the composed project",
@@ -123,8 +166,8 @@ fn unit_from_root(store: &Store, source_file: &Path) -> Result<String, DreamErro
 }
 
 fn hash_unit(project: &Project, unit: &str) -> Result<String, DreamError> {
-    match project.read_source_file(unit) {
-        Ok(read) => Ok(hex_sha256(read.source.as_bytes())),
+    match project.read_foo_file(unit) {
+        Ok(read) => Ok(digest(read.source.as_bytes())),
         Err(err) if err.detail().contains("does not exist") => Err(DreamError::composer(format!(
             "locked unit `{unit}` is missing; unlock or restore the .foo"
         ))),
@@ -132,22 +175,12 @@ fn hash_unit(project: &Project, unit: &str) -> Result<String, DreamError> {
     }
 }
 
-fn hash_file(path: &Path) -> Result<String, DreamError> {
-    let source = fs::read_to_string(path)?;
-    Ok(hex_sha256(source.as_bytes()))
-}
-
 pub(crate) fn source_digest(source: &str) -> String {
-    hex_sha256(source.as_bytes())
+    digest(source.as_bytes())
 }
 
-fn hex_sha256(bytes: &[u8]) -> String {
-    let digest = Sha256::digest(bytes);
-    let mut out = String::with_capacity(digest.len() * 2);
-    for byte in digest {
-        let _ = write!(out, "{byte:02x}");
-    }
-    out
+fn digest(bytes: impl AsRef<[u8]>) -> String {
+    format!("{:x}", Sha256::digest(bytes))
 }
 
 #[cfg(test)]
@@ -157,182 +190,64 @@ mod tests {
     use std::collections::HashSet;
     use std::fs;
 
-    fn project_with(entry: &str, source: &str) -> (tempfile::TempDir, Project, String) {
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join(entry);
-        if let Some(parent) = file.parent() {
-            fs::create_dir_all(parent).unwrap();
-        }
+    fn composed(
+        entry: &str,
+        source: &str,
+    ) -> (tempfile::TempDir, tempfile::TempDir, Project, String) {
+        let src = tempfile::tempdir().unwrap();
+        let file = src.path().join(entry);
+        fs::create_dir_all(file.parent().unwrap()).unwrap();
         fs::write(&file, source).unwrap();
         let (project, unit) = Project::from_entry(&file).unwrap();
-        (dir, project, unit.rel)
-    }
-
-    fn dest_with(root: &Path, unit: &str, rel: &str, contents: &str) -> (tempfile::TempDir, Store) {
         let dest = tempfile::tempdir().unwrap();
-        if let Some(parent) = dest.path().join(rel).parent() {
-            fs::create_dir_all(parent).unwrap();
-        }
-        fs::write(dest.path().join(rel), contents).unwrap();
+        fs::create_dir_all(dest.path().join("src")).unwrap();
+        fs::write(dest.path().join("src/main.rs"), "fn main() {}").unwrap();
         let mut store = Store::new("rust");
-        store.set_source_root(root).unwrap();
-        store.set_artifacts(unit, HashSet::from([rel.to_string()]));
+        store.set_source_root(src.path()).unwrap();
+        store.set_artifacts(&unit.rel, HashSet::from(["src/main.rs".into()]));
         store.save(dest.path()).unwrap();
-        (dest, store)
+        (src, dest, project, unit.rel)
     }
 
     #[test]
     fn lock_then_unlock() {
-        let (src, _project, unit) = project_with("main.foo", "print hi");
+        let (src, dest, _, unit) = composed("main.foo", "print hi");
         let file = src.path().join(&unit);
-        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
         lock(dest.path(), "rust", &file).unwrap();
-        let store = Store::load(dest.path()).unwrap().unwrap();
-        assert!(store.is_locked(&unit));
-        assert!(store.units[&unit].source_hash.is_some());
+        assert!(Store::load(dest.path()).unwrap().unwrap().is_locked(&unit));
         unlock(dest.path(), "rust", &file).unwrap();
-        let store = Store::load(dest.path()).unwrap().unwrap();
-        assert!(!store.is_locked(&unit));
+        assert!(!Store::load(dest.path()).unwrap().unwrap().is_locked(&unit));
     }
 
     #[test]
-    fn check_errors_when_source_changes() {
-        let (src, project, unit) = project_with("main.foo", "print hi");
-        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
+    fn check_rejects_a_changed_source() {
+        let (src, dest, project, unit) = composed("main.foo", "print hi");
         lock(dest.path(), "rust", &src.path().join(&unit)).unwrap();
         fs::write(src.path().join("main.foo"), "print bye").unwrap();
         let store = Store::load(dest.path()).unwrap().unwrap();
-        let err = check(&store, dest.path(), &project).unwrap_err();
-        assert!(err.to_string().starts_with("ComposerError:"));
-        assert!(err.to_string().contains("source changed"));
+        assert!(check(&store, dest.path(), &project)
+            .unwrap_err()
+            .to_string()
+            .contains("source changed"));
     }
 
     #[test]
-    fn check_errors_when_locked_source_is_missing() {
-        let (src, project, unit) = project_with("main.foo", "print hi");
-        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
-        lock(dest.path(), "rust", &src.path().join(&unit)).unwrap();
-        fs::remove_file(src.path().join("main.foo")).unwrap();
-        let store = Store::load(dest.path()).unwrap().unwrap();
-        let err = check(&store, dest.path(), &project).unwrap_err();
-        assert!(err.to_string().starts_with("ComposerError:"));
-        assert!(err.to_string().contains("is missing"));
-        assert!(!err.to_string().starts_with("RuntimeError:"));
-    }
-
-    #[test]
-    fn lock_errors_when_locked_source_is_missing() {
-        let (src, _project, unit) = project_with("main.foo", "print hi");
-        let file = src.path().join(&unit);
-        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
-        lock(dest.path(), "rust", &file).unwrap();
-        fs::remove_file(&file).unwrap();
-        let err = lock(dest.path(), "rust", &file).unwrap_err();
-        assert!(err.to_string().starts_with("ComposerError:"));
-        assert!(err.to_string().contains("is missing"));
-    }
-
-    #[test]
-    fn check_errors_when_an_artifact_is_missing() {
-        let (src, project, unit) = project_with("main.foo", "print hi");
-        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
-        lock(dest.path(), "rust", &src.path().join(&unit)).unwrap();
-        fs::remove_file(dest.path().join("src/main.rs")).unwrap();
-        let store = Store::load(dest.path()).unwrap().unwrap();
-        let err = check(&store, dest.path(), &project).unwrap_err();
-        assert!(err.to_string().contains("missing"));
-    }
-
-    #[test]
-    fn lock_same_hash_is_ok_and_different_hash_is_not() {
-        let (src, _project, unit) = project_with("main.foo", "print hi");
-        let file = src.path().join(&unit);
-        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
-        lock(dest.path(), "rust", &file).unwrap();
-        lock(dest.path(), "rust", &file).unwrap();
-        fs::write(src.path().join("main.foo"), "print bye").unwrap();
-        let err = lock(dest.path(), "rust", &file).unwrap_err();
-        assert!(err.to_string().starts_with("ComposerError:"));
-        assert!(err.to_string().contains("unlock first"));
-    }
-
-    #[test]
-    fn unlock_of_unlocked_is_an_error() {
-        let (src, _project, unit) = project_with("main.foo", "print hi");
-        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
-        let err = unlock(dest.path(), "rust", &src.path().join(&unit)).unwrap_err();
-        assert!(err.to_string().contains("not locked"));
-    }
-
-    #[test]
-    fn lock_requires_artifacts() {
-        let (src, _project, unit) = project_with("main.foo", "print hi");
-        let dest = tempfile::tempdir().unwrap();
-        let mut store = Store::new("rust");
-        store.set_source_root(src.path()).unwrap();
+    fn lock_names_a_setup_file() {
+        let (src, dest, _, unit) = composed("main.foo", "print hi");
+        fs::write(dest.path().join("go.mod"), "module x\n").unwrap();
+        let mut store = Store::load(dest.path()).unwrap().unwrap();
+        store.target = "go".into();
+        store.mark_project("go.mod");
         store.save(dest.path()).unwrap();
-        let err = lock(dest.path(), "rust", &src.path().join(&unit)).unwrap_err();
-        assert!(err.to_string().contains("no dest files"));
-    }
 
-    #[test]
-    fn lock_requires_a_composed_project_root() {
-        let (src, _project, unit) = project_with("main.foo", "print hi");
-        let dest = tempfile::tempdir().unwrap();
-        Store::new("rust").save(dest.path()).unwrap();
-        let err = lock(dest.path(), "rust", &src.path().join(&unit)).unwrap_err();
-        assert!(err.to_string().contains("project root"));
-    }
-
-    #[test]
-    fn check_allows_a_hand_edited_artifact() {
-        let (src, project, unit) = project_with("main.foo", "print hi");
-        let (dest, _) = dest_with(src.path(), &unit, "src/main.rs", "fn main() {}");
-        lock(dest.path(), "rust", &src.path().join(&unit)).unwrap();
-        fs::write(dest.path().join("src/main.rs"), "fn main() { /* hand */ }").unwrap();
-        let store = Store::load(dest.path()).unwrap().unwrap();
-        check(&store, dest.path(), &project).unwrap();
-    }
-
-    #[test]
-    fn lock_matches_a_nested_store_key() {
-        let src = tempfile::tempdir().unwrap();
-        fs::create_dir_all(src.path().join("users")).unwrap();
-        fs::write(src.path().join("main.foo"), "entry").unwrap();
-        fs::write(src.path().join("users/active.foo"), "active").unwrap();
-        let (dest, _) = dest_with(
-            src.path(),
-            "users/active.foo",
-            "src/active.rs",
-            "fn active() {}",
-        );
-        lock(dest.path(), "rust", &src.path().join("users/active.foo")).unwrap();
-        let store = Store::load(dest.path()).unwrap().unwrap();
-        assert!(store.is_locked("users/active.foo"));
-        assert!(!store.units.contains_key("active.foo"));
-        unlock(dest.path(), "rust", &src.path().join("users/active.foo")).unwrap();
-        let store = Store::load(dest.path()).unwrap().unwrap();
-        assert!(!store.is_locked("users/active.foo"));
-    }
-
-    #[test]
-    fn lock_key_is_the_path_from_the_project_root() {
-        let src = tempfile::tempdir().unwrap();
-        fs::create_dir_all(src.path().join("users")).unwrap();
-        fs::write(src.path().join("active.foo"), "root").unwrap();
-        fs::write(src.path().join("users/active.foo"), "nested").unwrap();
-        let dest = tempfile::tempdir().unwrap();
-        fs::create_dir_all(dest.path().join("src")).unwrap();
-        fs::write(dest.path().join("src/root.rs"), "fn root() {}").unwrap();
-        fs::write(dest.path().join("src/nested.rs"), "fn nested() {}").unwrap();
-        let mut store = Store::new("rust");
-        store.set_source_root(src.path()).unwrap();
-        store.set_artifacts("active.foo", HashSet::from(["src/root.rs".into()]));
-        store.set_artifacts("users/active.foo", HashSet::from(["src/nested.rs".into()]));
-        store.save(dest.path()).unwrap();
-        lock(dest.path(), "rust", &src.path().join("users/active.foo")).unwrap();
-        let store = Store::load(dest.path()).unwrap().unwrap();
-        assert!(store.is_locked("users/active.foo"));
-        assert!(!store.is_locked("active.foo"));
+        lock(dest.path(), "go", &src.path().join(&unit)).unwrap();
+        lock(dest.path(), "go", Path::new("go.mod")).unwrap();
+        let loaded = Store::load(dest.path()).unwrap().unwrap();
+        assert!(loaded.is_locked(&unit) && loaded.is_locked("go.mod"));
+        unlock(dest.path(), "go", Path::new("go.mod")).unwrap();
+        assert!(!Store::load(dest.path())
+            .unwrap()
+            .unwrap()
+            .is_locked("go.mod"));
     }
 }

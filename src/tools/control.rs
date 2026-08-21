@@ -1,3 +1,5 @@
+//! Catalog tool. Description says what it does; parameters say what to write. No Dream law.
+
 use serde_json::Value;
 
 use crate::error::DreamError;

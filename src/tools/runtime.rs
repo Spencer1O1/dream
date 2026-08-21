@@ -1,3 +1,5 @@
+//! Catalog tool. Description says what it does; parameters say what to write. No Dream law.
+
 use std::io::{self, BufRead, IsTerminal, Read, Write};
 
 use serde_json::{json, Value};

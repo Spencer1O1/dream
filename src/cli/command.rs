@@ -30,7 +30,7 @@ pub(super) fn from_raw(
                 [] => Err(DreamError::usage(if verb == "inspect" {
                     "expected a .foo file or directory"
                 } else {
-                    "expected a .foo file"
+                    "expected a .foo file or setup file"
                 })),
                 [_] if lucid || strict || build || run || no_warn || fresh => {
                     Err(DreamError::usage(
@@ -215,6 +215,12 @@ mod tests {
         let unlock =
             parse_args(&["dream", "unlock", "main.foo", "-t", "rust", "-o", "./out"]).unwrap();
         assert!(matches!(unlock, Command::Unlock { .. }));
+        let setup =
+            parse_args(&["dream", "lock", "Cargo.toml", "-t", "rust", "-o", "./out"]).unwrap();
+        assert!(matches!(
+            setup,
+            Command::Lock { file, .. } if file.as_os_str() == "Cargo.toml"
+        ));
         let err = parse_args(&["dream", "lock", "main.foo", "-t", "rust"]).unwrap_err();
         assert!(err.to_string().contains("-o"));
         let err = parse_args(&["dream", "unlock", "main.foo", "-o", "./out"]).unwrap_err();

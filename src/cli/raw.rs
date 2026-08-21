@@ -21,7 +21,7 @@ pub(super) struct Raw {
     #[arg(short = 't', long = "target")]
     pub target: Option<String>,
 
-    /// Dest directory (compose mode).
+    /// Output directory (compose mode).
     #[arg(short = 'o', long = "output")]
     pub output: Option<PathBuf>,
 
@@ -37,7 +37,7 @@ pub(super) struct Raw {
     #[arg(long = "no-warn")]
     pub no_warn: bool,
 
-    /// Drop Dream-owned dest files and compose again. Leaves unmanaged files.
+    /// Drop Dream-owned output files and compose again. Leaves unmanaged files.
     #[arg(long)]
     pub fresh: bool,
 

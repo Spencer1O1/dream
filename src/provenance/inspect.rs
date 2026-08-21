@@ -14,27 +14,12 @@ pub fn report(
     project: &Project,
     unit: Option<&str>,
 ) -> Result<String, DreamError> {
-    let store = require_store(dest, target)?;
+    let store = super::open::require_store(dest, target)?;
     require_same_root(&store, project.root())?;
     match unit {
         Some(unit) => unit_report(&store, dest, project, unit),
         None => project_report(&store, dest, project),
     }
-}
-
-fn require_store(dest: &Path, target: &str) -> Result<Store, DreamError> {
-    let Some(store) = Store::load(dest)? else {
-        return Err(DreamError::usage(
-            "dest has no provenance store; compose first",
-        ));
-    };
-    if !super::accepts_target(&store.target, target) {
-        return Err(DreamError::usage(format!(
-            "dest is for target `{}`; pass `-t {}`",
-            store.target, store.target
-        )));
-    }
-    Ok(store)
 }
 
 fn require_same_root(store: &Store, root: &Path) -> Result<(), DreamError> {
@@ -43,7 +28,7 @@ fn require_same_root(store: &Store, root: &Path) -> Result<(), DreamError> {
     };
     let root = root.canonicalize()?;
     if prev != root.to_string_lossy().as_ref() {
-        return Err(DreamError::usage("dest is for another Dream project"));
+        return Err(DreamError::usage("output is for another Dream project"));
     }
     Ok(())
 }
@@ -62,11 +47,15 @@ fn project_report(store: &Store, dest: &Path, project: &Project) -> Result<Strin
         writeln!(out, "  none").expect("write");
     } else {
         for path in &store.project {
-            writeln!(out, "  {path}").expect("write");
+            if store.is_locked(path) {
+                writeln!(out, "  {path} locked").expect("write");
+            } else {
+                writeln!(out, "  {path}").expect("write");
+            }
         }
     }
     writeln!(out, "units:").expect("write");
-    let mut units: BTreeSet<String> = project.list_source_files()?.into_iter().collect();
+    let mut units: BTreeSet<String> = project.list_foo_files()?.into_iter().collect();
     units.extend(store.units.keys().cloned());
     if units.is_empty() {
         writeln!(out, "  none").expect("write");
@@ -100,7 +89,7 @@ fn write_unit(
     let inner = "  ".repeat(indent + 1);
     writeln!(out, "{pad}{unit}").expect("write");
     let state = store.units.get(unit);
-    let source = project.read_source_file(unit).ok();
+    let source = project.read_foo_file(unit).ok();
     let status = status(
         state,
         source.as_ref().map(|unit| unit.source.as_str()),

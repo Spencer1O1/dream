@@ -1,3 +1,7 @@
+//! Lucid instructions.
+//!
+//! No source-file law, setup, locks, or toolchains.
+
 use crate::flags::ActiveFlags;
 use crate::prompt::{paragraphs, ENTRY, FOOCODE, NO_CHAT};
 use crate::tools::Registry;

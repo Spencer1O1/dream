@@ -1,3 +1,5 @@
+//! Catalog tool. Description says what it does; parameters say what to write. No Dream law.
+
 use serde_json::{json, Value};
 
 use crate::error::DreamError;
@@ -6,11 +8,11 @@ use crate::tools::Mode;
 
 use super::{object_params, Family, Tool, ToolCtx, ToolSpec};
 
-pub(super) struct ListSourceFiles {
+pub(super) struct ListFooFiles {
     compose: bool,
 }
 
-impl ListSourceFiles {
+impl ListFooFiles {
     pub(super) fn lucid() -> Self {
         Self { compose: false }
     }
@@ -20,11 +22,11 @@ impl ListSourceFiles {
     }
 }
 
-impl Tool for ListSourceFiles {
+impl Tool for ListFooFiles {
     fn spec(&self) -> ToolSpec {
         ToolSpec {
-            name: "list_source_files",
-            family: Family::Source,
+            name: "list_foo_files",
+            family: Family::Foo,
             description: if self.compose {
                 "List every `.foo` file. Returns each project-relative path and whether that file is locked. No contents."
             } else {
@@ -35,10 +37,9 @@ impl Tool for ListSourceFiles {
     }
 
     fn call(&self, ctx: &mut ToolCtx<'_>, _args: &Value) -> Result<String, DreamError> {
-        let files = ctx.project.list_source_files()?;
+        let files = ctx.project.list_foo_files()?;
         let store = match &ctx.mode {
             Mode::Compose(compose) => Some(compose.store),
-            Mode::Repair(repair) => Some(repair.store),
             Mode::Lucid | Mode::Pick(_) => None,
         };
         if let Some(store) = store {
@@ -74,7 +75,7 @@ mod tests {
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
         let mut deps = DepGraph::new(&unit.rel);
         let mut ctx = ToolCtx::lucid(&project, &mut deps);
-        let out = ListSourceFiles::lucid().call(&mut ctx, &json!({})).unwrap();
+        let out = ListFooFiles::lucid().call(&mut ctx, &json!({})).unwrap();
         assert!(out.contains("main.foo"));
         assert!(!out.contains("locked"));
     }
@@ -101,12 +102,9 @@ mod tests {
                 toolchain: None,
             },
         );
-        let out: Value = serde_json::from_str(
-            &ListSourceFiles::compose()
-                .call(&mut ctx, &json!({}))
-                .unwrap(),
-        )
-        .unwrap();
+        let out: Value =
+            serde_json::from_str(&ListFooFiles::compose().call(&mut ctx, &json!({})).unwrap())
+                .unwrap();
         let files = out["files"].as_array().unwrap();
         assert_eq!(files.len(), 2);
         let utils = files

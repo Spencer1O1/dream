@@ -4,7 +4,7 @@ use crate::error::DreamError;
 pub enum Outcome {
     Ok,
     NoToolchain,
-    MissingToolchain(&'static str),
+    MissingToolchain(String),
     Failed {
         step: &'static str,
         diagnostics: String,
