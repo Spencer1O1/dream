@@ -91,7 +91,6 @@ mod tests {
         store.set_artifacts("utils.foo", HashSet::from(["src/utils.rs".into()]));
         store.set_lock("utils.foo", "abc".into());
         let mut artifacts = std::collections::HashMap::new();
-        let mut dependencies = std::collections::HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
@@ -99,7 +98,6 @@ mod tests {
                 dest: dest.path(),
                 store: &store,
                 artifacts: &mut artifacts,
-                dependencies: &mut dependencies,
                 toolchain: None,
             },
         );

@@ -5,7 +5,7 @@ use serde_json::Value;
 
 use super::session::Session;
 use crate::error::DreamError;
-use crate::provenance::{self, Dependency, Store};
+use crate::provenance::{self, Store};
 use crate::source::DepGraph;
 use crate::toolchain::Toolchain;
 
@@ -16,13 +16,8 @@ pub(crate) struct ComposeState {
 }
 
 impl ComposeState {
-    pub fn open(
-        dest: &Path,
-        target: &str,
-        fresh: bool,
-        entry_stem: &str,
-    ) -> Result<Self, DreamError> {
-        let (store, fresh) = provenance::open(dest, target, fresh, entry_stem)?;
+    pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<Self, DreamError> {
+        let (store, fresh) = provenance::open(dest, target, fresh)?;
         Ok(Self {
             dest: dest.to_path_buf(),
             store,
@@ -38,7 +33,6 @@ impl ComposeState {
         toolchain: Option<Toolchain>,
     ) -> Result<(), DreamError> {
         let mut artifacts = HashMap::new();
-        let mut dependencies = HashMap::new();
         session
             .write_until_settled(
                 self,
@@ -46,7 +40,6 @@ impl ComposeState {
                 input,
                 super::session::WriteLoop {
                     artifacts: &mut artifacts,
-                    dependencies: &mut dependencies,
                     repair: false,
                     toolchain,
                     registry: session.registry,
@@ -56,26 +49,19 @@ impl ComposeState {
             )
             .await?;
         provenance::require_composed(&artifacts)?;
-        self.settle(artifacts, dependencies, toolchain)
+        self.settle(artifacts, toolchain)
     }
 
     fn settle(
         &mut self,
         artifacts: HashMap<String, HashSet<String>>,
-        dependencies: HashMap<String, Vec<Dependency>>,
         toolchain: Option<Toolchain>,
     ) -> Result<(), DreamError> {
         for (unit, paths) in artifacts {
             provenance::reconcile(&mut self.store, &self.dest, &unit, paths)?;
         }
-        for (unit, deps) in dependencies {
-            self.store.set_dependencies(&unit, deps);
-        }
-        if let Some(spec) = toolchain.and_then(Toolchain::spec) {
-            crate::project::reconcile(&self.dest, spec, &mut self.store)?;
-        } else {
-            self.store.save(&self.dest)?;
-        }
+        let _ = toolchain;
+        self.store.save(&self.dest)?;
         Ok(())
     }
 }
@@ -88,7 +74,7 @@ mod tests {
     #[test]
     fn settle_reconciles_each_unit_that_wrote() {
         let dest = tempfile::tempdir().unwrap();
-        let mut state = ComposeState::open(dest.path(), "rust", true, "main").unwrap();
+        let mut state = ComposeState::open(dest.path(), "rust", true).unwrap();
         fs::create_dir_all(dest.path().join("src")).unwrap();
         fs::write(dest.path().join("src/old.rs"), "gone").unwrap();
         state
@@ -101,7 +87,6 @@ mod tests {
                     ("main.foo".into(), HashSet::from(["src/main.rs".into()])),
                     ("utils.foo".into(), HashSet::from(["src/lib.rs".into()])),
                 ]),
-                HashMap::new(),
                 None,
             )
             .unwrap();

@@ -18,6 +18,7 @@ use crate::output;
 use crate::provenance;
 use crate::source::DepGraph;
 use crate::source::Project;
+use crate::toolchain::Toolchain;
 use crate::tools::Registry;
 
 use session::Session;
@@ -39,10 +40,9 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         return Err(DreamError::usage("compose requires -t <target>"));
     }
 
-    let (project, unit) = Project::from_entry(opts.entry)?;
+    let (project, unit) = Project::from_path(opts.entry)?;
     let output = output::resolve_output_dir(project.root(), opts.output)?;
-    let stem = crate::project::from_entry(&unit.rel)?;
-    let mut state = ComposeState::open(&output, opts.target, opts.fresh, &stem)?;
+    let mut state = ComposeState::open(&output, opts.target, opts.fresh)?;
     if !state.fresh {
         provenance::require_source_root(&state.store, project.root())?;
         provenance::check(&state.store, &state.dest, &project)?;
@@ -60,7 +60,20 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
         )
     })];
 
-    let toolchain = pick::ask_toolchain(&openai, &project, &mut deps, &mut input).await?;
+    let toolchain = match Toolchain::parse(opts.target) {
+        Ok(known) => {
+            input.push(json!({
+                "role": "user",
+                "content": format!(
+                    "Toolchain {}:\n{}",
+                    known.as_str(),
+                    known.declared(&unit.rel)?
+                )
+            }));
+            Some(known)
+        }
+        Err(_) => pick::ask_toolchain(&openai, &project, &mut deps, &mut input).await?,
+    };
 
     let registry = Registry::composer_for(toolchain);
     let instructions = prompt::compose(&registry, &flags);
@@ -79,7 +92,7 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     };
 
     if let Some(spec) = toolchain.and_then(crate::toolchain::Toolchain::spec) {
-        crate::project::init(&state.dest, spec, &stem, &mut state.store)?;
+        crate::dest::init(&state.dest, spec, &mut state.store)?;
     }
     state
         .compose(&session, &mut deps, &mut input, toolchain)
@@ -102,7 +115,7 @@ pub fn lock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamError>
     if target.trim().is_empty() {
         return Err(DreamError::usage("lock requires -t <target>"));
     }
-    let (project, unit) = Project::from_entry(entry)?;
+    let (project, unit) = Project::from_path(entry)?;
     let output = output::resolve_output_dir(project.root(), output)?;
     provenance::lock(&output, target, &project.root().join(&unit.rel))
 }
@@ -111,9 +124,27 @@ pub fn unlock(entry: &Path, target: &str, output: &Path) -> Result<(), DreamErro
     if target.trim().is_empty() {
         return Err(DreamError::usage("unlock requires -t <target>"));
     }
-    let (project, unit) = Project::from_entry(entry)?;
+    let (project, unit) = Project::from_path(entry)?;
     let output = output::resolve_output_dir(project.root(), output)?;
     provenance::unlock(&output, target, &project.root().join(&unit.rel))
+}
+
+pub fn inspect(path: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
+    if target.trim().is_empty() {
+        return Err(DreamError::usage("inspect requires -t <target>"));
+    }
+    let (project, unit) = if path.is_dir() {
+        (Project::from_root(path)?, None)
+    } else {
+        let (project, unit) = Project::from_entry(path)?;
+        (project, Some(unit.rel))
+    };
+    let output = output::resolve_output_dir(project.root(), output)?;
+    print!(
+        "{}",
+        provenance::inspect(&output, target, &project, unit.as_deref())?
+    );
+    Ok(())
 }
 
 #[cfg(test)]

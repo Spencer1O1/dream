@@ -5,7 +5,6 @@ use serde_json::{json, Value};
 use crate::error::DreamError;
 use crate::flags::ActiveFlags;
 use crate::llm::OpenAi;
-use crate::provenance::Dependency;
 use crate::source::{DepGraph, Project};
 use crate::toolchain::Toolchain;
 use crate::tools::{Compose, Registry, ToolCtx};
@@ -15,7 +14,6 @@ use super::state::ComposeState;
 
 pub(crate) struct WriteLoop<'a> {
     pub artifacts: &'a mut HashMap<String, HashSet<String>>,
-    pub dependencies: &'a mut HashMap<String, Vec<Dependency>>,
     pub repair: bool,
     pub toolchain: Option<Toolchain>,
     pub registry: &'a Registry,
@@ -46,7 +44,6 @@ impl Session<'_> {
     ) -> Result<(), DreamError> {
         let WriteLoop {
             artifacts,
-            dependencies,
             repair,
             toolchain,
             registry,
@@ -63,7 +60,7 @@ impl Session<'_> {
 
             for call in turn.function_calls {
                 let mut ctx = if repair {
-                    ToolCtx::repair(self.project, deps, &state.dest, &state.store)
+                    ToolCtx::repair(self.project, deps, &state.dest, &state.store, toolchain)
                 } else {
                     ToolCtx::compose(
                         self.project,
@@ -72,7 +69,6 @@ impl Session<'_> {
                             dest: &state.dest,
                             store: &state.store,
                             artifacts,
-                            dependencies,
                             toolchain,
                         },
                     )

@@ -10,15 +10,28 @@ pub use exec::after_compose;
 pub use outcome::Outcome;
 
 use crate::error::DreamError;
+use serde_json::{json, Value};
 
 const UNSUPPORTED: &str = "unsupported";
 
 /// A catalog toolchain, or `unsupported`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy)]
 pub enum Toolchain {
     Known(&'static ToolchainSpec),
     Unsupported,
 }
+
+impl PartialEq for Toolchain {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Known(left), Self::Known(right)) => left.name == right.name,
+            (Self::Unsupported, Self::Unsupported) => true,
+            _ => false,
+        }
+    }
+}
+
+impl Eq for Toolchain {}
 
 impl Toolchain {
     pub fn parse(name: &str) -> Result<Self, DreamError> {
@@ -42,6 +55,36 @@ impl Toolchain {
             Self::Known(spec) => spec.name,
             Self::Unsupported => UNSUPPORTED,
         }
+    }
+
+    /// Same JSON `set_toolchain` returns. Used when `-t` already names a catalog row.
+    pub fn declared(self, entry_rel: &str) -> Result<Value, DreamError> {
+        let Some(spec) = self.spec() else {
+            return Ok(json!({ "ok": true, "toolchain": self.as_str() }));
+        };
+        let stem = crate::dest::from_entry(entry_rel)?;
+        let mut reply = json!({
+            "ok": true,
+            "toolchain": spec.name,
+        });
+        if !spec.docs.is_empty() {
+            reply["docs"] = Value::String(spec.docs.to_string());
+        }
+        if !spec.setup.is_empty() {
+            reply["setup"] = json!(spec.setup);
+        }
+        if !spec.project.is_empty() {
+            reply["project"] = json!(spec.project);
+        }
+        if !spec.configure.is_empty() {
+            reply["configure"] = json!(spec.configure);
+        }
+        if !spec.build.is_empty() {
+            reply["build"] = json!(spec.build);
+        }
+        reply["run"] = json!(spec.run_argv(&stem));
+        reply["entrypoint"] = json!({ "path": spec.owned_entry(&stem) });
+        Ok(reply)
     }
 
     pub fn schema_names() -> Vec<&'static str> {
@@ -68,6 +111,19 @@ mod tests {
         );
         let err = Toolchain::parse("rust").unwrap_err();
         assert!(err.to_string().contains("unknown toolchain `rust`"));
+    }
+
+    #[test]
+    fn declared_names_the_entrypoint() {
+        let go = Toolchain::parse("go").unwrap();
+        let reply = go.declared("limits.foo").unwrap();
+        assert_eq!(reply["toolchain"], "go");
+        assert_eq!(reply["entrypoint"]["path"], "limits.go");
+        let make = Toolchain::parse("make").unwrap();
+        assert_eq!(
+            make.declared("limits.foo").unwrap()["entrypoint"]["path"],
+            "limits.c"
+        );
     }
 
     #[test]

@@ -4,6 +4,16 @@ use std::path::Path;
 use crate::error::DreamError;
 use crate::source::paths::{rel_output, resolve_output};
 
+pub fn read_file(dest: &Path, path: &str) -> Result<String, DreamError> {
+    let abs = resolve_output(dest, path)?;
+    if !abs.is_file() {
+        return Err(DreamError::composer(format!(
+            "output file `{path}` does not exist"
+        )));
+    }
+    Ok(fs::read_to_string(abs)?)
+}
+
 pub fn write_file(dest: &Path, path: &str, contents: &str) -> Result<String, DreamError> {
     let abs = resolve_output(dest, path)?;
     if let Some(parent) = abs.parent() {

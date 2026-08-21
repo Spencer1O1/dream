@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashSet};
+use std::collections::{BTreeMap, HashSet};
 use std::fs;
 use std::path::Path;
 
@@ -20,6 +20,7 @@ pub struct Store {
     #[serde(default)]
     pub project: Vec<String>,
     #[serde(default)]
+    #[allow(dead_code)]
     pub installed: Vec<String>,
 }
 
@@ -112,6 +113,7 @@ impl Store {
         write_unit(self, unit, sorted_paths(artifacts), dependencies);
     }
 
+    #[allow(dead_code)]
     pub fn set_dependencies(&mut self, unit: &str, dependencies: Vec<Dependency>) {
         let artifacts = self
             .units
@@ -136,43 +138,6 @@ impl Store {
             self.project.push(rel.to_string());
             self.project.sort();
         }
-    }
-
-    pub fn union_dependencies(&self) -> Result<Vec<Dependency>, DreamError> {
-        struct Acc {
-            version: Option<String>,
-            features: BTreeSet<String>,
-        }
-        let mut acc: BTreeMap<String, Acc> = BTreeMap::new();
-        for state in self.units.values() {
-            for dep in &state.dependencies {
-                let entry = acc.entry(dep.name.clone()).or_insert(Acc {
-                    version: None,
-                    features: BTreeSet::new(),
-                });
-                if let Some(version) = &dep.version {
-                    match &entry.version {
-                        None => entry.version = Some(version.clone()),
-                        Some(prev) if prev != version => {
-                            return Err(DreamError::composer(format!(
-                                "dependency `{}` has conflicting versions `{prev}` and `{version}`",
-                                dep.name
-                            )));
-                        }
-                        Some(_) => {}
-                    }
-                }
-                entry.features.extend(dep.features.iter().cloned());
-            }
-        }
-        Ok(acc
-            .into_iter()
-            .map(|(name, acc)| Dependency {
-                name,
-                version: acc.version,
-                features: acc.features.into_iter().collect(),
-            })
-            .collect())
     }
 
     pub fn is_locked(&self, unit: &str) -> bool {
@@ -331,84 +296,5 @@ mod tests {
         assert!(!dest.path().join("src/main.rs").exists());
         assert!(dest.path().join("README.md").exists());
         assert!(!Store::path(dest.path()).exists());
-    }
-
-    #[test]
-    fn union_dependencies_merges_features() {
-        let mut store = Store::new("rust");
-        store.set_dependencies(
-            "a.foo",
-            vec![Dependency {
-                name: "serde".into(),
-                version: None,
-                features: vec!["derive".into()],
-            }],
-        );
-        store.set_dependencies(
-            "b.foo",
-            vec![
-                Dependency {
-                    name: "serde".into(),
-                    version: None,
-                    features: vec!["rc".into()],
-                },
-                Dependency {
-                    name: "tokio".into(),
-                    version: None,
-                    features: vec![],
-                },
-            ],
-        );
-        let union = store.union_dependencies().unwrap();
-        assert_eq!(union[0].name, "serde");
-        assert_eq!(union[0].features, vec!["derive", "rc"]);
-        assert_eq!(union[1].name, "tokio");
-    }
-
-    #[test]
-    fn union_uses_the_specified_version() {
-        let mut store = Store::new("rust");
-        store.set_dependencies(
-            "a.foo",
-            vec![Dependency {
-                name: "serde".into(),
-                version: Some("1.0".into()),
-                features: vec![],
-            }],
-        );
-        store.set_dependencies(
-            "b.foo",
-            vec![Dependency {
-                name: "serde".into(),
-                version: None,
-                features: vec!["derive".into()],
-            }],
-        );
-        let union = store.union_dependencies().unwrap();
-        assert_eq!(union[0].version.as_deref(), Some("1.0"));
-        assert_eq!(union[0].features, vec!["derive"]);
-    }
-
-    #[test]
-    fn union_rejects_conflicting_versions() {
-        let mut store = Store::new("rust");
-        store.set_dependencies(
-            "a.foo",
-            vec![Dependency {
-                name: "serde".into(),
-                version: Some("1.0".into()),
-                features: vec![],
-            }],
-        );
-        store.set_dependencies(
-            "b.foo",
-            vec![Dependency {
-                name: "serde".into(),
-                version: Some("1.0.200".into()),
-                features: vec![],
-            }],
-        );
-        let err = store.union_dependencies().unwrap_err();
-        assert!(err.to_string().contains("conflicting versions"));
     }
 }

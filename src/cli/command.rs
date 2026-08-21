@@ -25,37 +25,49 @@ pub(super) fn from_raw(
     }
     match rest.as_slice() {
         [] => Err(DreamError::usage("expected a .foo file")),
-        [verb, tail @ ..] if verb == "lock" || verb == "unlock" => match tail {
-            [] => Err(DreamError::usage("expected a .foo file")),
-            [_] if lucid || strict || build || run || no_warn || fresh => Err(DreamError::usage(
-                "lock and unlock take only -t and -o; do not pass --lucid, --strict, --build, --run, --no-warn, or --fresh",
-            )),
-            [file] => {
-                let Some(target) = target else {
-                    return Err(DreamError::usage(format!("{verb} requires -t <target>")));
-                };
-                let Some(output) = output else {
-                    return Err(DreamError::usage(format!("{verb} requires -o <dir>")));
-                };
-                let file = PathBuf::from(file);
-                if verb == "lock" {
-                    Ok(Command::Lock {
-                        file,
-                        target,
-                        output,
-                    })
+        [verb, tail @ ..] if verb == "lock" || verb == "unlock" || verb == "inspect" => {
+            match tail {
+                [] => Err(DreamError::usage(if verb == "inspect" {
+                    "expected a .foo file or directory"
                 } else {
-                    Ok(Command::Unlock {
-                        file,
-                        target,
-                        output,
+                    "expected a .foo file"
+                })),
+                [_] if lucid || strict || build || run || no_warn || fresh => {
+                    Err(DreamError::usage(
+                        "lock, unlock, and inspect take only -t and -o; do not pass --lucid, --strict, --build, --run, --no-warn, or --fresh",
+                    ))
+                }
+                [path] => {
+                    let Some(target) = target else {
+                        return Err(DreamError::usage(format!("{verb} requires -t <target>")));
+                    };
+                    let Some(output) = output else {
+                        return Err(DreamError::usage(format!("{verb} requires -o <dir>")));
+                    };
+                    let path = PathBuf::from(path);
+                    Ok(match verb.as_str() {
+                        "lock" => Command::Lock {
+                            file: path,
+                            target,
+                            output,
+                        },
+                        "unlock" => Command::Unlock {
+                            file: path,
+                            target,
+                            output,
+                        },
+                        _ => Command::Inspect {
+                            path,
+                            target,
+                            output,
+                        },
                     })
                 }
+                _ => Err(DreamError::usage(
+                    "unexpected arguments after the entry file",
+                )),
             }
-            _ => Err(DreamError::usage(
-                "unexpected arguments after the entry file",
-            )),
-        },
+        }
         [_, _, ..] => Err(DreamError::usage(
             "unexpected arguments after the entry file",
         )),
@@ -215,8 +227,29 @@ mod tests {
             "dream", "--fresh", "lock", "main.foo", "-t", "rust", "-o", "./out",
         ])
         .unwrap_err();
-        assert!(err.to_string().contains("lock and unlock"));
+        assert!(err.to_string().contains("lock, unlock, and inspect"));
         let err = parse_args(&["dream", "--lucid", "lock", "main.foo"]).unwrap_err();
-        assert!(err.to_string().contains("lock and unlock"));
+        assert!(err.to_string().contains("lock, unlock, and inspect"));
+    }
+
+    #[test]
+    fn inspect_requires_target_and_output() {
+        let inspect =
+            parse_args(&["dream", "inspect", "main.foo", "-t", "rust", "-o", "./out"]).unwrap();
+        assert_eq!(
+            inspect,
+            Command::Inspect {
+                path: PathBuf::from("main.foo"),
+                target: "rust".into(),
+                output: PathBuf::from("./out"),
+            }
+        );
+        let project = parse_args(&["dream", "inspect", ".", "-t", "rust", "-o", "./out"]).unwrap();
+        assert!(matches!(
+            project,
+            Command::Inspect { path, .. } if path.as_os_str() == "."
+        ));
+        let err = parse_args(&["dream", "inspect", "main.foo", "-t", "rust"]).unwrap_err();
+        assert!(err.to_string().contains("-o"));
     }
 }

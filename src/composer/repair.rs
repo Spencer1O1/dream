@@ -37,7 +37,6 @@ impl Session<'_> {
                         "content": repair_message(&diagnostics),
                     }));
                     let mut artifacts = std::collections::HashMap::new();
-                    let mut dependencies = std::collections::HashMap::new();
                     let registry = Registry::repair();
                     let instructions = prompt::repair(&registry, self.flags);
                     let schemas = registry.schemas();
@@ -47,7 +46,6 @@ impl Session<'_> {
                         input,
                         super::session::WriteLoop {
                             artifacts: &mut artifacts,
-                            dependencies: &mut dependencies,
                             repair: true,
                             toolchain,
                             registry: &registry,
@@ -65,7 +63,7 @@ impl Session<'_> {
 }
 
 fn should_repair(attempt: usize, step: &str, cap: usize) -> bool {
-    step == "build" && attempt < cap
+    (step == "configure" || step == "build") && attempt < cap
 }
 
 fn repair_message(diagnostics: &str) -> String {
@@ -84,6 +82,7 @@ mod tests {
     #[test]
     fn only_build_failures_repair_and_only_under_the_cap() {
         assert!(should_repair(0, "build", 3));
+        assert!(should_repair(0, "configure", 3));
         assert!(should_repair(2, "build", 3));
         assert!(!should_repair(3, "build", 3));
         assert!(!should_repair(0, "build", 0));

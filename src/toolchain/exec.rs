@@ -27,12 +27,17 @@ fn invoke(
     run_program: bool,
     no_warn: bool,
 ) -> Result<Outcome, DreamError> {
+    crate::dest::ensure_output_dirs(dir, spec)?;
+    match capture_step("configure", spec, spec.configure, dir, no_warn)? {
+        Outcome::Ok => {}
+        other => return Ok(other),
+    }
     match capture_step("build", spec, spec.build, dir, no_warn)? {
         Outcome::Ok => {}
         other => return Ok(other),
     }
     if run_program {
-        let stem = crate::project::from_entry(entry_rel)?;
+        let stem = crate::dest::from_entry(entry_rel)?;
         return inherit_step("run", spec, &spec.run_argv(&stem), dir);
     }
     Ok(Outcome::Ok)
@@ -47,15 +52,7 @@ mod tests {
     const ENTRY: &str = "demo.foo";
 
     fn spec(build: &'static [&'static str], run: Run) -> ToolchainSpec {
-        ToolchainSpec {
-            name: "test",
-            build,
-            run,
-            programs: &[],
-            install_hint: "Install the test toolchain from somewhere.",
-            manifest: "",
-            project: &[],
-        }
+        ToolchainSpec::test_row(build, run)
     }
 
     #[test]
@@ -95,13 +92,9 @@ mod tests {
     fn missing_first_program_tries_the_next() {
         let dir = tempfile::tempdir().unwrap();
         let spec = ToolchainSpec {
-            name: "test",
-            build: &[],
-            run: Run::Argv(&["dream-no-such-python-7f3a"]),
             programs: &["dream-no-such-python-7f3a", "true"],
-            install_hint: "Install the test toolchain from somewhere.",
-            manifest: "",
-            project: &[],
+            run: Run::Argv(&["dream-no-such-python-7f3a"]),
+            ..ToolchainSpec::test_row(&[], Run::Argv(&[]))
         };
         assert!(matches!(
             invoke(&spec, dir.path(), ENTRY, true, false).unwrap(),

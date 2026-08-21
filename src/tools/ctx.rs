@@ -1,7 +1,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
-use crate::provenance::{Dependency, Store};
+use crate::provenance::Store;
 use crate::source::{DepGraph, Project};
 use crate::toolchain::Toolchain;
 
@@ -13,13 +13,13 @@ pub struct Compose<'a> {
     pub dest: &'a Path,
     pub store: &'a Store,
     pub artifacts: &'a mut HashMap<String, HashSet<String>>,
-    pub dependencies: &'a mut HashMap<String, Vec<Dependency>>,
     pub toolchain: Option<Toolchain>,
 }
 
 pub struct Repair<'a> {
     pub dest: &'a Path,
     pub store: &'a Store,
+    pub toolchain: Option<Toolchain>,
 }
 
 pub enum Mode<'a> {
@@ -69,11 +69,16 @@ impl<'a> ToolCtx<'a> {
         deps: &'a mut DepGraph,
         dest: &'a Path,
         store: &'a Store,
+        toolchain: Option<Toolchain>,
     ) -> Self {
         Self {
             project,
             deps,
-            mode: Mode::Repair(Repair { dest, store }),
+            mode: Mode::Repair(Repair {
+                dest,
+                store,
+                toolchain,
+            }),
         }
     }
 }

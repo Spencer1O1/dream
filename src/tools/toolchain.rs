@@ -1,4 +1,4 @@
-use serde_json::{json, Value};
+use serde_json::Value;
 
 use crate::error::DreamError;
 use crate::toolchain::Toolchain;
@@ -40,31 +40,8 @@ impl Tool for SetToolchain {
         };
         let toolchain = Toolchain::parse(arg_str(args, "toolchain"))?;
         *pick.toolchain = Some(toolchain);
-        Ok(declared(toolchain, ctx.deps.entry())?.to_string())
+        Ok(toolchain.declared(ctx.deps.entry())?.to_string())
     }
-}
-
-fn declared(toolchain: Toolchain, entry_rel: &str) -> Result<Value, DreamError> {
-    let Some(spec) = toolchain.spec() else {
-        return Ok(json!({ "ok": true, "toolchain": toolchain.as_str() }));
-    };
-    let stem = crate::project::from_entry(entry_rel)?;
-    let mut reply = json!({
-        "ok": true,
-        "toolchain": spec.name,
-        "run": { "argv": spec.run_argv(&stem) },
-    });
-    if !spec.build.is_empty() {
-        reply["build"] = json!({ "argv": spec.build });
-    }
-    let owned = spec.owned_dest(&stem);
-    if !owned.is_empty() {
-        reply["project"] = json!(owned);
-    }
-    if let Some(entry) = spec.owned_entry(&stem) {
-        reply["entry"] = Value::String(entry);
-    }
-    Ok(reply)
 }
 
 #[cfg(test)]
@@ -99,13 +76,44 @@ mod tests {
             .unwrap();
         assert_eq!(toolchain.unwrap().as_str(), "cargo");
         let cargo: Value = serde_json::from_str(&cargo).unwrap();
-        assert_eq!(cargo["build"], json!({ "argv": ["cargo", "build"] }));
-        assert_eq!(cargo["run"], json!({ "argv": ["cargo", "run"] }));
-        assert_eq!(
-            cargo["project"],
-            json!(["Cargo.toml", "Cargo.lock", "target"])
-        );
-        assert!(cargo.get("entry").is_none());
+        assert_eq!(cargo["run"], json!(["cargo", "run"]));
+        assert_eq!(cargo["build"], json!(["cargo", "build"]));
+        assert_eq!(cargo["setup"], json!(["Cargo.toml"]));
+        assert_eq!(cargo["project"], json!(["Cargo.lock", "target"]));
+        assert_eq!(cargo["entrypoint"], json!({ "path": "src/main.rs" }));
+        assert_eq!(cargo["docs"], "https://doc.rust-lang.org/cargo/");
+    }
+
+    #[test]
+    fn cmake_reply_names_the_entrypoint() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
+        let mut deps = DepGraph::new(unit.rel);
+        let mut toolchain = None;
+        let mut ctx = toolchain_ctx(&project, &mut deps, &mut toolchain);
+        let out = SetToolchain
+            .call(&mut ctx, &json!({ "toolchain": "cmake" }))
+            .unwrap();
+        let out: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(out["configure"], json!(["cmake", "-S", ".", "-B", "build"]));
+        assert_eq!(out["docs"], "https://cmake.org/documentation/");
+        assert_eq!(out["entrypoint"], json!({ "path": "main.c" }));
+    }
+
+    #[test]
+    fn stem_compiled_rows_interpolate() {
+        let project_dir = tempfile::tempdir().unwrap();
+        std::fs::write(project_dir.path().join("hey-you.foo"), "print hi").unwrap();
+        let (project, unit) = Project::from_entry(&project_dir.path().join("hey-you.foo")).unwrap();
+        let mut deps = DepGraph::new(&unit.rel);
+        let mut toolchain = None;
+        let mut ctx = toolchain_ctx(&project, &mut deps, &mut toolchain);
+        let out = SetToolchain
+            .call(&mut ctx, &json!({ "toolchain": "cmake" }))
+            .unwrap();
+        let out: Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(out["entrypoint"], json!({ "path": "hey-you.c" }));
     }
 
     #[test]
@@ -121,14 +129,14 @@ mod tests {
             .unwrap();
         let out: Value = serde_json::from_str(&out).unwrap();
         assert_eq!(out["toolchain"], "python");
-        assert!(out.get("build").is_none());
-        assert_eq!(out["run"], json!({ "argv": ["python", "hey-you.py"] }));
-        assert_eq!(out["project"], json!(["pyproject.toml", "__pycache__"]));
-        assert_eq!(out["entry"], "hey-you.py");
+        assert_eq!(out["run"], json!(["python", "hey-you.py"]));
+        assert_eq!(out["setup"], json!(["pyproject.toml"]));
+        assert_eq!(out["project"], json!(["__pycache__"]));
+        assert_eq!(out["entrypoint"], json!({ "path": "hey-you.py" }));
     }
 
     #[test]
-    fn go_project_includes_the_build_binary() {
+    fn go_project_includes_target() {
         let project_dir = tempfile::tempdir().unwrap();
         std::fs::write(project_dir.path().join("hey-you.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("hey-you.foo")).unwrap();
@@ -139,11 +147,10 @@ mod tests {
             .call(&mut ctx, &json!({ "toolchain": "go" }))
             .unwrap();
         let out: Value = serde_json::from_str(&out).unwrap();
-        assert_eq!(
-            out["project"],
-            json!(["go.mod", "go.sum", "hey-you", "hey-you.exe"])
-        );
-        assert!(out.get("entry").is_none());
+        assert_eq!(out["build"], json!(["go", "build", "-o", "target/"]));
+        assert_eq!(out["setup"], json!(["go.mod"]));
+        assert_eq!(out["project"], json!(["go.sum", "target"]));
+        assert_eq!(out["entrypoint"], json!({ "path": "hey-you.go" }));
     }
 
     #[test]

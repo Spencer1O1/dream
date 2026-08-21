@@ -19,6 +19,7 @@ cargo run -- examples/multifile/multifile.foo -t rust -o ./try
 | `hello/hello.foo` | `--lucid` print |
 | `hey-you/hey-you.foo` | `--lucid` stdin; compose + `--run` |
 | `multifile/` (`multifile.foo` + `utils.foo`) | multi-unit compose, project layer, locks |
+| `limits/` (`limits.foo` → `label.foo` → `score.foo`) | toolchain smoke: three units, extra dest files, no stdin |
 | `fun/fun.foo` | informal mutation / odd control flow |
 | `funky/funky.foo` | nonsense the interpreter must refuse |
 
@@ -47,7 +48,7 @@ cat ./try/.dream/provenance.json
 ls ./try
 ```
 
-Dream should own `Cargo.toml`. Composer writes of that path should have been rejected (Dream owns the manifest).
+`Cargo.toml` is project-owned setup. The composer writes it. It is not listed under a unit.
 
 In-place again, no `--fresh`:
 

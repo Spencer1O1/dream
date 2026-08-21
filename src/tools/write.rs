@@ -5,11 +5,11 @@ use crate::error::DreamError;
 use super::composer::{mutate_output, with_unit, OutputOp};
 use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
-pub(super) struct WriteOutputFile {
+pub(super) struct WriteFile {
     repair: bool,
 }
 
-impl WriteOutputFile {
+impl WriteFile {
     pub(super) fn compose() -> Self {
         Self { repair: false }
     }
@@ -19,12 +19,12 @@ impl WriteOutputFile {
     }
 }
 
-impl Tool for WriteOutputFile {
+impl Tool for WriteFile {
     fn spec(&self) -> ToolSpec {
         ToolSpec {
-            name: "write_output_file",
+            name: "write_file",
             family: Family::Composer,
-            description: "Write one source file in the project. Overwrites if the file exists.",
+            description: "Write one dest file. Overwrites if the file exists.",
             parameters: {
                 let fields = [
                     ("path", string_arg("Where the file goes in the project")),
@@ -43,7 +43,7 @@ impl Tool for WriteOutputFile {
         mutate_output(
             ctx,
             args,
-            "write_output_file",
+            "write_file",
             OutputOp::Write {
                 contents: arg_str(args, "contents"),
             },
@@ -74,7 +74,6 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
-        let mut claims = HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
@@ -82,11 +81,10 @@ mod tests {
                 dest: dest.path(),
                 store: &store,
                 artifacts: &mut artifacts,
-                dependencies: &mut claims,
                 toolchain: None,
             },
         );
-        let out = WriteOutputFile::compose()
+        let out = WriteFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "hello.txt", "hello"))
             .unwrap();
         assert!(out.contains("hello.txt"));
@@ -107,7 +105,6 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
-        let mut claims = HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
@@ -115,11 +112,10 @@ mod tests {
                 dest: dest.path(),
                 store: &store,
                 artifacts: &mut artifacts,
-                dependencies: &mut claims,
                 toolchain: None,
             },
         );
-        let out = WriteOutputFile::compose()
+        let out = WriteFile::compose()
             .call(&mut ctx, &write_args("utils.foo", "src/lib.rs", "no"))
             .unwrap();
         assert_eq!(
@@ -137,7 +133,6 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
         let mut artifacts = HashMap::new();
-        let mut claims = HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
@@ -145,18 +140,17 @@ mod tests {
                 dest: dest.path(),
                 store: &store,
                 artifacts: &mut artifacts,
-                dependencies: &mut claims,
                 toolchain: None,
             },
         );
-        let err = WriteOutputFile::compose()
+        let err = WriteFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "../secret", "no"))
             .unwrap_err();
         assert!(err.to_string().contains("output write escapes -o"));
     }
 
     #[test]
-    fn rejects_a_project_owned_path() {
+    fn writes_setup_and_rejects_wipe() {
         let project_dir = tempfile::tempdir().unwrap();
         std::fs::write(project_dir.path().join("main.foo"), "print hi").unwrap();
         let (project, unit) = Project::from_entry(&project_dir.path().join("main.foo")).unwrap();
@@ -166,7 +160,6 @@ mod tests {
         store.mark_project("go.mod");
         store.mark_project("go.sum");
         let mut artifacts = HashMap::new();
-        let mut claims = HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
@@ -174,24 +167,23 @@ mod tests {
                 dest: dest.path(),
                 store: &store,
                 artifacts: &mut artifacts,
-                dependencies: &mut claims,
                 toolchain: Some(crate::toolchain::Toolchain::parse("go").unwrap()),
             },
         );
-        let out = WriteOutputFile::compose()
-            .call(&mut ctx, &write_args(&unit.rel, "go.mod", "module x"))
+        let out = WriteFile::compose()
+            .call(&mut ctx, &write_args(&unit.rel, "go.mod", "module x\n"))
             .unwrap();
+        assert!(out.contains("go.mod"));
         assert_eq!(
-            reply::warning_of(&out).as_deref(),
-            Some("cannot write `go.mod`; Dream owns the manifest.")
+            std::fs::read_to_string(dest.path().join("go.mod")).unwrap(),
+            "module x\n"
         );
-        let lock = WriteOutputFile::compose()
+        let lock = WriteFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "go.sum", ""))
             .unwrap();
-        assert_eq!(
-            reply::warning_of(&lock).as_deref(),
-            Some("cannot write `go.sum`; Dream owns the manifest.")
-        );
+        assert!(reply::warning_of(&lock)
+            .unwrap()
+            .contains("Dream owns that path"));
     }
 
     #[test]
@@ -202,8 +194,8 @@ mod tests {
         let mut deps = DepGraph::new(&unit.rel);
         let dest = tempfile::tempdir().unwrap();
         let store = Store::new("rust");
-        let mut ctx = ToolCtx::repair(&project, &mut deps, dest.path(), &store);
-        let out = WriteOutputFile::repair()
+        let mut ctx = ToolCtx::repair(&project, &mut deps, dest.path(), &store, None);
+        let out = WriteFile::repair()
             .call(&mut ctx, &json!({ "path": "src/new.rs", "contents": "no" }))
             .unwrap();
         assert!(reply::warning_of(&out)
@@ -213,7 +205,7 @@ mod tests {
 
     #[test]
     fn repair_schema_has_no_unit() {
-        let spec = WriteOutputFile::repair().spec();
+        let spec = WriteFile::repair().spec();
         let required = spec.parameters["required"].as_array().unwrap();
         assert!(!required.iter().any(|value| value == "unit"));
         assert!(spec.parameters["properties"].get("unit").is_none());
@@ -235,7 +227,6 @@ mod tests {
         );
         store.set_lock(&unit.rel, "abc".into());
         let mut artifacts = HashMap::new();
-        let mut claims = HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
@@ -243,11 +234,10 @@ mod tests {
                 dest: dest.path(),
                 store: &store,
                 artifacts: &mut artifacts,
-                dependencies: &mut claims,
                 toolchain: None,
             },
         );
-        let out = WriteOutputFile::compose()
+        let out = WriteFile::compose()
             .call(&mut ctx, &write_args(&unit.rel, "src/main.rs", "new"))
             .unwrap();
         assert_eq!(

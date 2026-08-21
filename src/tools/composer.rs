@@ -7,22 +7,58 @@ use crate::error::DreamError;
 use crate::output;
 use crate::provenance::{self, Store};
 use crate::source::paths;
+use crate::toolchain::{Toolchain, ToolchainSpec};
 use crate::tools::{Compose, Mode};
 
-use super::remove::RemoveOutputFile;
+use super::remove::RemoveFile;
 use super::reply;
-use super::write::WriteOutputFile;
-use super::{arg_str, object_params, string_arg, Tool, ToolCtx};
+use super::write::WriteFile;
+use super::{arg_str, object_params, string_arg, Family, Tool, ToolCtx, ToolSpec};
 
 pub fn tools() -> Vec<Box<dyn Tool>> {
     vec![
-        Box::new(WriteOutputFile::compose()),
-        Box::new(RemoveOutputFile::compose()),
+        Box::new(ReadFile),
+        Box::new(WriteFile::compose()),
+        Box::new(RemoveFile::compose()),
     ]
 }
 
 pub fn repair_tools() -> Vec<Box<dyn Tool>> {
-    vec![Box::new(WriteOutputFile::repair())]
+    vec![Box::new(ReadFile), Box::new(WriteFile::repair())]
+}
+
+struct ReadFile;
+
+impl Tool for ReadFile {
+    fn spec(&self) -> ToolSpec {
+        ToolSpec {
+            name: "read_file",
+            family: Family::Composer,
+            description: "Read one dest file. Unit-owned files and this toolchain's setup files.",
+            parameters: object_params(
+                &[("path", string_arg("Dest-relative path to read"))],
+                &["path"],
+            ),
+        }
+    }
+
+    fn call(&self, ctx: &mut ToolCtx<'_>, args: &Value) -> Result<String, DreamError> {
+        let (dest, store, spec) = match &ctx.mode {
+            Mode::Compose(compose) => (compose.dest, compose.store, spec_of(compose.toolchain)),
+            Mode::Repair(repair) => (repair.dest, repair.store, spec_of(repair.toolchain)),
+            Mode::Lucid | Mode::Pick(_) => {
+                return Err(DreamError::composer(
+                    "read_file is only available while composing",
+                ));
+            }
+        };
+        let rel = dest_rel(dest, arg_str(args, "path"))?;
+        if let Err(err) = provenance::authorize_read(store, dest, &rel, spec) {
+            return Ok(reply::refused(err));
+        }
+        let contents = output::read_file(dest, &rel)?;
+        Ok(json!({ "ok": true, "path": rel, "contents": contents }).to_string())
+    }
 }
 
 pub(super) fn with_unit(fields: &[(&str, Value)], required: &[&str]) -> Value {
@@ -55,6 +91,10 @@ fn store_of<'a>(ctx: &'a ToolCtx<'a>) -> Option<&'a Store> {
     }
 }
 
+fn spec_of(toolchain: Option<Toolchain>) -> Option<&'static ToolchainSpec> {
+    toolchain.and_then(Toolchain::spec)
+}
+
 pub(super) fn dest_rel(dest: &Path, requested: &str) -> Result<String, DreamError> {
     let abs = paths::resolve_output(dest, requested)?;
     paths::rel_output(dest, &abs)
@@ -76,8 +116,25 @@ pub(super) fn mutate_output(
             "{name} is only available while composing"
         )));
     }
-    let claimed = if matches!(ctx.mode, Mode::Compose(_)) {
-        match authorize(ctx, arg_str(args, "unit")) {
+    let dest = match &ctx.mode {
+        Mode::Compose(compose) => compose.dest,
+        Mode::Repair(repair) => repair.dest,
+        Mode::Lucid | Mode::Pick(_) => unreachable!("mode checked above"),
+    };
+    let spec = match &ctx.mode {
+        Mode::Compose(compose) => spec_of(compose.toolchain),
+        Mode::Repair(repair) => spec_of(repair.toolchain),
+        Mode::Lucid | Mode::Pick(_) => None,
+    };
+    let rel = dest_rel(dest, arg_str(args, "path"))?;
+    let setup = spec.is_some_and(|spec| spec.is_setup(&rel));
+    let claimed = if matches!(ctx.mode, Mode::Compose(_)) && !setup {
+        let Some(unit) = args.get("unit").and_then(Value::as_str) else {
+            return Ok(reply::refused(DreamError::composer(format!(
+                "{name} requires a `.foo` file"
+            ))));
+        };
+        match authorize(ctx, unit) {
             Ok(unit) => Some(unit),
             Err(err) => return Ok(reply::refused(err)),
         }
@@ -90,26 +147,16 @@ pub(super) fn mutate_output(
             store,
             artifacts,
             ..
-        }) => {
-            let unit =
-                claimed.ok_or_else(|| DreamError::composer(format!("{name} requires unit")))?;
-            apply(
-                dest,
-                store,
-                arg_str(args, "path"),
-                Some(&unit),
-                Some(artifacts),
-                op,
-            )
-        }
-        Mode::Repair(repair) => apply(
-            repair.dest,
-            repair.store,
-            arg_str(args, "path"),
-            None,
-            None,
+        }) => apply(
+            dest,
+            store,
+            &rel,
+            claimed.as_deref(),
+            Some(artifacts),
+            spec,
             op,
         ),
+        Mode::Repair(repair) => apply(repair.dest, repair.store, &rel, None, None, spec, op),
         Mode::Lucid | Mode::Pick(_) => unreachable!("mode checked above"),
     }
 }
@@ -117,19 +164,19 @@ pub(super) fn mutate_output(
 fn apply(
     dest: &Path,
     store: &Store,
-    requested: &str,
+    rel: &str,
     unit: Option<&str>,
     artifacts: Option<&mut HashMap<String, HashSet<String>>>,
+    spec: Option<&ToolchainSpec>,
     op: OutputOp<'_>,
 ) -> Result<String, DreamError> {
-    let rel = dest_rel(dest, requested)?;
     let this_job = unit.and_then(|unit| artifacts.as_ref().and_then(|map| map.get(unit)));
     match op {
         OutputOp::Write { contents } => {
-            if let Err(err) = provenance::authorize_write(store, dest, &rel, unit, this_job) {
+            if let Err(err) = provenance::authorize_write(store, dest, rel, unit, this_job, spec) {
                 return Ok(reply::refused(err));
             }
-            let path = output::write_file(dest, &rel, contents)?;
+            let path = output::write_file(dest, rel, contents)?;
             if let (Some(unit), Some(artifacts)) = (unit, artifacts) {
                 artifacts
                     .entry(unit.to_string())
@@ -139,10 +186,10 @@ fn apply(
             Ok(json!({ "ok": true, "path": path }).to_string())
         }
         OutputOp::Remove => {
-            if let Err(err) = provenance::authorize_remove(store, &rel, unit, this_job) {
+            if let Err(err) = provenance::authorize_remove(store, rel, unit, this_job, spec) {
                 return Ok(reply::refused(err));
             }
-            match output::remove_file(dest, &rel)? {
+            match output::remove_file(dest, rel)? {
                 output::Removed::Ok(path) => {
                     if let (Some(unit), Some(artifacts)) = (unit, artifacts) {
                         artifacts.entry(unit.to_string()).or_default().remove(&path);

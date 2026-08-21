@@ -2,7 +2,7 @@
 
 Executable pseudocode. A programmer writes foocode in `.foo` files. Dream interprets that notation.
 
-The implemented contract is the [Dream vault](https://github.com/Spencer1O1/DreamVault): `Core Rules.md` and `Artifact Ownership.md` through Phase 10. `--lucid` still matches `MVP.md` interpreter behavior. Implementation progress is [docs/plan.md](docs/plan.md).
+The implemented contract is the [Dream vault](https://github.com/Spencer1O1/DreamVault): `Core Rules.md` and `Artifact Ownership.md` through Phase 10, plus inspect, `dream.toml`, the toolchain catalog, and lucid data/HTTP tools. Implementation progress is [docs/plan.md](docs/plan.md).
 
 ```bash
 cp .env.example .env
@@ -32,12 +32,15 @@ DREAM_REPAIR_CAP=3
 ## CLI
 
 ```bash
-dream [--lucid] [--strict] <file.foo>
-dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir>
-dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir> --build
-dream [--strict] [--no-warn] [--fresh] <file.foo> -t <target> -o <dir> --run
-dream lock <file.foo> -t <target> -o <dir>
-dream unlock <file.foo> -t <target> -o <dir>
+dream [--lucid] [--strict] <file.foo|.>
+dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <target> -o <dir>
+dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <target> -o <dir> --build
+dream [--strict] [--no-warn] [--fresh] <file.foo|.> -t <target> -o <dir> --run
+dream lock <file.foo|.> -t <target> -o <dir>
+dream unlock <file.foo|.> -t <target> -o <dir>
+dream inspect <file.foo|.> -t <target> -o <dir>
 ```
+
+A directory needs `dream.toml` with `[project] entry` (`name` is optional). `dream inspect .` summarizes every unit for that dest. `--lucid` can read and write sandboxed data files and make HTTP requests; it cannot write `.foo` files.
 
 Live checks (corpus + lock walkthrough): [docs/try.md](docs/try.md).

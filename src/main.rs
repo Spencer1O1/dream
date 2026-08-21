@@ -1,12 +1,12 @@
 mod cli;
 mod composer;
 mod config;
+mod dest;
 mod error;
 mod flags;
 mod interpreter;
 mod llm;
 mod output;
-mod project;
 mod prompt;
 mod provenance;
 mod source;
@@ -66,5 +66,10 @@ async fn run() -> Result<(), DreamError> {
             target,
             output,
         } => composer::unlock(&file, &target, &output),
+        Command::Inspect {
+            path,
+            target,
+            output,
+        } => composer::inspect(&path, &target, &output),
     }
 }

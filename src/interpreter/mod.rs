@@ -15,7 +15,7 @@ use crate::tools::Registry;
 use session::Session;
 
 pub async fn run(config: &Config, entry: &Path, strict: bool) -> Result<(), DreamError> {
-    let (project, unit) = Project::from_entry(entry)?;
+    let (project, unit) = Project::from_path(entry)?;
     let mut deps = DepGraph::new(&unit.rel);
     let openai = OpenAi::new(config.api_key.clone(), config.model.clone())?;
     let registry = Registry::interpreter();

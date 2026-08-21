@@ -33,13 +33,8 @@ mod tests {
 
     fn spec(programs: &'static [&'static str]) -> ToolchainSpec {
         ToolchainSpec {
-            name: "test",
-            build: &[],
-            run: Run::Argv(&[]),
             programs,
-            install_hint: "Install the test toolchain from somewhere.",
-            manifest: "",
-            project: &[],
+            ..ToolchainSpec::test_row(&[], Run::Argv(&[]))
         }
     }
 

@@ -8,12 +8,7 @@ use crate::toolchain::CATALOG;
 use super::scan::has_user_files;
 use super::store::Store;
 
-pub fn open(
-    dest: &Path,
-    target: &str,
-    fresh: bool,
-    entry_stem: &str,
-) -> Result<(Store, bool), DreamError> {
+pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), DreamError> {
     fs::create_dir_all(dest)?;
     match Store::load(dest)? {
         Some(store) if store.target != target && !fresh => Err(DreamError::usage(format!(
@@ -22,7 +17,7 @@ pub fn open(
         ))),
         Some(store) if fresh => {
             store.drop_owned(dest)?;
-            drop_catalog_project(dest, entry_stem)?;
+            drop_catalog_project(dest)?;
             Ok((Store::new(target), true))
         }
         Some(store) => Ok((store, false)),
@@ -31,16 +26,16 @@ pub fn open(
         )),
         None => {
             if fresh {
-                drop_catalog_project(dest, entry_stem)?;
+                drop_catalog_project(dest)?;
             }
             Ok((Store::new(target), fresh))
         }
     }
 }
 
-fn drop_catalog_project(dest: &Path, entry_stem: &str) -> Result<(), DreamError> {
+fn drop_catalog_project(dest: &Path) -> Result<(), DreamError> {
     for spec in CATALOG {
-        for path in spec.owned_dest(entry_stem) {
+        for path in spec.owned_dest() {
             output::remove_dest(dest, &path)?;
         }
     }
@@ -57,9 +52,9 @@ mod tests {
     fn open_errors_when_files_exist_without_a_store() {
         let dest = tempfile::tempdir().unwrap();
         fs::write(dest.path().join("README.md"), "hi").unwrap();
-        let err = open(dest.path(), "rust", false, "hey-you").unwrap_err();
+        let err = open(dest.path(), "rust", false).unwrap_err();
         assert!(err.to_string().contains("--fresh"));
-        assert!(open(dest.path(), "rust", true, "hey-you").is_ok());
+        assert!(open(dest.path(), "rust", true).is_ok());
     }
 
     #[test]
@@ -67,9 +62,9 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         fs::create_dir_all(dest.path().join("target/debug")).unwrap();
         fs::write(dest.path().join("target/debug/x"), "bin").unwrap();
-        let err = open(dest.path(), "rust", false, "hey-you").unwrap_err();
+        let err = open(dest.path(), "rust", false).unwrap_err();
         assert!(err.to_string().contains("--fresh"));
-        open(dest.path(), "rust", true, "hey-you").unwrap();
+        open(dest.path(), "rust", true).unwrap();
         assert!(!dest.path().join("target").exists());
     }
 
@@ -86,10 +81,10 @@ mod tests {
         fs::write(dest.path().join("README.md"), "keep").unwrap();
         store.save(dest.path()).unwrap();
 
-        let err = open(dest.path(), "go", false, "hey-you").unwrap_err();
+        let err = open(dest.path(), "go", false).unwrap_err();
         assert!(err.to_string().contains("--fresh"));
 
-        let (fresh_store, is_fresh) = open(dest.path(), "go", true, "hey-you").unwrap();
+        let (fresh_store, is_fresh) = open(dest.path(), "go", true).unwrap();
         assert!(is_fresh);
         assert_eq!(fresh_store.target, "go");
         assert!(!dest.path().join("src/main.rs").exists());
@@ -107,7 +102,7 @@ mod tests {
         let dest = tempfile::tempdir().unwrap();
         fs::write(dest.path().join("Cargo.toml"), "[package]\n").unwrap();
         fs::write(dest.path().join("README.md"), "keep").unwrap();
-        open(dest.path(), "python", true, "hey-you").unwrap();
+        open(dest.path(), "python", true).unwrap();
         assert!(!dest.path().join("Cargo.toml").exists());
         assert_eq!(
             fs::read_to_string(dest.path().join("README.md")).unwrap(),
@@ -116,12 +111,15 @@ mod tests {
     }
 
     #[test]
-    fn fresh_drops_the_go_build_binary() {
+    fn dest_root_binary_is_a_user_file() {
         let dest = tempfile::tempdir().unwrap();
         fs::write(dest.path().join("hey-you"), "binary").unwrap();
         fs::write(dest.path().join("README.md"), "keep").unwrap();
-        open(dest.path(), "rust", true, "hey-you").unwrap();
-        assert!(!dest.path().join("hey-you").exists());
+        open(dest.path(), "go", true).unwrap();
+        assert_eq!(
+            fs::read_to_string(dest.path().join("hey-you")).unwrap(),
+            "binary"
+        );
         assert_eq!(
             fs::read_to_string(dest.path().join("README.md")).unwrap(),
             "keep"

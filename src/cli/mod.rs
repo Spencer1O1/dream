@@ -33,6 +33,11 @@ pub enum Command {
         target: String,
         output: PathBuf,
     },
+    Inspect {
+        path: PathBuf,
+        target: String,
+        output: PathBuf,
+    },
 }
 
 pub fn parse() -> Result<Command, DreamError> {

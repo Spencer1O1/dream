@@ -137,6 +137,10 @@ fn hash_file(path: &Path) -> Result<String, DreamError> {
     Ok(hex_sha256(source.as_bytes()))
 }
 
+pub(crate) fn source_digest(source: &str) -> String {
+    hex_sha256(source.as_bytes())
+}
+
 fn hex_sha256(bytes: &[u8]) -> String {
     let digest = Sha256::digest(bytes);
     let mut out = String::with_capacity(digest.len() * 2);

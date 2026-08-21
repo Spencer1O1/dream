@@ -2,7 +2,7 @@
 
 Progress lives here. Vault `Core Rules.md` is foundational. `--lucid` still matches vault `MVP.md` interpreter behavior. Compose matches vault `Artifact Ownership.md` through Phase 10.
 
-A Dream project is the directory around the entry `.foo`. The model lists and reads other units. There is no manifest and no all-files CLI.
+A Dream project is the directory around the entry `.foo`, or a directory with `dream.toml` `[project] entry`. The model lists and reads other units. There is no all-files CLI.
 
 ## Phase 1 — Interpreter
 
@@ -39,8 +39,8 @@ dream [--strict] <file.foo> -t <target> -o <dir>
 ```
 
 - [x] Composer tool loop (source + composer + control; no stdout/stdin)
-- [x] `write_output_file`
-- [x] `remove_output_file`
+- [x] `write_file`
+- [x] `remove_file`
 - [x] Historical: stage, then replace `-o` (failed compose leaves the destination). Replaced in Phase 8.
 - [x] Open-ended `-t`
 - [x] Live: `hey-you/hey-you.foo -t rust -o ./out` then `cargo run`
@@ -55,7 +55,7 @@ No pick, or `unsupported`, means do not `--build`, `--run`, or repair. Compose s
 
 Do not infer the toolchain from the tree. Do not take build or run argv from the model.
 
-The source of truth is `src/toolchain/catalog.rs`: name, optional build argv, run argv, install hint, manifest, project paths. `set_toolchain` is those names plus `unsupported`. `unsupported` is not a catalog row.
+The source of truth is `src/toolchain/catalog.rs`: name, optional configure/build argv, run argv, install hint, official docs URL, optional manifest writer, project paths. Add a language by writing `create`/`apply` and one catalog row. `set_toolchain` is those names plus `unsupported`. `unsupported` is not a catalog row. `set_toolchain` replies with `docs` so the model can open the official docs. That is not a fetch.
 
 - [x] Closed toolchain catalog in Dream (`src/toolchain/catalog.rs`)
 - [x] Historical: follow-up `set_toolchain` turn after compose settles. Phase 7 asks first.
@@ -96,7 +96,7 @@ Ask `set_toolchain` **once, before any output writes**. That turn has only `set_
 
 Do not infer the toolchain from `-t` or from the tree. Do not put `set_toolchain` in the write-loop catalog.
 
-- [x] `set_toolchain` before `write_output_file`
+- [x] `set_toolchain` before `write_file`
 - [x] `unsupported` / no pick → compose only, as today
 
 ## Phase 8 — Provenance and in-place reconcile
@@ -148,8 +148,6 @@ dream unlock <file.foo> -t <target> -o <dir>
 
 Freezes that unit’s current artifact **set** and the `.foo` source hash for that dest. Contents stay on disk; Dream does not snapshot file bodies. Writes, removes, and `set_dependencies` for a locked unit are rejected. Unreached locked units stay. No `redream` command. Unlock, then `dream`, to recompose. `--fresh` ignores locks.
 
-Inspect is later if needed.
-
 - [x] Lock / unlock a unit for a target (store source hash)
 - [x] Normal reconcile skips locked units
 - [x] Compose `read_source_file` of a locked unit returns foocode plus frozen artifacts
@@ -157,14 +155,17 @@ Inspect is later if needed.
 - [x] Locked source hash mismatch or missing artifact → error
 - [x] Hand-edited locked artifacts stay; Composer still will not write them
 
+## After Phase 10
+
+- [x] Catalog rows (exec + manifest writer + project wipe + docs URL). `lua` / `make` have no manifest.
+- [x] `dream inspect <file.foo|.> -t <target> -o <dir>` — human stdout, no LLM
+- [x] `dream.toml` `[project] name` / `entry` so `dream .` resolves the entry
+- [x] Lucid `list_files` / `read_file` / `write_file` (project sandbox; not `.foo`; not `.dream`)
+- [x] Lucid `http_request` (the program on the network; Dream performs)
+
 ## Later
 
-Do not start these during the phases above.
+- [ ] Composer research via MCP (indexes, docs). Dream owns the fetch. Not a version resolver. Catalog `docs` URL is already on `set_toolchain`.
+- [ ] Composer and repair targeted / LSP edits. `write_file` stays whole-file replace until then.
 
-- [ ] `dream inspect`
-- [ ] `dream.toml` (name / entry so `dream .` works)
-- [ ] Formal semantic core / Gimbal
-- [ ] Target-independent locks
-- [ ] Deterministic `--lucid` runtime
-- [ ] Data-file / HTTP tools
-- [ ] Provider plugins
+Not queued: Gimbal / target-independent locks, deterministic `--lucid` (`dream now`). Provider plugins.

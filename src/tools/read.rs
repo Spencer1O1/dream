@@ -104,7 +104,6 @@ mod tests {
         let mut store = Store::new("rust");
         store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
         let mut artifacts = std::collections::HashMap::new();
-        let mut dependencies = std::collections::HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
@@ -112,7 +111,6 @@ mod tests {
                 dest: dest.path(),
                 store: &store,
                 artifacts: &mut artifacts,
-                dependencies: &mut dependencies,
                 toolchain: None,
             },
         );
@@ -140,7 +138,6 @@ mod tests {
         store.set_artifacts("main.foo", HashSet::from(["src/main.rs".into()]));
         store.set_lock("main.foo", "abc".into());
         let mut artifacts = std::collections::HashMap::new();
-        let mut dependencies = std::collections::HashMap::new();
         let mut ctx = ToolCtx::compose(
             &project,
             &mut deps,
@@ -148,7 +145,6 @@ mod tests {
                 dest: dest.path(),
                 store: &store,
                 artifacts: &mut artifacts,
-                dependencies: &mut dependencies,
                 toolchain: None,
             },
         );

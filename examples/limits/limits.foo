@@ -1,0 +1,5 @@
+import * from label
+
+print label_of(3, 4)
+print label_of(0, 0)
+print label_of(-1, 2)

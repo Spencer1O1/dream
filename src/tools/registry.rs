@@ -16,6 +16,8 @@ impl Registry {
         Self::gather(&[
             super::source::lucid_tools,
             super::runtime::tools,
+            super::files::tools,
+            super::http::tools,
             super::control::tools,
         ])
     }
@@ -25,21 +27,12 @@ impl Registry {
         Self::composer_for(None)
     }
 
-    pub fn composer_for(toolchain: Option<crate::toolchain::Toolchain>) -> Self {
-        if toolchain.and_then(|known| known.spec()).is_some() {
-            Self::gather(&[
-                super::source::compose_tools,
-                super::composer::tools,
-                super::deps::tools,
-                super::control::tools,
-            ])
-        } else {
-            Self::gather(&[
-                super::source::compose_tools,
-                super::composer::tools,
-                super::control::tools,
-            ])
-        }
+    pub fn composer_for(_toolchain: Option<crate::toolchain::Toolchain>) -> Self {
+        Self::gather(&[
+            super::source::compose_tools,
+            super::composer::tools,
+            super::control::tools,
+        ])
     }
 
     pub fn toolchain() -> Self {
@@ -101,6 +94,10 @@ mod tests {
                 "read_source_file",
                 "stdout",
                 "stdin",
+                "list_files",
+                "read_file",
+                "write_file",
+                "http_request",
                 "dream_error"
             ]
         );
@@ -113,8 +110,9 @@ mod tests {
             vec![
                 "list_source_files",
                 "read_source_file",
-                "write_output_file",
-                "remove_output_file",
+                "read_file",
+                "write_file",
+                "remove_file",
                 "dream_error"
             ]
         );
@@ -124,9 +122,21 @@ mod tests {
             vec![
                 "list_source_files",
                 "read_source_file",
-                "write_output_file",
-                "remove_output_file",
-                "set_dependencies",
+                "read_file",
+                "write_file",
+                "remove_file",
+                "dream_error"
+            ]
+        );
+        assert_eq!(
+            Registry::composer_for(Some(crate::toolchain::Toolchain::parse("lua").unwrap()))
+                .names(),
+            vec![
+                "list_source_files",
+                "read_source_file",
+                "read_file",
+                "write_file",
+                "remove_file",
                 "dream_error"
             ]
         );
@@ -280,14 +290,15 @@ mod tests {
             vec![
                 "list_source_files",
                 "read_source_file",
-                "write_output_file",
+                "read_file",
+                "write_file",
                 "dream_error"
             ]
         );
         let write = Registry::repair()
             .tools()
             .iter()
-            .find(|tool| tool.spec().name == "write_output_file")
+            .find(|tool| tool.spec().name == "write_file")
             .unwrap()
             .spec();
         assert!(write.parameters["properties"].get("unit").is_none());

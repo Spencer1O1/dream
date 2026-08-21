@@ -12,6 +12,24 @@ pub fn resolve_inside(root: &Path, requested: &str) -> Result<PathBuf, DreamErro
     .map_err(DreamError::runtime)
 }
 
+pub fn resolve_data(root: &Path, requested: &str) -> Result<PathBuf, DreamError> {
+    let dest = resolve_under(
+        root,
+        requested,
+        "file request is empty",
+        "file request escapes project root",
+    )
+    .map_err(DreamError::runtime)?;
+    if dest == root {
+        return Err(DreamError::runtime("file request escapes project root"));
+    }
+    Ok(dest)
+}
+
+pub fn rel_data(root: &Path, path: &Path) -> Result<String, DreamError> {
+    rel_under(root, path).map_err(|_| DreamError::runtime("file request escapes project root"))
+}
+
 pub fn resolve_output(root: &Path, requested: &str) -> Result<PathBuf, DreamError> {
     let dest = resolve_under(
         root,
@@ -98,6 +116,21 @@ mod tests {
         assert!(root_write.to_string().contains("output write escapes -o"));
         let empty = resolve_output(root, "  ").unwrap_err();
         assert!(empty.to_string().contains("output write is empty"));
+    }
+
+    #[test]
+    fn data_stays_under_root() {
+        let root = Path::new("/tmp/proj");
+        let dest = resolve_data(root, "users.json").unwrap();
+        assert_eq!(dest, PathBuf::from("/tmp/proj/users.json"));
+        let escape = resolve_data(root, "../secret").unwrap_err();
+        assert!(escape
+            .to_string()
+            .contains("file request escapes project root"));
+        let root_write = resolve_data(root, ".").unwrap_err();
+        assert!(root_write
+            .to_string()
+            .contains("file request escapes project root"));
     }
 
     #[test]

@@ -1,0 +1,10 @@
+import * from score
+
+# Classify a point by its score. Do not recompute the formula here.
+function label_of(x, y):
+  n = points(x, y)
+  if n == 0:
+    return "origin"
+  if n > 10:
+    return "far"
+  return "near"

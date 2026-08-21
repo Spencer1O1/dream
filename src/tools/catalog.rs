@@ -53,6 +53,10 @@ mod tests {
         assert!(catalog.contains("Control"));
         assert!(catalog.contains("- list_source_files:"));
         assert!(catalog.contains("- stdout:"));
+        assert!(catalog.contains("- list_files:"));
+        assert!(catalog.contains("- read_file:"));
+        assert!(catalog.contains("- write_file:"));
+        assert!(catalog.contains("- http_request:"));
         assert!(catalog.contains("- dream_error:"));
         assert!(!catalog.contains("contiguous"));
         assert!(!catalog.contains("--strict"));
@@ -64,8 +68,9 @@ mod tests {
     fn composer_has_source_and_write_not_runtime() {
         let catalog = Registry::composer().prompt_catalog();
         assert!(catalog.contains("Composer"));
-        assert!(catalog.contains("- write_output_file:"));
-        assert!(catalog.contains("- remove_output_file:"));
+        assert!(catalog.contains("- write_file:"));
+        assert!(catalog.contains("- read_file:"));
+        assert!(catalog.contains("- remove_file:"));
         assert!(!catalog.contains("set_dependencies"));
         assert!(!catalog.contains("set_toolchain"));
         assert!(!catalog.contains("Runtime"));
@@ -75,13 +80,8 @@ mod tests {
         let with_project =
             Registry::composer_for(Some(crate::toolchain::Toolchain::parse("cargo").unwrap()))
                 .prompt_catalog();
-        assert!(with_project.contains("Project"));
-        assert!(with_project.contains("- set_dependencies:"));
-        for name in [
-            "write_output_file",
-            "remove_output_file",
-            "set_dependencies",
-        ] {
+        assert!(!with_project.contains("set_dependencies"));
+        for name in ["write_file", "remove_file", "read_file"] {
             let description = with_project
                 .lines()
                 .find(|line| line.contains(&format!("- {name}:")))
@@ -97,13 +97,14 @@ mod tests {
     fn repair_has_write_without_unit_or_deps() {
         let registry = Registry::repair();
         let catalog = registry.prompt_catalog();
-        assert!(catalog.contains("- write_output_file:"));
-        assert!(!catalog.contains("remove_output_file"));
+        assert!(catalog.contains("- write_file:"));
+        assert!(catalog.contains("- read_file:"));
+        assert!(!catalog.contains("remove_file"));
         assert!(!catalog.contains("set_dependencies"));
         let write = registry
             .tools()
             .iter()
-            .find(|tool| tool.spec().name == "write_output_file")
+            .find(|tool| tool.spec().name == "write_file")
             .unwrap()
             .spec();
         assert!(write.parameters["properties"].get("unit").is_none());
@@ -114,7 +115,7 @@ mod tests {
     fn toolchain_is_set_toolchain_only() {
         let catalog = Registry::toolchain().prompt_catalog();
         assert!(catalog.contains("- set_toolchain:"));
-        assert!(!catalog.contains("write_output_file"));
+        assert!(!catalog.contains("write_file"));
         assert!(!catalog.contains("dream_error"));
     }
 }
