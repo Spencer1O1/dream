@@ -17,7 +17,7 @@ pub(crate) fn dispatch(
             Some(message) => progress::warning(&call.name, &args, &message),
             None => progress::tool(&call.name, &args),
         },
-        Err(err) => progress::rejected(&call.name, &args, err),
+        Err(_) => progress::tool(&call.name, &args),
     }
     result
 }

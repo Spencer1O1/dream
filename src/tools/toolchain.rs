@@ -161,9 +161,9 @@ mod tests {
         let mut toolchain = None;
         let mut ctx = toolchain_ctx(&project, &mut deps, &mut toolchain);
         let err = SetToolchain
-            .call(&mut ctx, &json!({ "toolchain": "rust" }))
+            .call(&mut ctx, &json!({ "toolchain": "fortran" }))
             .unwrap_err();
-        assert!(err.to_string().contains("unknown toolchain `rust`"));
+        assert!(err.to_string().contains("unknown toolchain `fortran`"));
         assert_eq!(toolchain, None);
     }
 }

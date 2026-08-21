@@ -1,5 +1,7 @@
-//! Pick turn: declare a toolchain, then append the toolchain card.
+//! Pick turn: declare a catalog row from the `-t` hint.
 //!
+//! The pick stack is the entry plus the requested-toolchain card.
+//! The compose stack gets the chosen row as a fact, not the hint.
 //! Instructions come from `prompt::toolchain`. No standing law of its own.
 
 use crate::error::DreamError;
@@ -15,8 +17,7 @@ pub(crate) async fn ask_toolchain(
     openai: &OpenAi,
     project: &Project,
     deps: &mut DepGraph,
-    entry_rel: &str,
-    input: &mut Vec<serde_json::Value>,
+    input: &[serde_json::Value],
 ) -> Result<Toolchain, DreamError> {
     let registry = Registry::toolchain();
     let instructions = prompt::toolchain(&registry);
@@ -40,6 +41,5 @@ pub(crate) async fn ask_toolchain(
             "toolchain was not declared; call set_toolchain",
         ));
     };
-    prompt::push_toolchain(input, known, entry_rel)?;
     Ok(known)
 }

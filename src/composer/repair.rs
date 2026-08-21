@@ -132,7 +132,7 @@ mod tests {
         assert!(stack[1]["content"]
             .as_str()
             .unwrap()
-            .contains("Toolchain cargo"));
+            .contains("Target toolchain: cargo"));
         let last = stack[2]["content"].as_str().unwrap();
         assert!(last.contains("Configure or build failed"));
         assert!(last.contains("error: missing Cargo.toml"));

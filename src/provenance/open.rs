@@ -13,7 +13,7 @@ pub fn open(dest: &Path, target: &str, fresh: bool) -> Result<(Store, bool), Dre
     match Store::load(dest)? {
         Some(store) if !fresh && !accepts_target(&store.target, target) => {
             Err(DreamError::usage(format!(
-                "output is for target `{}`; pass --fresh to overwrite `-t {target}`",
+                "output is for toolchain `{}`; pass --fresh to overwrite `-t {target}`",
                 store.target
             )))
         }
@@ -43,7 +43,7 @@ pub fn require_store(dest: &Path, target: &str) -> Result<Store, DreamError> {
     };
     if !accepts_target(&store.target, target) {
         return Err(DreamError::usage(format!(
-            "output is for target `{}`; pass `-t {}`",
+            "output is for toolchain `{}`; pass `-t {}`",
             store.target, store.target
         )));
     }

@@ -36,7 +36,7 @@ pub struct RunOpts<'a> {
 
 pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
     if opts.target.trim().is_empty() {
-        return Err(DreamError::usage("compose requires -t <target>"));
+        return Err(DreamError::usage("compose requires -t"));
     }
 
     let (project, unit) = Project::from_path(opts.entry)?;
@@ -64,10 +64,11 @@ pub async fn run(config: &Config, opts: RunOpts<'_>) -> Result<(), DreamError> {
                 prompt::push_toolchain(&mut input, known, &unit.rel)?;
                 Some(known)
             } else {
-                Some(
-                    pick::ask_toolchain(&openai, &project, &mut deps, &unit.rel, &mut input)
-                        .await?,
-                )
+                let mut pick_input = input.clone();
+                prompt::push_requested(&mut pick_input, opts.target);
+                let known = pick::ask_toolchain(&openai, &project, &mut deps, &pick_input).await?;
+                prompt::push_toolchain(&mut input, known, &unit.rel)?;
+                Some(known)
             }
         }
     };
@@ -121,7 +122,7 @@ fn run_lock(
     op: fn(&Path, &str, &Path) -> Result<(), DreamError>,
 ) -> Result<(), DreamError> {
     if target.trim().is_empty() {
-        return Err(DreamError::usage(format!("{verb} requires -t <target>")));
+        return Err(DreamError::usage(format!("{verb} requires -t")));
     }
     let root = if paths::is_foo(path) {
         Project::from_path(path)?.0.root().to_path_buf()
@@ -133,7 +134,7 @@ fn run_lock(
 
 pub fn inspect(path: &Path, target: &str, output: &Path) -> Result<(), DreamError> {
     if target.trim().is_empty() {
-        return Err(DreamError::usage("inspect requires -t <target>"));
+        return Err(DreamError::usage("inspect requires -t"));
     }
     let (project, unit) = if path.is_dir() {
         (Project::from_root(path)?, None)

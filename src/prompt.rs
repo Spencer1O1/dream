@@ -30,8 +30,14 @@ pub fn entry(entry_rel: &str, source: &str) -> String {
     format!("Entry `.foo` file: {entry_rel}\n\n{source}")
 }
 
+/// Chosen catalog row. Compose and repair. Not the `-t` hint.
 pub fn toolchain_card(name: &str, declared: impl std::fmt::Display) -> String {
-    format!("Toolchain {name}\n\n{declared}")
+    format!("Target toolchain: {name}\n\n{declared}")
+}
+
+/// User's `-t` hint. Pick only. Not the chosen row.
+pub fn requested_toolchain(hint: &str) -> String {
+    format!("Requested toolchain: {hint}")
 }
 
 #[cfg(test)]
@@ -58,7 +64,15 @@ mod tests {
     fn toolchain_card_is_name_then_json() {
         assert_eq!(
             toolchain_card("go", r#"{"ok":true}"#),
-            "Toolchain go\n\n{\"ok\":true}"
+            "Target toolchain: go\n\n{\"ok\":true}"
+        );
+    }
+
+    #[test]
+    fn requested_toolchain_is_the_hint() {
+        assert_eq!(
+            requested_toolchain("whatever runs on arduino nano"),
+            "Requested toolchain: whatever runs on arduino nano"
         );
     }
 }

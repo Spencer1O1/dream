@@ -16,7 +16,7 @@ impl Outcome {
         match self {
             Self::Ok => Ok(()),
             Self::NoToolchain => Err(DreamError::composer(
-                "Dream does not know how to build this target",
+                "Dream does not know how to build this toolchain",
             )),
             Self::MissingToolchain(hint) => Err(DreamError::composer(hint)),
             Self::Failed { step, .. } => Err(DreamError::composer(format!("{step} failed"))),

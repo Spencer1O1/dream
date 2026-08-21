@@ -39,7 +39,7 @@ pub(super) fn from_raw(
                 }
                 [path] => {
                     let Some(target) = target else {
-                        return Err(DreamError::usage(format!("{verb} requires -t <target>")));
+                        return Err(DreamError::usage(format!("{verb} requires -t")));
                     };
                     let Some(output) = output else {
                         return Err(DreamError::usage(format!("{verb} requires -o <dir>")));
@@ -84,7 +84,7 @@ pub(super) fn from_raw(
         }
         [file] => {
             let Some(target) = target else {
-                return Err(DreamError::usage("compose requires -t <target>"));
+                return Err(DreamError::usage("compose requires -t"));
             };
             let Some(output) = output else {
                 return Err(DreamError::usage("compose requires -o <dir>"));

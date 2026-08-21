@@ -14,10 +14,10 @@ use crate::toolchain::Toolchain;
 use crate::tools::Registry;
 
 const COMPOSE: &str = "\
-Your goal is to compose this Dream program, implementing it for the requested target.";
+Your goal is to compose this Dream program, implementing it for the target toolchain.";
 
 const REPAIR: &str = "\
-Your goal is to repair this Dream program, implementing it for the requested target.";
+Your goal is to repair this Dream program, implementing it for the target toolchain.";
 
 const WRITE: &str = "\
 Write the source files of each `.foo` file you read.";
@@ -105,6 +105,13 @@ pub fn push_toolchain(
     Ok(())
 }
 
+pub fn push_requested(input: &mut Vec<Value>, hint: &str) {
+    input.push(json!({
+        "role": "user",
+        "content": crate::prompt::requested_toolchain(hint),
+    }));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,8 +158,18 @@ mod tests {
         assert!(stack[1]["content"]
             .as_str()
             .unwrap()
-            .starts_with("Toolchain cargo"));
+            .starts_with("Target toolchain: cargo"));
         assert_eq!(this_run("limits.foo", "print far", None).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn push_requested_is_the_hint_card() {
+        let mut input = this_run("limits.foo", "print far", None).unwrap();
+        push_requested(&mut input, "whatever runs on arduino nano");
+        assert_eq!(
+            input[1]["content"].as_str().unwrap(),
+            "Requested toolchain: whatever runs on arduino nano"
+        );
     }
 
     #[test]

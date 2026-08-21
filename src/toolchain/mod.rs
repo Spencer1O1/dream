@@ -134,12 +134,12 @@ mod tests {
             "limits.c"
         );
         let blob = go.declared_user_blob("limits.foo").unwrap();
-        assert!(blob.starts_with("Toolchain go\n\n"));
+        assert!(blob.starts_with("Target toolchain: go\n\n"));
         assert!(blob.contains("\"toolchain\":\"go\""));
         assert!(!blob.contains("setup: write these"));
         let unsupported = Toolchain::parse("unsupported").unwrap();
         let thin = unsupported.declared_user_blob("limits.foo").unwrap();
-        assert!(thin.starts_with("Toolchain unsupported\n\n"));
+        assert!(thin.starts_with("Target toolchain: unsupported\n\n"));
         assert!(!thin.contains("no setup files"));
     }
 

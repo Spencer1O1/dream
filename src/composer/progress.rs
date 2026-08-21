@@ -1,13 +1,7 @@
 use serde_json::Value;
 
-use crate::error::DreamError;
-
 pub fn tool(name: &str, args: &Value) {
     eprintln!("{}", line(name, args));
-}
-
-pub fn rejected(name: &str, args: &Value, err: &DreamError) {
-    eprintln!("{}: {}", line(name, args), err.detail());
 }
 
 pub fn warning(name: &str, args: &Value, message: &str) {
@@ -34,6 +28,7 @@ fn line(name: &str, args: &Value) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::error::DreamError;
     use serde_json::json;
 
     #[test]
@@ -58,21 +53,12 @@ mod tests {
     }
 
     #[test]
-    fn rejected_uses_the_detail_not_the_subtype_prefix() {
-        let err = DreamError::composer("`utils.foo` is locked");
-        assert_eq!(
-            format!(
-                "{}: {}",
-                line("write_source_file", &json!({"path": "src/utils.rs"})),
-                err.detail()
-            ),
-            "write_source_file src/utils.rs: `utils.foo` is locked"
-        );
+    fn warning_line_uses_the_detail_not_the_subtype_prefix() {
         assert_eq!(
             format!(
                 "warning: {}: {}",
                 line("write_source_file", &json!({"path": "src/utils.rs"})),
-                "`utils.foo` is locked"
+                DreamError::composer("`utils.foo` is locked").detail()
             ),
             "warning: write_source_file src/utils.rs: `utils.foo` is locked"
         );

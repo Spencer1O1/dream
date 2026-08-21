@@ -35,7 +35,7 @@ fn require_same_root(store: &Store, root: &Path) -> Result<(), DreamError> {
 
 fn project_report(store: &Store, dest: &Path, project: &Project) -> Result<String, DreamError> {
     let mut out = String::new();
-    writeln!(out, "target: {}", store.target).expect("write");
+    writeln!(out, "toolchain: {}", store.target).expect("write");
     if let Some(name) = project.name() {
         writeln!(out, "name: {name}").expect("write");
     }
@@ -206,7 +206,7 @@ mod tests {
         let dest = composed(src.path(), "main.foo", "src/main.rs");
         let project = Project::from_root(src.path()).unwrap();
         let out = report(dest.path(), "rust", &project, None).unwrap();
-        assert!(out.contains("target: rust"));
+        assert!(out.contains("toolchain: rust"));
         assert!(out.contains("name: demo"));
         assert!(out.contains("entry: main.foo"));
         assert!(out.contains("project:\n  Cargo.toml"));

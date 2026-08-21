@@ -85,7 +85,7 @@ fn lock_unit(
         .filter(|state| !state.artifacts.is_empty())
     else {
         return Err(DreamError::usage(format!(
-            "`{unit}` has no output files for target `{target}`"
+            "`{unit}` has no output files for toolchain `{target}`"
         )));
     };
     let artifacts = state.artifacts.clone();
